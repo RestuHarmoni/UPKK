@@ -2,54 +2,328 @@
 <html lang="ms">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>UPKK SmartKids</title>
-  <meta name="theme-color" content="#0f8a4b" />
-  <meta name="mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-  <meta name="apple-mobile-web-app-title" content="UPKK Kids" />
-  <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png" />
-  <link rel="icon" type="image/png" sizes="32x32" href="assets/icons/favicon-32.png" />
-  <link rel="icon" type="image/png" sizes="16x16" href="assets/icons/favicon-16.png" />
-  <link rel="manifest" href="manifest.json?v=1.38" />
-  <link rel="stylesheet" href="style.css?v=1.38" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>UPKK SmartKids - Admin Panel</title>
+  <style>
+    :root{--green:#16a34a;--dark:#0f172a;--muted:#64748b;--line:#e5e7eb;--bg:#f5fff8;--card:#fff}
+    *{box-sizing:border-box}body{font-family:system-ui,-apple-system,Segoe UI,Arial,sans-serif;background:var(--bg);color:#10231a;margin:0}
+    header{background:linear-gradient(135deg,#16a34a,#15803d);color:white;padding:22px}
+    header .wrap,main{max-width:1180px;margin:auto}.top{display:flex;gap:12px;justify-content:space-between;align-items:center;flex-wrap:wrap}
+    h1{margin:0;font-size:28px}p{line-height:1.55}.hint{color:var(--muted);font-size:14px}.pill{background:rgba(255,255,255,.18);padding:8px 12px;border-radius:999px;font-weight:800}
+    main{padding:22px}.tabs{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}.tab{border:0;border-radius:999px;padding:11px 16px;font-weight:800;cursor:pointer;background:#e2e8f0;color:#0f172a}.tab.active{background:var(--green);color:white}
+    .panel{display:none}.panel.active{display:block}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}.card{border:1px solid #d9f2e3;border-radius:18px;padding:18px;background:var(--card);box-shadow:0 10px 26px rgba(0,0,0,.05)}
+    label{font-weight:800;font-size:14px}input,select,textarea{width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:12px;margin:7px 0 13px;font-size:15px;background:white}textarea{min-height:88px}
+    button{border:0;border-radius:12px;padding:12px 16px;font-weight:900;cursor:pointer;background:var(--green);color:white}button.secondary{background:#e2e8f0;color:#0f172a}button.danger{background:#dc2626}button.warning{background:#f59e0b;color:#111827}
+    table{width:100%;border-collapse:collapse;margin-top:12px;font-size:14px;overflow:hidden}th,td{border-bottom:1px solid var(--line);padding:10px;text-align:left;vertical-align:top}th{background:#f8fafc}
+    code{background:#f1f5f9;border-radius:8px;padding:2px 6px}.log{white-space:pre-wrap;background:var(--dark);color:#e2e8f0;border-radius:12px;padding:12px;min-height:72px}.status-ok{color:#15803d;font-weight:900}.status-bad{color:#dc2626;font-weight:900}
+    .actions{display:flex;gap:8px;flex-wrap:wrap}.mini{padding:8px 10px;border-radius:10px;font-size:12px}
+  </style>
 </head>
 <body>
-  <div id="splashScreen" class="splash-screen">
-    <div class="splash-content">
-      <img src="assets/logo-pwa.png" alt="UPKK SmartKids" class="splash-logo app-logo-icon" />
-      <div class="splash-title">UPKK SmartKids</div>
-      <div class="splash-subtitle">Belajar Dengan Bijak, Berjaya Dengan Adab</div><div class="splash-copy">© Copyright by Restu Harmoni</div>
+<header><div class="wrap top">
+  <div><h1>Admin Panel UPKK SmartKids</h1><p style="margin:.35rem 0 0">Pusat kawalan user, access code, trial, lesen peperiksaan, dan sejarah redeem.</p></div>
+  <div class="actions"><span class="pill" id="adminBadge">Admin</span><button class="secondary" onclick="logoutAdmin()">Logout</button></div>
+</div></header>
+<main>
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('dashboard', this)">Dashboard</button>
+    <button class="tab" onclick="showTab('codes', this)">Access / License Code</button>
+    <button class="tab" onclick="showTab('users', this)">Users</button>
+    <button class="tab" onclick="showTab('history', this)">Redeem History</button>
+    <button class="tab" onclick="showTab('settings', this)">Settings</button>
+  </div>
+
+  <section id="dashboard" class="panel active">
+    <div class="grid">
+      <div class="card"><h2>Ringkasan</h2><div id="summaryBox">Memuatkan...</div></div>
+      <div class="card"><h2>Nota Keselamatan</h2><p class="hint">Panel ini dilindungi dengan admin-login.html dan semakan role admin dalam Firebase. Untuk production penuh, ketatkan Firebase Rules selepas migrasi ke Firebase Auth/Admin SDK.</p><button onclick="loadAll()">Refresh Semua Data</button></div>
     </div>
-  </div>
+  </section>
 
-  <div id="phoneShell" class="phone-shell app-hidden">
-    <header class="app-header">
-      <img src="assets/logo-pwa.png" alt="UPKK SmartKids" class="brand-logo app-logo-icon" />
-      <div class="brand-text">
-        <h1>UPKK SmartKids</h1>
-        <p>Belajar Dengan Bijak, Berjaya Dengan Adab</p>
-      </div>
-    </header>
+  <section id="codes" class="panel">
+    <div class="grid">
+      <section class="card">
+        <h2>Cipta Kod</h2>
+        <label>Kod</label><input id="code" placeholder="TRIAL-UPKK-2026 atau EXAM-AB12-XK92" />
+        <label>Jenis Kod</label>
+        <select id="type" onchange="applyTypeDefaults()">
+          <option value="trial_30_days">Trial Latihan 30 Hari</option>
+          <option value="exam_yearly">Lesen Peperiksaan 1 Tahun</option>
+          <option value="full_yearly">Full Access 1 Tahun</option>
+        </select>
+        <label>Kuota Guna</label><input id="maxUse" type="number" value="500" min="1" />
+        <label>Valid Days</label><input id="validDays" type="number" value="30" min="1" />
+        <label>Tarikh Tamat Kod (optional)</label><input id="expiresAt" type="date" />
+        <label>Catatan</label><textarea id="description" placeholder="Contoh: batch sekolah / pembelian parent"></textarea>
+        <div class="actions"><button onclick="createCode()">Simpan Kod</button><button class="secondary" onclick="quickCode('trial')">Auto Trial</button><button class="secondary" onclick="quickCode('exam')">Auto Exam</button></div>
+      </section>
+      <section class="card">
+        <h2>Tarik Sah / Disable</h2>
+        <label>Kod</label><input id="revokeCode" placeholder="Kod yang hendak ditarik sah" />
+        <div class="actions"><button class="danger" onclick="revokeCode()">Tarik Sah Kod</button><button class="warning" onclick="reactivateCode()">Aktifkan Semula</button><button class="secondary" onclick="loadCodes()">Refresh Senarai</button></div>
+        <h3>Log</h3><div id="log" class="log">Sedia.</div>
+      </section>
+    </div>
+    <section class="card" style="margin-top:16px"><h2>Senarai Kod</h2><div id="tableBox">Memuatkan...</div></section>
+  </section>
 
-    <main id="app" class="app-main"></main>
+  <section id="users" class="panel">
+    <section class="card"><h2>User Management</h2><p class="hint">Paparan ringkas user. Fungsi delete/reset besar kekal melalui reset-firebase.html atau Firebase Admin SDK supaya lebih selamat.</p><div id="usersBox">Memuatkan...</div></section>
+  </section>
 
-    <div class="copyright">© Copyright by Restu Harmoni</div>
+  <section id="history" class="panel">
+    <section class="card"><h2>Redeem History</h2><div id="historyBox">Memuatkan...</div></section>
+  </section>
 
-    <nav class="bottom-nav" aria-label="Navigasi utama">
-      <button class="nav-btn active" data-nav="home">🏠<span>Home</span></button>
-      <button class="nav-btn" data-nav="subjects">📚<span>Latihan Pintar</span></button>
-      <button class="nav-btn" data-nav="exam">📝<span>Peperiksaan</span></button>
-      <button class="nav-btn" data-nav="result">🏆<span>Rank</span></button>
-      <button class="nav-btn" data-nav="settings">⚙️<span>Setting</span></button>
-    </nav>
-  </div>
-  <!-- Firebase-first: SDK dimuat sebelum app.js supaya semua data terus dibaca daripada Firebase. -->
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
-  <script src="firebase-config.js?v=1.38"></script>
-  <script src="app.js?v=1.38"></script>
-  <script src="pwa-register.js?v=1.38"></script>
+  <section id="settings" class="panel">
+    <div class="grid">
+      <section class="card">
+        <h2>Admin Settings</h2>
+        <p class="hint">Kawalan global untuk access code, trial, lesen peperiksaan, dan keselamatan admin.</p>
+        <button onclick="writeDefaultSettings()">Simpan Default Settings</button>
+      </section>
+      <section class="card">
+        <h2>Security Tools</h2>
+        <p class="hint">Tamatkan sesi admin lama dan kunci entitlement yang sudah tamat tempoh.</p>
+        <div class="actions">
+          <button class="warning" onclick="revokeOldAdminSessions()">Revoke Sesi Admin Lama</button>
+          <button onclick="runExpiryCheck()">Check Expired Trial/License</button>
+        </div>
+      </section>
+    </div>
+  </section>
+</main>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="firebase-config.js?v=1.41"></script>
+<script>
+firebase.initializeApp(window.UPKK_FIREBASE_CONFIG);
+const db = firebase.database();
+const APP_ROOT = 'apps/UPKK';
+const codeRoot = APP_ROOT + '/accessCodes';
+const userRoot = APP_ROOT + '/users';
+const entRoot = APP_ROOT + '/entitlements';
+const historyRoot = APP_ROOT + '/redeemHistory';
+const adminLogRoot = APP_ROOT + '/adminLogs';
+const ADMIN_SESSION_KEY = 'upkkSmartKidsAdminSession_v2';
+let currentAdminSession = null;
+
+const $ = id => document.getElementById(id);
+const log = msg => $('log').textContent = new Date().toLocaleString('ms-MY') + ' - ' + msg;
+const safeKey = s => String(s||'').trim().toUpperCase().replace(/[.#$\[\]\/]/g,'-');
+const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+
+function redirectAdminLogin(reason){
+  try{ if(reason) sessionStorage.setItem('upkkAdminRedirectReason', reason); }catch(e){}
+  location.href = 'admin-login.html';
+}
+async function verifyAdminSession(){
+  let session = null;
+  try{ session = JSON.parse(localStorage.getItem(ADMIN_SESSION_KEY) || 'null'); }catch(e){}
+  if(!session || !session.sessionId || !session.adminId || !session.sessionToken || Date.now() > Number(session.expiresAt || 0)){
+    localStorage.removeItem(ADMIN_SESSION_KEY);
+    redirectAdminLogin('Sesi admin tamat atau belum login.');
+    return false;
+  }
+
+  const [adminSnap, sessionSnap] = await Promise.all([
+    db.ref(APP_ROOT + '/adminAccounts/' + session.adminId).get(),
+    db.ref(APP_ROOT + '/adminSessions/' + session.sessionId).get()
+  ]);
+
+  if(!adminSnap.exists() || !sessionSnap.exists()){
+    localStorage.removeItem(ADMIN_SESSION_KEY);
+    redirectAdminLogin('Akaun / sesi admin tidak wujud.');
+    return false;
+  }
+
+  const admin = adminSnap.val() || {};
+  const savedSession = sessionSnap.val() || {};
+
+  if(admin.status !== 'active' || admin.role !== 'admin'){
+    localStorage.removeItem(ADMIN_SESSION_KEY);
+    redirectAdminLogin('Akaun admin tidak aktif.');
+    return false;
+  }
+
+  if(savedSession.status !== 'active' || savedSession.adminId !== session.adminId || savedSession.sessionToken !== session.sessionToken || Date.now() > Number(savedSession.expiresAt || 0)){
+    localStorage.removeItem(ADMIN_SESSION_KEY);
+    redirectAdminLogin('Sesi admin tidak sah / sudah tamat.');
+    return false;
+  }
+
+  await db.ref(APP_ROOT + '/adminSessions/' + session.sessionId).update({lastSeenAt:new Date().toISOString()});
+  currentAdminSession = session;
+  if($('adminBadge')) $('adminBadge').textContent = 'Admin: ' + session.adminId;
+  await db.ref(adminLogRoot).push({action:'admin_panel_open', adminId:session.adminId, sessionId:session.sessionId, at:new Date().toISOString()});
+  return true;
+}
+async function logoutAdmin(){
+  try{
+    if(currentAdminSession?.adminId){
+      await db.ref(adminLogRoot).push({action:'admin_logout', adminId:currentAdminSession.adminId, at:new Date().toISOString()});
+    }
+  }catch(e){}
+  try{
+    if(currentAdminSession?.sessionId){
+      await db.ref(APP_ROOT + '/adminSessions/' + currentAdminSession.sessionId).update({status:'revoked', logoutAt:new Date().toISOString()});
+    }
+  }catch(e){}
+  localStorage.removeItem(ADMIN_SESSION_KEY);
+  location.href = 'admin-login.html';
+}
+
+
+function showTab(id, btn){
+  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  const button = btn || [...document.querySelectorAll('.tab')].find(b => (b.getAttribute('onclick')||'').includes("'" + id + "'"));
+  if(button) button.classList.add('active');
+  if($(id)) $(id).classList.add('active');
+  if(id === 'codes') loadCodes();
+  if(id === 'users') loadUsers();
+  if(id === 'history') loadHistory();
+}
+function applyTypeDefaults(){
+  const type = $('type').value;
+  if(type === 'trial_30_days'){ $('validDays').value = 30; if(!$('maxUse').value || $('maxUse').value === '1') $('maxUse').value = 500; }
+  if(type === 'exam_yearly'){ $('validDays').value = 365; $('maxUse').value = 1; }
+  if(type === 'full_yearly'){ $('validDays').value = 365; $('maxUse').value = 1; }
+}
+function quickCode(kind){
+  const rand = Math.random().toString(36).slice(2,6).toUpperCase();
+  if(kind === 'trial'){
+    $('code').value = 'TRIAL-UPKK-' + new Date().getFullYear();
+    $('type').value = 'trial_30_days'; $('maxUse').value = 500; $('validDays').value = 30;
+  }else{
+    $('code').value = 'EXAM-' + rand + '-' + Date.now().toString(36).slice(-4).toUpperCase();
+    $('type').value = 'exam_yearly'; $('maxUse').value = 1; $('validDays').value = 365;
+  }
+}
+async function createCode(){
+  const code = safeKey($('code').value);
+  if(!code) return alert('Isi kod dahulu.');
+  const expires = $('expiresAt').value;
+  const existing = await db.ref(codeRoot + '/' + code).get();
+  const data = {
+    code, type:$('type').value, status:'active',
+    maxUse:Number($('maxUse').value||1), used: existing.exists() ? Number(existing.val().used||0) : 0,
+    validDays:Number($('validDays').value||365),
+    expiresAt: expires ? new Date(expires + 'T23:59:59').toISOString() : '',
+    description: $('description').value || '',
+    updatedAt: new Date().toISOString(),
+    createdAt: existing.exists() ? (existing.val().createdAt || new Date().toISOString()) : new Date().toISOString(),
+    createdBy:'admin-panel'
+  };
+  await db.ref(codeRoot + '/' + code).set(data);
+  await db.ref(adminLogRoot).push({action:'create_or_update_code', code, adminId:currentAdminSession?.adminId||'', at:new Date().toISOString()});
+  log('Kod disimpan: ' + code); loadCodes(); loadSummary();
+}
+async function revokeCode(){
+  const code = safeKey($('revokeCode').value);
+  if(!code) return alert('Isi kod.');
+  await db.ref(codeRoot + '/' + code).update({status:'revoked', revokedAt:new Date().toISOString()});
+  await db.ref(adminLogRoot).push({action:'revoke_code', code, adminId:currentAdminSession?.adminId||'', at:new Date().toISOString()});
+  log('Kod ditarik sah: ' + code); loadCodes(); loadSummary();
+}
+async function reactivateCode(){
+  const code = safeKey($('revokeCode').value);
+  if(!code) return alert('Isi kod.');
+  await db.ref(codeRoot + '/' + code).update({status:'active', reactivatedAt:new Date().toISOString()});
+  await db.ref(adminLogRoot).push({action:'reactivate_code', code, adminId:currentAdminSession?.adminId||'', at:new Date().toISOString()});
+  log('Kod diaktifkan semula: ' + code); loadCodes(); loadSummary();
+}
+async function loadCodes(){
+  const snap = await db.ref(codeRoot).get();
+  const data = snap.exists() ? snap.val() : {};
+  const rows = Object.entries(data).sort((a,b)=>a[0].localeCompare(b[0])).map(([code,v])=>`
+    <tr><td><code>${esc(code)}</code></td><td>${esc(v.type||'-')}</td><td class="${v.status==='active'?'status-ok':'status-bad'}">${esc(v.status||'-')}</td>
+    <td>${Number(v.used||0)} / ${Number(v.maxUse||0)}</td><td>${esc(v.validDays||'-')} hari</td>
+    <td>${v.expiresAt?new Date(v.expiresAt).toLocaleDateString('ms-MY'):'-'}</td><td>${esc(v.description||'')}</td>
+    <td><div class="actions"><button class="danger mini" onclick="$('revokeCode').value='${esc(code)}';revokeCode()">Tarik Sah</button><button class="secondary mini" onclick="$('revokeCode').value='${esc(code)}';reactivateCode()">Aktif</button></div></td></tr>`).join('');
+  $('tableBox').innerHTML = `<table><thead><tr><th>Kod</th><th>Jenis</th><th>Status</th><th>Guna</th><th>Tempoh</th><th>Tamat Kod</th><th>Catatan</th><th>Aksi</th></tr></thead><tbody>${rows || '<tr><td colspan="8">Belum ada kod.</td></tr>'}</tbody></table>`;
+}
+async function loadUsers(){
+  const [usersSnap, entSnap] = await Promise.all([db.ref(userRoot).limitToLast(200).get(), db.ref(entRoot).get()]);
+  const users = usersSnap.exists()?usersSnap.val():{}; const ents = entSnap.exists()?entSnap.val():{};
+  const rows = Object.entries(users).sort((a,b)=>a[0].localeCompare(b[0])).map(([uid,u])=>{
+    const e = ents[uid] || {};
+    const trial = e.latihanTrial?.endDate ? new Date(e.latihanTrial.endDate).toLocaleDateString('ms-MY') : '-';
+    const exam = e.examLicense?.endDate ? new Date(e.examLicense.endDate).toLocaleDateString('ms-MY') : '-';
+    return `<tr><td><code>${esc(uid)}</code></td><td>${esc(u.name||u.fullName||u.username||'-')}</td><td>${esc(u.status||u.accountStatus||'-')}</td><td>${trial}</td><td>${exam}</td></tr>`;
+  }).join('');
+  $('usersBox').innerHTML = `<table><thead><tr><th>User ID</th><th>Nama/Username</th><th>Status</th><th>Trial Tamat</th><th>Exam Tamat</th></tr></thead><tbody>${rows || '<tr><td colspan="5">Belum ada user.</td></tr>'}</tbody></table>`;
+}
+async function loadHistory(){
+  const snap = await db.ref(historyRoot).limitToLast(200).get();
+  const data = snap.exists()?snap.val():{};
+  const rows = Object.entries(data).reverse().map(([id,v])=>`<tr><td><code>${esc(id)}</code></td><td><code>${esc(v.code||'-')}</code></td><td>${esc(v.userId||v.uid||'-')}</td><td>${esc(v.type||'-')}</td><td>${v.redeemedAt?new Date(v.redeemedAt).toLocaleString('ms-MY'):'-'}</td></tr>`).join('');
+  $('historyBox').innerHTML = `<table><thead><tr><th>ID</th><th>Kod</th><th>User</th><th>Jenis</th><th>Masa</th></tr></thead><tbody>${rows || '<tr><td colspan="5">Belum ada rekod redeem.</td></tr>'}</tbody></table>`;
+}
+async function loadSummary(){
+  const [codes, users, hist] = await Promise.all([db.ref(codeRoot).get(), db.ref(userRoot).get(), db.ref(historyRoot).get()]);
+  const codeVals = codes.exists()?Object.values(codes.val()):[];
+  const activeCodes = codeVals.filter(c=>c.status==='active').length;
+  const revokedCodes = codeVals.filter(c=>c.status==='revoked').length;
+  $('summaryBox').innerHTML = `<table><tbody>
+    <tr><th>Total Code</th><td>${codeVals.length}</td></tr>
+    <tr><th>Active Code</th><td>${activeCodes}</td></tr>
+    <tr><th>Revoked Code</th><td>${revokedCodes}</td></tr>
+    <tr><th>Total User</th><td>${users.exists()?Object.keys(users.val()).length:0}</td></tr>
+    <tr><th>Redeem History</th><td>${hist.exists()?Object.keys(hist.val()).length:0}</td></tr>
+  </tbody></table>`;
+}
+
+async function revokeOldAdminSessions(){
+  const snap = await db.ref(APP_ROOT + '/adminSessions').get();
+  const sessions = snap.exists() ? snap.val() : {};
+  const now = Date.now();
+  let count = 0;
+  const updates = {};
+  Object.entries(sessions).forEach(([sid,s])=>{
+    if(s.status === 'active' && Number(s.expiresAt||0) < now){
+      updates[sid + '/status'] = 'expired';
+      updates[sid + '/expiredAt'] = new Date().toISOString();
+      count++;
+    }
+  });
+  if(count) await db.ref(APP_ROOT + '/adminSessions').update(updates);
+  await db.ref(adminLogRoot).push({action:'revoke_old_admin_sessions', count, adminId:currentAdminSession?.adminId||'', at:new Date().toISOString()});
+  log('Sesi admin lama diproses: ' + count);
+}
+
+async function runExpiryCheck(){
+  const snap = await db.ref(entRoot).get();
+  const ents = snap.exists()?snap.val():{};
+  const now = Date.now();
+  let count = 0;
+  const updates = {};
+  Object.entries(ents).forEach(([uid,ent])=>{
+    ['latihanTrial','examLicense'].forEach(kind=>{
+      const item = ent && ent[kind];
+      if(item && item.active !== false && item.endDate){
+        const end = new Date(item.endDate).getTime();
+        if(!Number.isNaN(end) && end < now){
+          updates[uid + '/' + kind + '/active'] = false;
+          updates[uid + '/' + kind + '/expiredAt'] = new Date().toISOString();
+          count++;
+        }
+      }
+    });
+  });
+  if(count) await db.ref(entRoot).update(updates);
+  await db.ref(adminLogRoot).push({action:'run_expiry_check', count, adminId:currentAdminSession?.adminId||'', at:new Date().toISOString()});
+  log('Entitlement tamat tempoh dikunci: ' + count);
+}
+
+async function writeDefaultSettings(){
+  await db.ref(APP_ROOT + '/settings/accessControl').update({registrationRequiresCode:true, defaultTrialDays:30, defaultExamDays:365, updatedAt:new Date().toISOString()});
+  alert('Default settings disimpan.');
+}
+async function loadAll(){ await Promise.all([loadSummary(), loadCodes(), loadUsers(), loadHistory()]); }
+async function initAdminPanel(){ const ok = await verifyAdminSession(); if(ok){ await loadAll(); const hash=(location.hash||'').replace('#',''); if(hash) showTab(hash); } }
+initAdminPanel().catch(err=>{ console.error(err); alert('Admin load error: ' + err.message); redirectAdminLogin('Ralat akses admin.'); });
+</script>
 </body>
 </html>

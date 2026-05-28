@@ -1,4 +1,4 @@
-const CACHE_NAME = 'upkk-smartkids-v1-02-clean-firebase-v4-00';
+const CACHE_NAME = 'upkk-smartkids-security-v2-2';
 const CORE_ASSETS = [
   './',
   './index.html',
