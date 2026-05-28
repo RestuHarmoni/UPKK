@@ -1,20 +1,55 @@
-<!doctype html>
-<html lang="ms">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="theme-color" content="#0f8a4b" />
-  <title>UPKK SmartKids - Offline</title>
-  <link rel="stylesheet" href="style.css?v=1.38" />
-</head>
-<body>
-  <main class="app-main" style="min-height:100vh;display:grid;place-items:center;padding:24px;">
-    <section class="card" style="max-width:420px;text-align:center;">
-      <img src="assets/logo-pwa.png" alt="UPKK SmartKids" style="width:96px;height:96px;object-fit:contain;margin:0 auto 14px;display:block;" />
-      <h1 style="margin:0 0 8px;">Mode Offline</h1>
-      <p style="margin:0 0 16px;">Aplikasi masih boleh dibuka. Sambungan internet diperlukan untuk sync Firebase.</p>
-      <a href="index.html?v=1.38" class="primary-btn" style="display:inline-flex;text-decoration:none;">Buka Semula</a>
-    </section>
-  </main>
-</body>
-</html>
+{
+  "name": "UPKK SmartKids",
+  "short_name": "UPKK Kids",
+  "description": "UPKK SmartKids Firebase-first: trial latihan 30 hari, lesen peperiksaan 365 hari, admin secured, dan data sync melalui Firebase.",
+  "id": "/upkk-smartkids-firebase-clean-v4-00/",
+  "start_url": "./index.html?v=4.00",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#f4fff8",
+  "theme_color": "#0f8a4b",
+  "categories": [
+    "education",
+    "kids"
+  ],
+  "lang": "ms-MY",
+  "icons": [
+    {
+      "src": "assets/icons/icon-72.png",
+      "sizes": "72x72",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/icons/icon-96.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/icons/icon-144.png",
+      "sizes": "144x144",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

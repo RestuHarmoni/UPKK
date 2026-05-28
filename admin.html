@@ -83,6 +83,20 @@
         <button onclick="writeDefaultSettings()">Simpan Default Settings</button>
       </section>
       <section class="card">
+        <h2>Tukar Password Admin</h2>
+        <p class="hint">Password akan disimpan sebagai hash SHA-256. Selepas tukar password, sesi admin lain akan ditarik sah secara automatik.</p>
+        <label>Password Semasa</label>
+        <input id="currentAdminPassword" type="password" autocomplete="current-password" placeholder="Masukkan password semasa" />
+        <label>Password Baru</label>
+        <input id="newAdminPassword" type="password" autocomplete="new-password" placeholder="Minimum 8 aksara" />
+        <label>Sahkan Password Baru</label>
+        <input id="confirmAdminPassword" type="password" autocomplete="new-password" placeholder="Ulang password baru" />
+        <div class="actions">
+          <button onclick="changeAdminPassword()">Tukar Password</button>
+        </div>
+        <div id="passwordChangeMsg" class="log">Sedia.</div>
+      </section>
+      <section class="card">
         <h2>Security Tools</h2>
         <p class="hint">Tamatkan sesi admin lama dan kunci entitlement yang sudah tamat tempoh.</p>
         <div class="actions">
@@ -113,6 +127,12 @@ const $ = id => document.getElementById(id);
 const log = msg => $('log').textContent = new Date().toLocaleString('ms-MY') + ' - ' + msg;
 const safeKey = s => String(s||'').trim().toUpperCase().replace(/[.#$\[\]\/]/g,'-');
 const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+
+async function sha256(text){
+  const data = new TextEncoder().encode(String(text || ''));
+  const hash = await crypto.subtle.digest('SHA-256', data);
+  return [...new Uint8Array(hash)].map(b => b.toString(16).padStart(2,'0')).join('');
+}
 
 function redirectAdminLogin(reason){
   try{ if(reason) sessionStorage.setItem('upkkAdminRedirectReason', reason); }catch(e){}
@@ -315,6 +335,102 @@ async function runExpiryCheck(){
   if(count) await db.ref(entRoot).update(updates);
   await db.ref(adminLogRoot).push({action:'run_expiry_check', count, adminId:currentAdminSession?.adminId||'', at:new Date().toISOString()});
   log('Entitlement tamat tempoh dikunci: ' + count);
+}
+
+
+async function changeAdminPassword(){
+  const msgBox = $('passwordChangeMsg');
+  const setPassMsg = (text) => { if(msgBox) msgBox.textContent = new Date().toLocaleString('ms-MY') + ' - ' + text; };
+
+  try{
+    if(!currentAdminSession || !currentAdminSession.adminId){
+      setPassMsg('Sesi admin tidak sah. Sila login semula.');
+      return redirectAdminLogin('Sila login semula untuk tukar password.');
+    }
+
+    const currentPassword = $('currentAdminPassword').value || '';
+    const newPassword = $('newAdminPassword').value || '';
+    const confirmPassword = $('confirmAdminPassword').value || '';
+
+    if(!currentPassword || !newPassword || !confirmPassword){
+      return setPassMsg('Sila isi semua ruangan password.');
+    }
+
+    if(newPassword.length < 8){
+      return setPassMsg('Password baru mesti minimum 8 aksara.');
+    }
+
+    if(newPassword !== confirmPassword){
+      return setPassMsg('Password baru dan pengesahan tidak sama.');
+    }
+
+    if(currentPassword === newPassword){
+      return setPassMsg('Password baru tidak boleh sama dengan password semasa.');
+    }
+
+    const adminPath = APP_ROOT + '/adminAccounts/' + currentAdminSession.adminId;
+    const snap = await db.ref(adminPath).get();
+
+    if(!snap.exists()){
+      setPassMsg('Akaun admin tidak dijumpai.');
+      return redirectAdminLogin('Akaun admin tidak dijumpai.');
+    }
+
+    const admin = snap.val() || {};
+    const currentHash = await sha256(currentPassword);
+    const newHash = await sha256(newPassword);
+
+    if(admin.passwordHash){
+      if(currentHash !== admin.passwordHash){
+        return setPassMsg('Password semasa salah.');
+      }
+    }else if(admin.password){
+      if(currentPassword !== admin.password){
+        return setPassMsg('Password semasa salah.');
+      }
+    }else{
+      return setPassMsg('Rekod admin tidak lengkap. Reset melalui repair-admin-login.html atau script admin.');
+    }
+
+    const now = new Date().toISOString();
+
+    await db.ref(adminPath).update({
+      passwordHash: newHash,
+      password: null,
+      passwordChangedAt: now,
+      updatedAt: now
+    });
+
+    const sessionsSnap = await db.ref(APP_ROOT + '/adminSessions').get();
+    const sessions = sessionsSnap.exists() ? sessionsSnap.val() : {};
+    const updates = {};
+    Object.entries(sessions).forEach(([sid, s]) => {
+      if(s && s.adminId === currentAdminSession.adminId && sid !== currentAdminSession.sessionId && s.status === 'active'){
+        updates[sid + '/status'] = 'revoked_password_changed';
+        updates[sid + '/revokedAt'] = now;
+      }
+    });
+    if(Object.keys(updates).length){
+      await db.ref(APP_ROOT + '/adminSessions').update(updates);
+    }
+
+    await db.ref(adminLogRoot).push({
+      action: 'admin_change_password',
+      adminId: currentAdminSession.adminId,
+      sessionId: currentAdminSession.sessionId,
+      revokedOtherSessions: Object.keys(updates).length / 2,
+      at: now
+    });
+
+    $('currentAdminPassword').value = '';
+    $('newAdminPassword').value = '';
+    $('confirmAdminPassword').value = '';
+
+    setPassMsg('Password admin berjaya ditukar. Sesi admin lain sudah ditarik sah.');
+  }catch(err){
+    console.error(err);
+    setPassMsg('Gagal tukar password: ' + err.message);
+  }
 }
 
 async function writeDefaultSettings(){
