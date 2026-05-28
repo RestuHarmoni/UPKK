@@ -338,7 +338,7 @@ table{width:100%;border-collapse:collapse}
         <label>Tahun</label><input id="reportYear" type="number" value="2026" />
         <label>Bulan</label><select id="reportMonth"><option value="">Semua Bulan</option><option value="01">Januari</option><option value="02">Februari</option><option value="03">Mac</option><option value="04">April</option><option value="05">Mei</option><option value="06">Jun</option><option value="07">Julai</option><option value="08">Ogos</option><option value="09">September</option><option value="10">Oktober</option><option value="11">November</option><option value="12">Disember</option></select>
         <label>Search Pelajar / Username</label><input id="reportSearch" />
-        <div class="actions"><button onclick="loadExamReport()">Generate Report</button><button class="secondary" onclick="downloadExamReportCSV()">Download CSV</button></div>
+        <div class="actions"><button onclick="loadExamReport()">Generate Report</button><button class="secondary" onclick="downloadExamReportCSV()">Download CSV</button><button class="secondary" onclick="printExamReportPDF()">Download / Print PDF</button><button class="warning" onclick="migrateExistingExamResultsToHistory()">Auto Detect Rekod Lama</button></div><div id="reportMsg" class="hint"></div>
       </section>
       <section class="card"><h2>Design Report</h2><div id="examReportBox">Tekan Generate Report.</div></section>
     </div>
@@ -365,6 +365,7 @@ let currentAdminSession = null;
 const $ = id => document.getElementById(id);
 const log = msg => $('log').textContent = new Date().toLocaleString('ms-MY') + ' - ' + msg;
 const safeKey = s => String(s||'').trim().toUpperCase().replace(/[.#$\[\]\/]/g,'-');
+const safeFirebaseKey = safeKey;
 const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
 
 async function sha256(text){
@@ -1038,14 +1039,91 @@ async function saveAppContent(){ const data={banner:$('contentBanner').value,pop
 async function loadSystemControl(){ const snap=await db.ref(settingsRoot + '/systemControl').get(); const s=snap.exists()?snap.val():{}; $('sysMaintenance').value=String(!!s.maintenanceMode); $('sysMaintenanceMsg').value=s.maintenanceMessage||'Sistem sedang diselenggara. Sila cuba sebentar lagi.'; $('sysVersionNotice').value=s.versionNotice||''; $('sysForceNotice').value=s.forceRefreshNotice||'Versi baru tersedia. Sila refresh aplikasi.'; }
 async function saveSystemControl(){ const data={maintenanceMode:$('sysMaintenance').value==='true',maintenanceMessage:$('sysMaintenanceMsg').value,versionNotice:$('sysVersionNotice').value,forceRefreshNotice:$('sysForceNotice').value,updatedAt:new Date().toISOString()}; await db.ref(settingsRoot + '/systemControl').update(data); setLogBox('systemMsg','System control disimpan.'); }
 async function bumpForceRefreshVersion(){ await db.ref(settingsRoot + '/systemControl').update({forceRefreshVersion:Date.now(),forceRefreshNotice:$('sysForceNotice').value,updatedAt:new Date().toISOString()}); setLogBox('systemMsg','Force refresh version dinaikkan.'); }
-async function loadExamReport(){
-  const year=String($('reportYear').value||new Date().getFullYear()); const month=$('reportMonth').value; const term=String($('reportSearch').value||'').toLowerCase(); const snap=await db.ref(resultsRoot).get(); const data=snap.exists()?snap.val():{}; cachedReportRows=[];
-  Object.entries(data).forEach(([key,val])=>{ const list=Array.isArray(val)?val:Object.values(val||{}); list.forEach((r,i)=>{ if(typeof r==='object'){ const d=new Date(r.at||r.date||r.createdAt||Date.now()); const ym=d.toISOString().slice(0,7); if(!ym.startsWith(year)) return; if(month && ym.slice(5,7)!==month) return; const row={key,attempt:i+1,studentName:r.studentName||r.name||key,subject:r.subject||'',score:Number(r.score??r.percent??0),type:r.type||'',date:d.toISOString().slice(0,10)}; const hay=JSON.stringify(row).toLowerCase(); if(!term||hay.includes(term)) cachedReportRows.push(row); } }); });
-  const total=cachedReportRows.length; const avg=total?Math.round(cachedReportRows.reduce((a,b)=>a+Number(b.score||0),0)/total):0; const high=total?Math.max(...cachedReportRows.map(r=>Number(r.score||0))):0; const students=new Set(cachedReportRows.map(r=>r.key)).size;
-  const rows=cachedReportRows.map(r=>`<tr><td>${esc(r.date)}</td><td>${esc(r.studentName)}</td><td>${esc(r.subject)}</td><td>${esc(r.type)}</td><td>${esc(r.score)}</td></tr>`).join('');
-  $('examReportBox').innerHTML=`<div class="admin-report-hero"><span class="admin-badge">UPKK SmartKids Report</span><h2>Laporan Peperiksaan ${esc(month||'Tahunan')} / ${esc(year)}</h2><p class="hint">Ringkasan prestasi pelajar berdasarkan rekod results Firebase.</p></div><div class="admin-stat-grid"><div class="admin-stat"><strong>${total}</strong>Jumlah Exam</div><div class="admin-stat"><strong>${students}</strong>Pelajar</div><div class="admin-stat"><strong>${avg}%</strong>Purata</div><div class="admin-stat"><strong>${high}%</strong>Tertinggi</div></div><table><thead><tr><th>Tarikh</th><th>Pelajar</th><th>Subjek</th><th>Jenis</th><th>Markah</th></tr></thead><tbody>${rows||'<tr><td colspan="5">Tiada rekod.</td></tr>'}</tbody></table>`;
+function normalizeReportDate(raw){
+  if(!raw) return new Date();
+  if(raw instanceof Date) return raw;
+  const direct = new Date(raw);
+  if(!isNaN(direct.getTime())) return direct;
+  const m = String(raw).match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+  if(m) return new Date(Number(m[3]), Number(m[2])-1, Number(m[1]));
+  return new Date();
 }
-function downloadExamReportCSV(){ downloadCSV('upkk-exam-report-'+new Date().toISOString().slice(0,10)+'.csv', [['Result Key','Attempt','Pelajar','Subjek','Jenis','Markah','Tarikh'],...cachedReportRows.map(r=>[r.key,r.attempt,r.studentName,r.subject,r.type,r.score,r.date])]); }
+function normalizeExamReportRow(r,key,attempt,source){
+  if(!r || typeof r !== 'object') return null;
+  const type = String(r.type || r.quizType || '').toLowerCase();
+  const subject = r.subject || r.title || r.subjectKey || '';
+  const d = normalizeReportDate(r.createdAt || r.rawCreatedAt || r.at || r.date || r.completedAt);
+  const score = Number(r.score ?? r.percent ?? 0);
+  const total = Number(r.total ?? r.totalQuestions ?? r.questions ?? 100) || 100;
+  const percent = Number(r.percent ?? Math.round((score/Math.max(total,1))*100));
+  return {
+    key, attempt, source,
+    accountId: r.accountId || r.parentId || '',
+    username: r.username || r.accountUsername || r.parentUsername || '',
+    studentSlot: r.studentSlot || r.studentId || '',
+    studentName: r.studentName || r.name || key || '',
+    subject, type: r.type || (type.includes('exam') ? 'Peperiksaan' : 'Peperiksaan'),
+    score, total, percent,
+    date: d.toISOString().slice(0,10),
+    monthKey: d.toISOString().slice(0,7),
+    createdAt: d.toISOString(),
+    migrated: !!r.migrated
+  };
+}
+async function collectExamReportRows(){
+  const rows=[];
+  const [resSnap, histSnap, usersSnap] = await Promise.all([db.ref(resultsRoot).get(), db.ref(examHistoryRoot).get(), db.ref(userRoot).get()]);
+  const res=resSnap.exists()?resSnap.val():{};
+  Object.entries(res||{}).forEach(([key,val])=>{ const list=Array.isArray(val)?val:Object.values(val||{}); list.forEach((r,i)=>{ const row=normalizeExamReportRow(r,key,i+1,'results'); if(row) rows.push(row); }); });
+  const hist=histSnap.exists()?histSnap.val():{};
+  Object.entries(hist||{}).forEach(([accountId,students])=>Object.entries(students||{}).forEach(([studentSlot,years])=>Object.entries(years||{}).forEach(([yy,months])=>Object.entries(months||{}).forEach(([mm,items])=>{ const list=Array.isArray(items)?items:Object.values(items||{}); list.forEach((r,i)=>{ const row=normalizeExamReportRow({...r,accountId,studentSlot},`${accountId}_${studentSlot}`,i+1,'examHistory'); if(row) rows.push(row); }); }))));
+  const users=usersSnap.exists()?usersSnap.val():{};
+  Object.entries(users||{}).forEach(([accountId,u])=>Object.entries((u&&u.students)||{}).forEach(([studentSlot,st])=>{
+    const localHist = st.history || st.historyCache || {};
+    const list=Array.isArray(localHist)?localHist:Object.values(localHist||{});
+    list.forEach((r,i)=>{ if(String(r?.type||'').toLowerCase().includes('exam') || String(r?.type||'').toLowerCase().includes('peperiksaan')){ const row=normalizeExamReportRow({...r,accountId,studentSlot,username:u.username||'',studentName:st.name||r.studentName},`${accountId}_${studentSlot}`,i+1,'studentHistory'); if(row) rows.push(row); } });
+  }));
+  const unique=new Map();
+  rows.forEach(r=>{ const k=[r.accountId,r.username,r.studentSlot,r.studentName,r.subject,r.score,r.total,r.date,r.source].join('|'); if(!unique.has(k)) unique.set(k,r); });
+  return Array.from(unique.values()).sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt)));
+}
+async function loadExamReport(){
+  const year=String($('reportYear').value||new Date().getFullYear()); const month=$('reportMonth').value; const term=String($('reportSearch').value||'').toLowerCase();
+  const allRows = await collectExamReportRows();
+  cachedReportRows=allRows.filter(r=>{ if(!String(r.monthKey||'').startsWith(year)) return false; if(month && String(r.monthKey||'').slice(5,7)!==month) return false; const hay=JSON.stringify(r).toLowerCase(); return !term || hay.includes(term); });
+  const total=cachedReportRows.length; const avg=total?Math.round(cachedReportRows.reduce((a,b)=>a+Number(b.percent||0),0)/total):0; const high=total?Math.max(...cachedReportRows.map(r=>Number(r.percent||0))):0; const students=new Set(cachedReportRows.map(r=>r.key)).size; const migrated=cachedReportRows.filter(r=>r.migrated).length;
+  const monthLabel = month ? $('reportMonth').selectedOptions[0].textContent : 'Tahunan';
+  const rows=cachedReportRows.map(r=>`<tr><td>${esc(r.date)}</td><td>${esc(r.username||'-')}</td><td>${esc(r.studentName)}</td><td>${esc(r.subject)}</td><td>${esc(r.type)}</td><td>${esc(r.score)}/${esc(r.total)}</td><td>${esc(r.percent)}%</td><td>${esc(r.source)}${r.migrated?' • migrated':''}</td></tr>`).join('');
+  $('examReportBox').innerHTML=`<div id="upkkPrintableReport" class="report-template"><div class="report-cover"><div class="report-logo">🕌📘</div><span class="report-chip">UPKK SmartKids Official Report</span><h2>Laporan Peperiksaan ${esc(monthLabel)} ${esc(year)}</h2><p>Rekod bulanan/tahunan pelajar, jumlah attempt, purata markah dan prestasi peperiksaan.</p></div><div class="report-summary"><div><b>${total}</b><span>Jumlah Exam</span></div><div><b>${students}</b><span>Pelajar</span></div><div><b>${avg}%</b><span>Purata</span></div><div><b>${high}%</b><span>Tertinggi</span></div><div><b>${migrated}</b><span>Rekod Migrasi</span></div></div><div class="report-table-wrap"><table><thead><tr><th>Tarikh</th><th>Parent</th><th>Pelajar</th><th>Subjek</th><th>Jenis</th><th>Markah</th><th>%</th><th>Sumber</th></tr></thead><tbody>${rows||'<tr><td colspan="8">Tiada rekod ditemui. Tekan Auto Detect Rekod Lama jika ada result lama.</td></tr>'}</tbody></table></div><div class="report-footer"><span>Generated: ${new Date().toLocaleString('ms-MY')}</span><span class="report-watermark">UPKK SmartKids</span></div></div>`;
+  if($('reportMsg')) $('reportMsg').textContent = total ? `Report berjaya dimuatkan: ${total} rekod.` : 'Tiada rekod. Cuba Auto Detect Rekod Lama atau pastikan pelajar tamat peperiksaan selepas update.';
+}
+function downloadExamReportCSV(){ downloadCSV('upkk-exam-report-'+new Date().toISOString().slice(0,10)+'.csv', [['Result Key','Attempt','Parent','Pelajar','Subjek','Jenis','Markah','Total','Percent','Tarikh','Sumber','Migrated'],...cachedReportRows.map(r=>[r.key,r.attempt,r.username,r.studentName,r.subject,r.type,r.score,r.total,r.percent,r.date,r.source,r.migrated])]); }
+function printExamReportPDF(){
+  if(!cachedReportRows.length) return alert('Generate Report dahulu sebelum download/print PDF.');
+  const node = document.getElementById('upkkPrintableReport');
+  if(!node) return alert('Report belum dijana.');
+  const w = window.open('', '_blank');
+  w.document.write(`<!doctype html><html><head><title>UPKK SmartKids Report</title><meta charset="utf-8"><style>${document.querySelector('style').textContent}</style></head><body><main class="print-area">${node.outerHTML}</main><script>window.onload=()=>setTimeout(()=>window.print(),300)<\/script></body></html>`);
+  w.document.close();
+}
+async function migrateExistingExamResultsToHistory(){
+  if(!confirm('Auto detect rekod lama akan scan results dan history pelajar sedia ada, kemudian salin ke examHistory sebagai migrated:true. Teruskan?')) return;
+  const rows = await collectExamReportRows();
+  let count=0; const updates={};
+  rows.forEach(r=>{
+    if(!r || r.source==='examHistory') return;
+    const accountId=safeFirebaseKey(r.accountId || String(r.key||'').split('_')[0] || 'unknown');
+    const studentSlot=safeFirebaseKey(r.studentSlot || String(r.key||'').split('_').slice(1).join('_') || 'student_1');
+    const monthKey = r.monthKey || String(r.date).slice(0,7); const [yy,mm]=monthKey.split('-');
+    const migrateKey = safeFirebaseKey([r.source,r.date,r.subject,r.score,r.total].join('_'));
+    updates[`${accountId}/${studentSlot}/${yy}/${mm}/${migrateKey}`] = {...r,migrated:true,source:'migration',migratedAt:new Date().toISOString()}; count++;
+  });
+  if(!count) { if($('reportMsg')) $('reportMsg').textContent='Tiada rekod lama untuk migrasi.'; return; }
+  await db.ref(examHistoryRoot).update(updates);
+  await db.ref(adminLogRoot).push({action:'migrate_exam_history',count,adminId:currentAdminSession?.adminId||'',at:new Date().toISOString()});
+  if($('reportMsg')) $('reportMsg').textContent=`Migrasi siap: ${count} rekod lama disalin ke examHistory.`;
+  await loadExamReport();
+}
 
 
 async function writeDefaultSettings(){

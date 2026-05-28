@@ -371,21 +371,40 @@ function syncResultToFirebase(rec){
   const allHistory = history();
   const stats = calculateStudentStats(allHistory);
   const percent = Math.round((Number(rec.score||0)/Math.max(Number(rec.total||1),1))*100);
+  const nowIso = new Date().toISOString();
   const payload = {
     ...rec,
     appCode: APP_CODE,
     accountId: profile.accountId || '',
     accountUsername: profile.username || '',
+    username: profile.username || '',
     studentSlot: profile.studentId || 'student_1',
+    studentId: profile.studentId || 'student_1',
     studentName: profile.name || '',
-    rawCreatedAt: new Date().toISOString(),
+    parentUsername: profile.username || '',
+    createdAt: rec.createdAt || nowIso,
+    rawCreatedAt: nowIso,
     deviceId: deviceId()
   };
   const studentBase = studentSlotPath(profile.accountId, profile.studentId);
   db.ref(`${studentBase}/history`).push(payload).catch(err=>console.warn('Firebase history sync failed:', err));
-  db.ref(`${studentBase}/stats`).update({...stats, lastPercent:percent, lastSubject:rec.subject, lastType:rec.type, updatedAt:new Date().toISOString()}).catch(err=>console.warn('Firebase stats sync failed:', err));
+  db.ref(`${studentBase}/stats`).update({...stats, lastPercent:percent, lastSubject:rec.subject, lastType:rec.type, updatedAt:nowIso}).catch(err=>console.warn('Firebase stats sync failed:', err));
   if(String(rec.type||'').toLowerCase().includes('exam')){
-    db.ref(fbPath('results', resultStudentKey())).push(payload).catch(err=>console.warn('Firebase exam result sync failed:', err));
+    const d = new Date(payload.createdAt || payload.rawCreatedAt || Date.now());
+    const year = String(d.getFullYear());
+    const month = String(d.getMonth()+1).padStart(2,'0');
+    const examHistoryPayload = {
+      ...payload,
+      year,
+      month,
+      monthKey: `${year}-${month}`,
+      percent,
+      totalQuestions: Number(rec.total||0),
+      source: 'finishQuiz',
+      migrated: false
+    };
+    db.ref(fbPath('results', resultStudentKey())).push(examHistoryPayload).catch(err=>console.warn('Firebase exam result sync failed:', err));
+    db.ref(fbPath('examHistory', `${safeFirebaseKey(profile.accountId || profile.username)}/${safeFirebaseKey(profile.studentId || 'student_1')}/${year}/${month}`)).push(examHistoryPayload).catch(err=>console.warn('Firebase exam history sync failed:', err));
   }
   db.ref(fbPath('leaderboard', `global/${leaderboardKey}`)).update({
     key: leaderboardKey,
@@ -2602,7 +2621,7 @@ function enablePremiumForTesting(){ profile.plan=PREMIUM_STATUS.PREMIUM; profile
 
 
 /* =========================================================
-   UPKK SmartKids v3.13 - Phase 1 Result Animation + Sound
+   UPKK SmartKids v3.18 - Exam History + PDF Report Ready
    Frontend only: no Firebase/database structure change.
 ========================================================= */
 const UPKK_UI_SOUND = {
