@@ -1,4 +1,4 @@
-const CACHE_NAME = 'upkk-smartkids-responsive-2.10';
+const CACHE_NAME = 'upkk-smartkids-admin-question-manager-v1';
 const CORE_ASSETS = [
   './',
   './index.html',

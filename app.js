@@ -1,4 +1,4 @@
-const APP_VERSION = '8.18-FIREBASE-CLEAN-COMPATIBLE';
+const APP_VERSION = '8.19-FAST-LOGIN';
 const PIN_LENGTH = 6;
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCK_MINUTES = 10;
@@ -1206,25 +1206,44 @@ async function loadFirebaseQuestionBank(){
 }
 
 async function boot(){
-  try{
-    DB = await loadFirebaseQuestionBank();
-    window.__UPKK_QUESTION_SOURCE = 'firebase';
-  }catch(firebaseErr){
-    console.warn('Firebase questionBank unavailable:', firebaseErr);
-    DB = {};
-    window.__UPKK_QUESTION_SOURCE = 'firebase-error';
-    window.__UPKK_DATA_LOAD_ERROR = firebaseErr.message || String(firebaseErr);
-  }
+  // FAST LOGIN MODE:
+  // Paparkan login/register dahulu. Bank soalan dan cloud sync dimuat di background
+  // supaya user tidak nampak splash terlalu lama semasa Firebase/questionBank besar.
+  window.__UPKK_FAST_LOGIN_MODE = true;
+  window.__UPKK_QUESTION_SOURCE = 'loading';
 
-  try{ normalizeDB(); }catch(err){ console.warn('Normalize DB failed:', err); DB = {}; window.__UPKK_DATA_LOAD_ERROR = true; }
   try{ bindNav(); }catch(err){ console.warn('Bind nav failed:', err); }
-  try{
-    if(isLoggedInSession() && profile?.accountId){
-      await refreshAllAccountProfilesFromFirebase(profile.accountId);
-      await refreshCurrentStudentCloudCache();
-    }
-  }catch(err){ console.warn('Boot cloud sync skipped:', err); }
+
+  // UI masuk dahulu, bukan tunggu questionBank siap.
   startSplashFlow();
+
+  // Firebase/questionBank sync berjalan selepas first paint.
+  setTimeout(async ()=>{
+    try{
+      DB = await loadFirebaseQuestionBank();
+      window.__UPKK_QUESTION_SOURCE = 'firebase';
+    }catch(firebaseErr){
+      console.warn('Firebase questionBank unavailable:', firebaseErr);
+      DB = {};
+      window.__UPKK_QUESTION_SOURCE = 'firebase-error';
+      window.__UPKK_DATA_LOAD_ERROR = firebaseErr.message || String(firebaseErr);
+    }
+
+    try{ normalizeDB(); }catch(err){ console.warn('Normalize DB failed:', err); DB = {}; window.__UPKK_DATA_LOAD_ERROR = true; }
+
+    try{
+      if(isLoggedInSession() && profile?.accountId){
+        await refreshAllAccountProfilesFromFirebase(profile.accountId);
+        await refreshCurrentStudentCloudCache();
+      }
+    }catch(err){ console.warn('Boot cloud sync skipped:', err); }
+
+    try{
+      if(['home','subjects','exam','result','settings','profile'].includes(page) && !isTypingField()){
+        render();
+      }
+    }catch(err){ console.warn('Background render skipped:', err); }
+  }, 60);
 }
 
 function normalizeAnswerIndex(answer, options=[]){
@@ -1291,7 +1310,7 @@ function startSplashFlow(){
         $app.innerHTML = `<section class="card hero"><span class="badge">⚠️ STARTUP FIX</span><h2 class="title">Sistem berjaya dibuka semula</h2><p class="subtitle">Ada komponen lama yang gagal dimuat. Tekan butang di bawah untuk masuk semula ke profil.</p><button class="btn" onclick="page='profile';currentQuiz=null;render()">Masuk Profil / Login</button></section>`;
       }
     }
-  }, 1900);
+  }, 250);
 }
 function resetProfileFlow(){ newStudentProfile(); }
 function bindNav(){

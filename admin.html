@@ -55,6 +55,7 @@ table{width:100%;border-collapse:collapse}
   <div class="tabs">
     <button class="tab active" onclick="showTab('dashboard', this)">Dashboard</button>
     <button class="tab" onclick="showTab('codes', this)">Access / License Code</button>
+    <button class="tab" onclick="showTab('questions', this)">Question Bank</button>
     <button class="tab" onclick="showTab('users', this)">Users</button>
     <button class="tab" onclick="showTab('history', this)">Redeem History</button>
     <button class="tab" onclick="showTab('settings', this)">Settings</button>
@@ -92,6 +93,76 @@ table{width:100%;border-collapse:collapse}
       </section>
     </div>
     <section class="card" style="margin-top:16px"><h2>Senarai Kod</h2><div id="tableBox">Memuatkan...</div></section>
+  </section>
+
+
+  <section id="questions" class="panel">
+    <div class="grid">
+      <section class="card">
+        <h2>Question Bank Manager</h2>
+        <p class="hint">Edit soalan terus ke Firebase. Tidak perlu import full JSON dan tidak akan padam user sedia ada.</p>
+        <label>Subjek</label>
+        <select id="qmSubject" onchange="loadQuestionsForSubject()"></select>
+        <div class="actions">
+          <button onclick="loadQuestionSubjects()">Refresh Subjek</button>
+          <button class="secondary" onclick="newQuestionForm()">+ Soalan Baru</button>
+          <button class="secondary" onclick="exportQuestionBank()">Export QuestionBank JSON</button>
+        </div>
+        <div id="questionListBox" style="margin-top:12px">Pilih subjek.</div>
+      </section>
+
+      <section class="card">
+        <h2>Editor Soalan</h2>
+        <label>ID Soalan</label>
+        <input id="qId" placeholder="Contoh: aqidah-041" />
+        <label>Soalan Rumi</label>
+        <textarea id="qRumi" placeholder="Tulis soalan rumi"></textarea>
+        <label>Soalan Jawi</label>
+        <textarea id="qJawi" placeholder="Tulis soalan jawi"></textarea>
+
+        <label>Pilihan Jawapan Rumi</label>
+        <input id="optRumi0" placeholder="Pilihan A" />
+        <input id="optRumi1" placeholder="Pilihan B" />
+        <input id="optRumi2" placeholder="Pilihan C" />
+        <input id="optRumi3" placeholder="Pilihan D" />
+
+        <label>Pilihan Jawapan Jawi</label>
+        <input id="optJawi0" placeholder="Pilihan A Jawi" />
+        <input id="optJawi1" placeholder="Pilihan B Jawi" />
+        <input id="optJawi2" placeholder="Pilihan C Jawi" />
+        <input id="optJawi3" placeholder="Pilihan D Jawi" />
+
+        <label>Jawapan Betul</label>
+        <select id="qAnswer">
+          <option value="0">A / 1</option>
+          <option value="1">B / 2</option>
+          <option value="2">C / 3</option>
+          <option value="3">D / 4</option>
+        </select>
+
+        <label>Tahap</label>
+        <select id="qLevel">
+          <option value="mudah">Mudah</option>
+          <option value="sederhana">Sederhana</option>
+          <option value="campuran">Campuran</option>
+          <option value="sukar">Sukar</option>
+        </select>
+
+        <label>Markah</label>
+        <input id="qMarks" type="number" value="1" min="1" />
+        <label>Bahagian</label>
+        <input id="qSection" value="BAHAGIAN A" />
+        <label>Arahan</label>
+        <textarea id="qInstruction">Jawab semua soalan. Pilih jawapan yang paling tepat.</textarea>
+
+        <div class="actions">
+          <button onclick="saveQuestion()">Simpan Soalan</button>
+          <button class="danger" onclick="deleteQuestion()">Padam Soalan</button>
+          <button class="secondary" onclick="clearQuestionForm()">Clear</button>
+        </div>
+        <div id="questionMsg" class="log">Sedia.</div>
+      </section>
+    </div>
   </section>
 
   <section id="users" class="panel">
@@ -137,7 +208,7 @@ table{width:100%;border-collapse:collapse}
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
-<script src="firebase-config.js?v=1.41"></script>
+<script src="firebase-config.js?v=1.42"></script>
 <script>
 firebase.initializeApp(window.UPKK_FIREBASE_CONFIG);
 const db = firebase.database();
@@ -229,6 +300,7 @@ function showTab(id, btn){
   if(button) button.classList.add('active');
   if($(id)) $(id).classList.add('active');
   if(id === 'codes') loadCodes();
+  if(id === 'questions') loadQuestionSubjects();
   if(id === 'users') loadUsers();
   if(id === 'history') loadHistory();
 }
@@ -459,6 +531,178 @@ async function changeAdminPassword(){
     setPassMsg('Gagal tukar password: ' + err.message);
   }
 }
+
+
+const questionRoot = APP_ROOT + '/questionBank';
+let currentQuestionIndex = -1;
+let currentSubjectData = null;
+
+function qMsg(text){
+  const box = $('questionMsg');
+  if(box) box.textContent = new Date().toLocaleString('ms-MY') + ' - ' + text;
+}
+
+async function loadQuestionSubjects(){
+  const snap = await db.ref(questionRoot).get();
+  const data = snap.exists() ? snap.val() : {};
+  const subjects = Object.keys(data).sort();
+  const sel = $('qmSubject');
+  sel.innerHTML = subjects.map(s => `<option value="${esc(s)}">${esc(data[s].title || s)}</option>`).join('');
+  if(!subjects.length){
+    $('questionListBox').innerHTML = 'Belum ada subject dalam questionBank.';
+    return;
+  }
+  if(!sel.value) sel.value = subjects[0];
+  await loadQuestionsForSubject();
+}
+
+async function loadQuestionsForSubject(){
+  const subject = $('qmSubject').value;
+  if(!subject) return;
+  const snap = await db.ref(questionRoot + '/' + subject).get();
+  currentSubjectData = snap.exists() ? snap.val() : {};
+  const questions = Array.isArray(currentSubjectData.questions) ? currentSubjectData.questions : [];
+  const rows = questions.map((q, idx) => `
+    <tr>
+      <td data-label="No">${idx + 1}</td>
+      <td data-label="ID"><code>${esc(q.id || '-')}</code></td>
+      <td data-label="Soalan">${esc(q.qRumi || '').slice(0,120)}</td>
+      <td data-label="Tahap">${esc(q.level || '-')}</td>
+      <td data-label="Aksi"><button class="mini secondary" onclick="editQuestion(${idx})">Edit</button></td>
+    </tr>
+  `).join('');
+  $('questionListBox').innerHTML = `<table><thead><tr><th>No</th><th>ID</th><th>Soalan</th><th>Tahap</th><th>Aksi</th></tr></thead><tbody>${rows || '<tr><td colspan="5">Belum ada soalan.</td></tr>'}</tbody></table>`;
+  qMsg(`Subjek ${subject} dimuatkan. Jumlah soalan: ${questions.length}`);
+}
+
+function clearQuestionForm(){
+  currentQuestionIndex = -1;
+  ['qId','qRumi','qJawi','optRumi0','optRumi1','optRumi2','optRumi3','optJawi0','optJawi1','optJawi2','optJawi3'].forEach(id => { if($(id)) $(id).value = ''; });
+  $('qAnswer').value = '0';
+  $('qLevel').value = 'mudah';
+  $('qMarks').value = '1';
+  $('qSection').value = 'BAHAGIAN A';
+  $('qInstruction').value = 'Jawab semua soalan. Pilih jawapan yang paling tepat.';
+  qMsg('Borang dikosongkan.');
+}
+
+function newQuestionForm(){
+  const subject = $('qmSubject').value || 'subject';
+  const questions = Array.isArray(currentSubjectData?.questions) ? currentSubjectData.questions : [];
+  clearQuestionForm();
+  const nextNo = String(questions.length + 1).padStart(3,'0');
+  $('qId').value = `${subject}-${nextNo}`;
+  qMsg('Soalan baru disediakan.');
+}
+
+function editQuestion(idx){
+  const questions = Array.isArray(currentSubjectData?.questions) ? currentSubjectData.questions : [];
+  const q = questions[idx];
+  if(!q) return qMsg('Soalan tidak dijumpai.');
+  currentQuestionIndex = idx;
+  $('qId').value = q.id || '';
+  $('qRumi').value = q.qRumi || '';
+  $('qJawi').value = q.qJawi || '';
+  const r = q.optionsRumi || [];
+  const j = q.optionsJawi || [];
+  [0,1,2,3].forEach(i => {
+    $('optRumi'+i).value = r[i] || '';
+    $('optJawi'+i).value = j[i] || '';
+  });
+  $('qAnswer').value = String(Number(q.answer || 0));
+  $('qLevel').value = q.level || 'mudah';
+  $('qMarks').value = Number(q.marks || 1);
+  $('qSection').value = q.section || q.sectionRumi || 'BAHAGIAN A';
+  $('qInstruction').value = q.instruction || q.instructionRumi || 'Jawab semua soalan. Pilih jawapan yang paling tepat.';
+  qMsg('Edit soalan: ' + (q.id || idx));
+}
+
+function buildQuestionFromForm(){
+  const id = ($('qId').value || '').trim();
+  if(!id) throw new Error('ID soalan wajib diisi.');
+  const optionsRumi = [0,1,2,3].map(i => $('optRumi'+i).value.trim());
+  const optionsJawi = [0,1,2,3].map(i => $('optJawi'+i).value.trim());
+  if(!($('qRumi').value || '').trim()) throw new Error('Soalan Rumi wajib diisi.');
+  if(optionsRumi.some(v => !v)) throw new Error('Semua 4 pilihan Rumi wajib diisi.');
+  return {
+    id,
+    qRumi: $('qRumi').value.trim(),
+    qJawi: $('qJawi').value.trim(),
+    optionsRumi,
+    optionsJawi,
+    answer: Number($('qAnswer').value || 0),
+    level: $('qLevel').value || 'mudah',
+    sourceNo: currentQuestionIndex >= 0 ? currentQuestionIndex + 1 : ((currentSubjectData?.questions || []).length + 1),
+    marks: Number($('qMarks').value || 1),
+    type: 'objective',
+    section: $('qSection').value.trim() || 'BAHAGIAN A',
+    instruction: $('qInstruction').value.trim() || 'Jawab semua soalan. Pilih jawapan yang paling tepat.',
+    sectionRumi: $('qSection').value.trim() || 'BAHAGIAN A',
+    instructionRumi: $('qInstruction').value.trim() || 'Jawab semua soalan. Pilih jawapan yang paling tepat.',
+    updatedAt: new Date().toISOString(),
+    updatedBy: currentAdminSession?.adminId || 'admin'
+  };
+}
+
+async function saveQuestion(){
+  try{
+    const subject = $('qmSubject').value;
+    if(!subject) throw new Error('Pilih subjek dahulu.');
+    const q = buildQuestionFromForm();
+    const snap = await db.ref(questionRoot + '/' + subject + '/questions').get();
+    const questions = snap.exists() && Array.isArray(snap.val()) ? snap.val() : [];
+    const existingIndex = questions.findIndex(item => item && item.id === q.id);
+    const index = currentQuestionIndex >= 0 ? currentQuestionIndex : (existingIndex >= 0 ? existingIndex : questions.length);
+    questions[index] = {...(questions[index] || {}), ...q};
+    await db.ref(questionRoot + '/' + subject + '/questions').set(questions);
+    await db.ref(questionRoot + '/' + subject + '/exam/targetQuestions').set(questions.length);
+    await db.ref(adminLogRoot).push({action:'save_question', subject, questionId:q.id, index, adminId:currentAdminSession?.adminId||'', at:new Date().toISOString()});
+    currentQuestionIndex = index;
+    qMsg('Soalan berjaya disimpan: ' + q.id);
+    await loadQuestionsForSubject();
+  }catch(err){
+    console.error(err);
+    qMsg('Gagal simpan soalan: ' + err.message);
+  }
+}
+
+async function deleteQuestion(){
+  try{
+    const subject = $('qmSubject').value;
+    if(!subject) throw new Error('Pilih subjek dahulu.');
+    const id = ($('qId').value || '').trim();
+    if(!id) throw new Error('Pilih/isi ID soalan untuk dipadam.');
+    if(!confirm('Padam soalan ' + id + '?')) return;
+    const snap = await db.ref(questionRoot + '/' + subject + '/questions').get();
+    const questions = snap.exists() && Array.isArray(snap.val()) ? snap.val() : [];
+    const filtered = questions.filter(q => q && q.id !== id);
+    await db.ref(questionRoot + '/' + subject + '/questions').set(filtered);
+    await db.ref(questionRoot + '/' + subject + '/exam/targetQuestions').set(filtered.length);
+    await db.ref(adminLogRoot).push({action:'delete_question', subject, questionId:id, adminId:currentAdminSession?.adminId||'', at:new Date().toISOString()});
+    clearQuestionForm();
+    qMsg('Soalan dipadam: ' + id);
+    await loadQuestionsForSubject();
+  }catch(err){
+    console.error(err);
+    qMsg('Gagal padam soalan: ' + err.message);
+  }
+}
+
+async function exportQuestionBank(){
+  const snap = await db.ref(questionRoot).get();
+  const data = snap.exists() ? snap.val() : {};
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'questionBank-export-' + new Date().toISOString().slice(0,10) + '.json';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  await db.ref(adminLogRoot).push({action:'export_question_bank', adminId:currentAdminSession?.adminId||'', at:new Date().toISOString()});
+}
+
 
 async function writeDefaultSettings(){
   await db.ref(APP_ROOT + '/settings/accessControl').update({registrationRequiresCode:true, defaultTrialDays:30, defaultExamDays:365, updatedAt:new Date().toISOString()});
