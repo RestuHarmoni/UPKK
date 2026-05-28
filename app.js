@@ -1,4 +1,4 @@
-const APP_VERSION = '8.20-EXAM-UX-FIX';
+const APP_VERSION = '8.21-ADMIN-REPORT-PARENT-PASSWORD';
 const PIN_LENGTH = 6;
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCK_MINUTES = 10;
@@ -56,7 +56,6 @@ let currentQuiz = null;
 let selectedAnswer = null;
 const UPKK_APP_VERSION = '1.21';
 const UPKK_APP_VERSION_NAME = 'UPKK_SmartKids_V2_USERNAME_SUBSCRIPTION';
-let UPKK_ADMIN_SETTINGS = {appContent:{}, systemControl:{}, whatsapp:{}};
 let quizType = 'practice';
 let examTimer = null;
 let deviceListenerRef = null;
@@ -183,64 +182,6 @@ function firebaseDb(){
 function fbPath(group, tail=''){
   const base = (window.UPKK_DB_PATHS && window.UPKK_DB_PATHS[group]) || `apps/${APP_CODE}/${group}`;
   return tail ? `${base}/${tail}` : base;
-}
-
-async function loadAdminManagedSettings(){
-  const db = firebaseDb();
-  if(!db) return UPKK_ADMIN_SETTINGS;
-  try{
-    const snap = await firebaseGetOnce(fbPath('settings'));
-    const settings = snap && snap.exists && snap.exists() ? (snap.val() || {}) : {};
-    UPKK_ADMIN_SETTINGS = {
-      appContent: settings.appContent || {},
-      systemControl: settings.systemControl || {},
-      whatsapp: settings.whatsapp || {}
-    };
-    return UPKK_ADMIN_SETTINGS;
-  }catch(err){ console.warn('Admin managed settings skipped:', err); return UPKK_ADMIN_SETTINGS; }
-}
-function appContentSetting(key, fallback=''){
-  return (UPKK_ADMIN_SETTINGS && UPKK_ADMIN_SETTINGS.appContent && UPKK_ADMIN_SETTINGS.appContent[key]) || fallback;
-}
-function systemControlSetting(key, fallback=''){
-  return (UPKK_ADMIN_SETTINGS && UPKK_ADMIN_SETTINGS.systemControl && UPKK_ADMIN_SETTINGS.systemControl[key]) || fallback;
-}
-function whatsappSetting(key, fallback=''){
-  return (UPKK_ADMIN_SETTINGS && UPKK_ADMIN_SETTINGS.whatsapp && UPKK_ADMIN_SETTINGS.whatsapp[key]) || fallback;
-}
-function adminManagedNoticeHtml(){
-  const sys = UPKK_ADMIN_SETTINGS.systemControl || {};
-  const content = UPKK_ADMIN_SETTINGS.appContent || {};
-  const blocks = [];
-  if(sys.maintenanceMode){ blocks.push(`<section class="card upkk-admin-notice maintenance"><span class="badge">🛠️ MAINTENANCE</span><h2 class="title">Maintenance Mode</h2><p class="subtitle">${escapeHtml(sys.maintenanceMessage || 'Aplikasi sedang diselenggara. Sila cuba semula kemudian.')}</p></section>`); }
-  if(sys.globalAnnouncement){ blocks.push(`<section class="card upkk-admin-notice"><span class="badge">📢 PENGUMUMAN</span><p class="subtitle">${escapeHtml(sys.globalAnnouncement)}</p></section>`); }
-  if(sys.forceRefreshActive && sys.forceRefreshNotice){ blocks.push(`<section class="card upkk-admin-notice"><span class="badge">🔄 UPDATE</span><p class="subtitle">${escapeHtml(sys.forceRefreshNotice)}</p><button class="btn secondary" onclick="location.reload()">Refresh Sekarang</button></section>`); }
-  if(content.bannerTitle || content.bannerMessage){ blocks.push(`<section class="card upkk-admin-banner"><span class="badge">🌿 INFO</span><h2 class="title">${escapeHtml(content.bannerTitle || 'UPKK SmartKids')}</h2><p class="subtitle">${escapeHtml(content.bannerMessage || '')}</p></section>`); }
-  return blocks.join('');
-}
-function maybeShowAdminPopupNotice(){
-  try{
-    const c = UPKK_ADMIN_SETTINGS.appContent || {};
-    if(!c.popupActive || !c.popupMessage) return;
-    const key = 'upkkAdminPopupSeen_' + String(c.updatedAt || c.popupMessage).slice(0,60);
-    if(sessionStorage.getItem(key)) return;
-    sessionStorage.setItem(key,'1');
-    setTimeout(()=>showAppNote(c.popupMessage, {title:c.popupTitle || 'Notis UPKK SmartKids'}), 700);
-  }catch(e){}
-}
-function shouldShowQuestionNote(q){
-  return !!(q && q.note && q.displayNoteToStudent === true && q.hideNoteFromStudent !== true);
-}
-function openWhatsappSupport(kind='support'){
-  const number = String(whatsappSetting('number','')).replace(/\D/g,'');
-  if(!number){ return appAlert('Nombor WhatsApp support belum ditetapkan oleh admin.'); }
-  const msgMap = {
-    support: whatsappSetting('supportMessage','Assalamualaikum, saya perlukan bantuan UPKK SmartKids.'),
-    buy: whatsappSetting('buyLicenseMessage','Assalamualaikum, saya ingin membeli lesen peperiksaan UPKK SmartKids.'),
-    renew: whatsappSetting('renewLicenseMessage','Assalamualaikum, saya ingin renew lesen peperiksaan UPKK SmartKids.')
-  };
-  const text = encodeURIComponent(msgMap[kind] || msgMap.support);
-  window.open(`https://wa.me/${number}?text=${text}`, '_blank', 'noopener,noreferrer');
 }
 function formatStudentId(num){ return `${ID_PREFIX}-${APP_YEAR_SHORT}-` + String(num).padStart(5,'0'); }
 function isOfficialStudentId(id){ return new RegExp(`^${ID_PREFIX}-${APP_YEAR_SHORT}-\\d{5}$`).test(String(id||'')); }
@@ -445,6 +386,11 @@ function syncResultToFirebase(rec){
   db.ref(`${studentBase}/stats`).update({...stats, lastPercent:percent, lastSubject:rec.subject, lastType:rec.type, updatedAt:new Date().toISOString()}).catch(err=>console.warn('Firebase stats sync failed:', err));
   if(String(rec.type||'').toLowerCase().includes('exam')){
     db.ref(fbPath('results', resultStudentKey())).push(payload).catch(err=>console.warn('Firebase exam result sync failed:', err));
+    const d = new Date(payload.rawCreatedAt || Date.now());
+    const year = String(d.getFullYear());
+    const month = String(d.getMonth()+1).padStart(2,'0');
+    const examReportPayload = {...payload, percent, year, month, reportMonth:`${year}-${month}`};
+    db.ref(fbPath('examReports', `${accountId}/${studentSlot}/${year}/${month}`)).push(examReportPayload).catch(err=>console.warn('Firebase monthly exam report sync failed:', err));
   }
   db.ref(fbPath('leaderboard', `global/${leaderboardKey}`)).update({
     key: leaderboardKey,
@@ -939,6 +885,31 @@ async function firebaseGetOnce(path){
   if(typeof ref.get === 'function') return await ref.get();
   return await new Promise((resolve,reject)=>ref.once('value', resolve, reject));
 }
+
+async function verifyCurrentParentPassword(inputPin){
+  const pin = cleanPin(inputPin || '');
+  if(pin.length !== PIN_LENGTH) return false;
+  const localPin = cleanPin(profile.pin || '');
+  if(localPin && pin === localPin) return true;
+  const db = firebaseDb();
+  if(db && profile?.accountId){
+    try{
+      const snap = await firebaseGetOnce(`${accountPath(profile.accountId)}/pin`);
+      const remotePin = cleanPin(snap.exists() ? snap.val() : '');
+      if(remotePin && pin === remotePin) return true;
+    }catch(err){ console.warn('Parent password verify skipped:', err); }
+  }
+  return false;
+}
+async function requireParentPassword(actionText='tindakan ini'){
+  const raw = await appPrompt(`Masukkan password/PIN akaun parent untuk ${actionText}.`, {
+    title:'Pengesahan Parent', inputType:'password', inputMode:'numeric', placeholder:'PIN 6 angka', okText:'Sahkan'
+  });
+  if(raw === null) return false;
+  const ok = await verifyCurrentParentPassword(raw);
+  if(!ok){ await appAlert('Password/PIN parent salah. Tindakan dibatalkan.'); return false; }
+  return true;
+}
 async function registerCurrentDeviceOnLogin(accountId, devices={}, fallbackAllowed=[]){
   const db = firebaseDb();
   const safeAccountId = safeFirebaseKey(accountId || profile.accountId || '');
@@ -1309,7 +1280,7 @@ async function deleteCurrentProfile(){
     render();
   });
 }
-function resetCurrentStudentProgress(){ appConfirm('Reset sejarah soalan dan keputusan untuk pelajar ini sahaja?', ()=>{ localStorage.removeItem(studentKey(HISTORY_KEY)); localStorage.removeItem(studentKey(USED_KEY)); render(); }); }
+function resetCurrentStudentProgress(){ appConfirm('Reset sejarah soalan dan keputusan untuk pelajar ini sahaja?', async ()=>{ const verified = await requireParentPassword('reset rekod pelajar ini'); if(!verified) return; localStorage.removeItem(studentKey(HISTORY_KEY)); localStorage.removeItem(studentKey(USED_KEY)); syncHistoryToFirebase([]); render(); }); }
 function uppercaseName(v){ return (v||'').toLocaleUpperCase('ms-MY').replace(/\s+/g,' ').trimStart(); }
 function avatarSrc(){ return profile.avatar === 'girl' ? 'assets/avatar-girl.webp' : 'assets/avatar-boy.webp'; }
 function modeLabel(){ return profile.mode === 'jawi' ? 'JAWI' : 'RUMI'; }
@@ -1399,7 +1370,6 @@ async function boot(){
   window.__UPKK_QUESTION_SOURCE = 'loading';
 
   try{ bindNav(); }catch(err){ console.warn('Bind nav failed:', err); }
-  loadAdminManagedSettings().then(()=>{ if(page==='home') renderHome(); maybeShowAdminPopupNotice(); }).catch(()=>{});
 
   // UI masuk dahulu, bukan tunggu questionBank siap.
   startSplashFlow();
@@ -1664,7 +1634,6 @@ function renderHome(){
   const h=history(); const best=h.length?Math.max(...h.map(x=>Math.round((x.score/x.total)*100))):0; const last=h.at(-1);
   const switcher = renderDashboardStudentSwitcher();
   $app.innerHTML = `${profileSummary()}
-  ${adminManagedNoticeHtml()}
   ${switcher}
   ${learningAnalysisHtml()}
   <section class="card dashboard-action-card">
@@ -1874,13 +1843,6 @@ function renderSettings(){
     <div class="field" style="margin-top:12px"><label>Password / PIN Semasa</label><input id="currentPinInput" class="input" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="current-password" placeholder="6 angka" /></div>
     <div class="field" style="margin-top:12px"><label>Password / PIN Baru</label><input id="newPinInput" class="input" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="new-password" placeholder="6 angka" /></div>
     <div style="height:12px"></div><button class="btn gold" onclick="changeCurrentPin()">Simpan Password / PIN Baru</button>
-  </section>
-  <section class="card">
-    <span class="badge">💬 WHATSAPP SUPPORT</span>
-    <p class="small">Hubungi admin jika ada masalah akses, trial atau lesen peperiksaan.</p>
-    <button class="btn" onclick="openWhatsappSupport('support')">Hubungi Admin</button><div style="height:10px"></div>
-    <button class="btn gold" onclick="openWhatsappSupport('buy')">Beli Lesen Peperiksaan</button><div style="height:10px"></div>
-    <button class="btn secondary" onclick="openWhatsappSupport('renew')">Renew Lesen</button>
   </section>
   <section class="card">
     <span class="badge">♻️ RESET PROGRESS</span>
@@ -2250,7 +2212,6 @@ function renderSubjects(){
   const empty = `<section class="card latihan-empty modern"><div class="latihan-empty-icon">🌱</div><h3>Belum ada progress untuk paparan ini</h3><p>Pilih filter Semua atau mula latihan pertama hari ini.</p><button class="btn" onclick="setLatihanFilter('semua')">Lihat Semua Subjek</button></section>`;
   const switcher = renderDashboardStudentSwitcher();
   $app.innerHTML = `${profileSummary()}
-  ${adminManagedNoticeHtml()}
   ${switcher}
   <section class="latihan-hero-modern">
     <div class="latihan-hero-glow"></div>
@@ -2399,7 +2360,6 @@ function renderExamMenu(){
     </article>`;
   }).join('');
   $app.innerHTML = `${profileSummary()}
-  ${adminManagedNoticeHtml()}
   ${switcher}
   <section class="exam-hero-modern">
     <div class="exam-hero-glow"></div>
@@ -2578,7 +2538,7 @@ function renderQuiz(){
   const opts=q.preparedOptions.map((o,i)=>{ let cls='option'; if(profile.mode==='jawi') cls+=' rtl'; if(isExam && i===selectedAnswer) cls+=' active'; if(!isExam && done&&i===q.preparedAnswer) cls+=' correct'; if(!isExam && done&&i===selectedAnswer&&i!==q.preparedAnswer) cls+=' wrong'; return `<button class="${cls}" ${(!isExam&&done)?'disabled':''} onclick="chooseAnswer(${i})">${optionText(o,i)}</button>`; }).join('');
   const paperClass=isExam?' exam-paper':'';
   const examNav = isExam ? `<div class="exam-actions"><button class="btn secondary exam-prev-btn" ${currentQuiz.index<=0?'disabled':''} onclick="prevQuestion()">← Sebelum</button><button class="btn secondary exam-next-btn" ${currentQuiz.index>=currentQuiz.questions.length-1?'disabled':''} onclick="nextQuestion()">Seterusnya →</button><button class="btn danger exam-submit-btn" onclick="confirmSubmitExam()">Hantar Peperiksaan</button></div>` : '';
-  const practiceNext = (!isExam && done) ? `<div class="feedback ${selectedAnswer===q.preparedAnswer?'':'bad'}">${selectedAnswer===q.preparedAnswer?'Betul!':'Belum tepat. Jawapan betul telah ditanda.'}</div>${shouldShowQuestionNote(q)?`<div class="answer-note">${escapeHtml(q.note)}</div>`:''}<button class="btn" onclick="nextQuestion()">${currentQuiz.index===currentQuiz.questions.length-1?'Lihat Keputusan':'Soalan Seterusnya'}</button>` : '';
+  const practiceNext = (!isExam && done) ? `<div class="feedback ${selectedAnswer===q.preparedAnswer?'':'bad'}">${selectedAnswer===q.preparedAnswer?'Betul!':'Belum tepat. Jawapan betul telah ditanda.'}</div><button class="btn" onclick="nextQuestion()">${currentQuiz.index===currentQuiz.questions.length-1?'Lihat Keputusan':'Soalan Seterusnya'}</button>` : '';
   const examPalette = isExam ? examQuestionPalette() : '';
   $app.innerHTML = `<section class="card${paperClass}"><div class="quiz-top exam-quiz-top"><span class="pill">${currentQuiz.icon} ${escapeHtml(currentQuiz.type)}</span><span class="pill">${currentQuiz.index+1}/${currentQuiz.questions.length}</span></div><div class="progress exam-progress"><span style="width:${pct}%"></span></div>${questionHtml(q)}<div style="height:12px"></div>${opts}${practiceNext}${examNav}${examPalette}</section>`;
 }
@@ -2665,7 +2625,7 @@ function renderFinish(qz){ const pct=Math.round(qz.score/qz.questions.length*100
   upkkCelebrateFinish(qz);
 }
 function renderResult(){ const h=history().reverse(); if(!h.length){ $app.innerHTML=`${profileSummary()}<section class="card empty">Belum ada rekod keputusan.</section>`; return; } $app.innerHTML = `${profileSummary()}<section class="card"><span class="badge">🏆 REKOD KEPUTUSAN</span><h2 class="title">Sejarah latihan & exam murid ini</h2>${h.map(x=>`<div class="stat" style="text-align:left;margin-top:8px"><b>${escapeHtml(x.type)} • ${escapeHtml(x.subject)} — ${x.score}/${x.total}</b><span>${escapeHtml(x.date)} • ${escapeHtml(x.mode)}</span></div>`).join('')}<div style="height:12px"></div><button class="btn danger" onclick="clearResults()">Padam Rekod</button></section>`; }
-function clearResults(){ appConfirm('Padam semua rekod keputusan?', ()=>{ localStorage.removeItem(studentKey(HISTORY_KEY)); syncHistoryToFirebase([]); renderResult(); }); }
+function clearResults(){ appConfirm('Padam semua rekod keputusan?', async ()=>{ const verified = await requireParentPassword('padam rekod keputusan'); if(!verified) return; localStorage.removeItem(studentKey(HISTORY_KEY)); syncHistoryToFirebase([]); renderResult(); }); }
 
 // Development helper only: enablePremiumForTesting() can be run from browser console by developer.
 function enablePremiumForTesting(){ profile.plan=PREMIUM_STATUS.PREMIUM; profile.premiumCode='DEV-LOCAL-ONLY'; saveProfile(); render(); }
@@ -2698,9 +2658,6 @@ function upkkPlaySound(name){
   }catch(e){}
 }
 function upkkMotivationMessage(pct){
-  if(pct>=80 && appContentSetting('motivationHigh')) return appContentSetting('motivationHigh');
-  if(pct>=50 && appContentSetting('motivationMid')) return appContentSetting('motivationMid');
-  if(pct<50 && appContentSetting('motivationLow')) return appContentSetting('motivationLow');
   if(pct>=90) return 'Mumtaz! Hebat sungguh usaha adik. Teruskan istiqamah belajar.';
   if(pct>=80) return 'Cemerlang! Ilmu yang diamalkan akan menjadi cahaya.';
   if(pct>=60) return 'Bagus! Teruskan ulang kaji, kejayaan makin dekat.';

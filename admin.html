@@ -44,6 +44,20 @@ table{width:100%;border-collapse:collapse}
   .grid,.cards,.stats{grid-template-columns:repeat(2,minmax(0,1fr))!important}
 }
 
+
+
+/* ADMIN REPORT DESIGN v3.16 */
+.report-filter-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;align-items:end}
+.report-dashboard{margin-top:16px;display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.report-stat{border-radius:20px;padding:16px;background:linear-gradient(135deg,#ecfdf5,#ffffff);border:1px solid #bbf7d0;box-shadow:0 12px 28px rgba(22,163,74,.08)}
+.report-stat b{display:block;font-size:28px;color:#065f46;line-height:1}.report-stat span{display:block;margin-top:5px;color:#64748b;font-weight:800;font-size:12px;text-transform:uppercase;letter-spacing:.4px}
+.report-card-premium{position:relative;overflow:hidden;border-radius:24px;background:linear-gradient(135deg,#0f766e,#16a34a);color:white;padding:22px;margin-top:16px;box-shadow:0 18px 38px rgba(15,118,110,.24)}
+.report-card-premium:after{content:"";position:absolute;right:-70px;top:-80px;width:220px;height:220px;border-radius:999px;background:rgba(255,255,255,.13)}
+.report-card-premium h2,.report-card-premium p{position:relative;z-index:1}.report-card-premium p{margin:.35rem 0 0;color:rgba(255,255,255,.82)}
+.report-table-wrap{overflow:auto;border:1px solid #e2e8f0;border-radius:18px;margin-top:14px}.report-table-wrap table{margin:0}.report-table-wrap th{background:#ecfdf5;color:#065f46}
+.performance-pill{display:inline-flex;align-items:center;border-radius:999px;padding:5px 9px;font-weight:900;font-size:12px;background:#dcfce7;color:#166534}.performance-pill.warn{background:#fef3c7;color:#92400e}.performance-pill.bad{background:#fee2e2;color:#991b1b}
+.month-chip-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.month-chip{border:1px solid #bbf7d0;background:#f0fdf4;color:#166534;border-radius:999px;padding:8px 11px;font-weight:900;font-size:12px}
+
 </style>
 </head>
 <body class="admin-responsive-root">
@@ -58,11 +72,7 @@ table{width:100%;border-collapse:collapse}
     <button class="tab" onclick="showTab('questions', this)">Question Bank</button>
     <button class="tab" onclick="showTab('users', this)">Users</button>
     <button class="tab" onclick="showTab('history', this)">Redeem History</button>
-    <button class="tab" onclick="showTab('noteManager', this)">Question Note</button>
-    <button class="tab" onclick="showTab('licenseManager', this)">Trial / License</button>
-    <button class="tab" onclick="showTab('resultManager', this)">Results</button>
-    <button class="tab" onclick="showTab('contentManager', this)">App Content</button>
-    <button class="tab" onclick="showTab('systemControl', this)">System Control</button>
+    <button class="tab" onclick="showTab('examReport', this)">Exam Report</button>
     <button class="tab" onclick="showTab('settings', this)">Settings</button>
   </div>
 
@@ -167,9 +177,6 @@ table{width:100%;border-collapse:collapse}
         <input id="qSection" value="BAHAGIAN A" />
         <label>Arahan</label>
         <textarea id="qInstruction">Jawab semua soalan. Pilih jawapan yang paling tepat.</textarea>
-        <label>Nota Dalaman / Rujukan Admin</label>
-        <textarea id="qNote" placeholder="Contoh: sumber soalan, nota semakan, catatan developer. Default tidak dipaparkan kepada pelajar."></textarea>
-        <label style="display:flex;align-items:center;gap:10px;font-weight:800"><input id="qDisplayNote" type="checkbox" style="width:auto;margin:0" /> Paparkan nota ini kepada pelajar</label>
 
         <div class="actions">
           <button onclick="saveQuestion()">Simpan Soalan</button>
@@ -189,116 +196,22 @@ table{width:100%;border-collapse:collapse}
     <section class="card"><h2>Redeem History</h2><div id="historyBox">Memuatkan...</div></section>
   </section>
 
-
-  <section id="noteManager" class="panel">
-    <div class="grid">
-      <section class="card">
-        <h2>Manage Question Note</h2>
-        <p class="hint">Kawal field <code>note</code> supaya nota dalaman tidak keluar di latihan pelajar.</p>
-        <label>Subjek</label><select id="noteSubject"></select>
-        <div class="actions">
-          <button onclick="loadQuestionNotes()">Load Notes</button>
-          <button class="secondary" onclick="bulkHideNotes()">Bulk Hide Semua Note</button>
-          <button class="danger" onclick="bulkRemoveNotes()">Bulk Remove Semua Note</button>
-        </div>
-        <div id="noteManagerMsg" class="log">Sedia.</div>
-      </section>
-      <section class="card">
-        <h2>Senarai Note</h2>
-        <div id="noteManagerBox">Pilih subjek dan tekan Load Notes.</div>
-      </section>
-    </div>
-  </section>
-
-  <section id="licenseManager" class="panel">
-    <div class="grid">
-      <section class="card">
-        <h2>Manage Trial & Exam License</h2>
-        <p class="hint">Aktifkan atau renew akses mengikut username/account. Tidak padam user lama.</p>
-        <label>Search Username / Account ID</label><input id="licSearch" placeholder="contoh: ali01" />
-        <div class="actions"><button onclick="loadLicenseUsers()">Search / Refresh</button></div>
-        <div id="licenseUserBox">Memuatkan...</div>
-      </section>
-      <section class="card">
-        <h2>Update Akses</h2>
-        <label>Account ID / User ID</label><input id="licAccountId" placeholder="account id dari senarai" />
-        <label>Username</label><input id="licUsername" placeholder="username" />
-        <label>Trial Days</label><input id="licTrialDays" type="number" value="30" min="0" />
-        <label>Exam License Days</label><input id="licExamDays" type="number" value="365" min="0" />
-        <div class="actions">
-          <button onclick="activateTrialForUser()">Aktif/Renew Trial</button>
-          <button class="gold" onclick="activateExamForUser()">Aktif/Renew Exam</button>
-          <button class="secondary" onclick="checkLicenseExpiryAdmin()">Check Expiry</button>
-        </div>
-        <div id="licenseMsg" class="log">Sedia.</div>
-      </section>
-    </div>
-  </section>
-
-  <section id="resultManager" class="panel">
-    <div class="grid">
-      <section class="card">
-        <h2>Manage Results</h2>
-        <p class="hint">Lihat keputusan dari node user/students/history dan results. Reset dibuat pada rekod student yang dipilih sahaja.</p>
-        <label>Filter Username / Nama / Subjek</label><input id="resultFilter" placeholder="contoh: ali / aqidah / exam" />
-        <div class="actions">
-          <button onclick="loadAdminResults()">Load Results</button>
-          <button class="secondary" onclick="exportAdminResultsCSV()">Export CSV</button>
-        </div>
-      </section>
-      <section class="card">
-        <h2>Reset Result Pelajar</h2>
-        <label>Account ID</label><input id="resultAccountId" placeholder="account id" />
-        <label>Student Slot</label><input id="resultStudentSlot" placeholder="student_1" />
-        <div class="actions"><button class="danger" onclick="resetStudentResultsAdmin()">Reset Result Pelajar Ini</button></div>
-      </section>
-    </div>
-    <section class="card" style="margin-top:16px"><h2>Senarai Result</h2><div id="resultManagerBox">Tekan Load Results.</div></section>
-  </section>
-
-  <section id="contentManager" class="panel">
-    <div class="grid">
-      <section class="card">
-        <h2>Manage App Content</h2>
-        <p class="hint">Kawal banner, popup notice dan motivasi tanpa edit code.</p>
-        <label>Home Banner Title</label><input id="contentBannerTitle" placeholder="Contoh: Selamat Datang" />
-        <label>Home Banner Message</label><textarea id="contentBannerMessage"></textarea>
-        <label>Popup Notice Title</label><input id="contentPopupTitle" placeholder="Notis UPKK SmartKids" />
-        <label>Popup Notice Message</label><textarea id="contentPopupMessage"></textarea>
-        <label style="display:flex;align-items:center;gap:10px;font-weight:800"><input id="contentPopupActive" type="checkbox" style="width:auto;margin:0" /> Aktifkan Popup Notice</label>
-        <label>Motivasi Cemerlang</label><textarea id="motivationHigh"></textarea>
-        <label>Motivasi Sederhana</label><textarea id="motivationMid"></textarea>
-        <label>Motivasi Ulang Kaji</label><textarea id="motivationLow"></textarea>
-        <div class="actions"><button onclick="saveAppContentSettings()">Simpan App Content</button><button class="secondary" onclick="loadAppContentSettings()">Load</button></div>
-      </section>
-      <section class="card">
-        <h2>WhatsApp Support</h2>
-        <p class="hint">Nombor dan template mesej untuk support, beli lesen dan renew.</p>
-        <label>WhatsApp Number</label><input id="waNumber" placeholder="60123456789" />
-        <label>Support Message</label><textarea id="waSupportMsg"></textarea>
-        <label>Buy License Message</label><textarea id="waBuyMsg"></textarea>
-        <label>Renew License Message</label><textarea id="waRenewMsg"></textarea>
-        <div class="actions"><button onclick="saveWhatsappSettings()">Simpan WhatsApp</button><button class="secondary" onclick="loadWhatsappSettings()">Load</button></div>
-        <div id="contentMsg" class="log">Sedia.</div>
-      </section>
-    </div>
-  </section>
-
-  <section id="systemControl" class="panel">
-    <div class="grid">
-      <section class="card">
-        <h2>System Control</h2>
-        <p class="hint">Kawalan sistem global. Sesuai untuk notis maintenance dan force refresh/cache notice.</p>
-        <label style="display:flex;align-items:center;gap:10px;font-weight:800"><input id="maintenanceMode" type="checkbox" style="width:auto;margin:0" /> Maintenance Mode</label>
-        <label>Maintenance Message</label><textarea id="maintenanceMessage"></textarea>
-        <label>App Version Notice</label><input id="appVersionNotice" placeholder="Contoh: v3.15" />
-        <label>Force Refresh Notice</label><textarea id="forceRefreshNotice" placeholder="Contoh: Sila refresh aplikasi untuk versi terbaru."></textarea>
-        <label style="display:flex;align-items:center;gap:10px;font-weight:800"><input id="forceRefreshActive" type="checkbox" style="width:auto;margin:0" /> Aktifkan Force Refresh Notice</label>
-        <label>Global Announcement</label><textarea id="globalAnnouncement"></textarea>
-        <div class="actions"><button onclick="saveSystemControlSettings()">Simpan System Control</button><button class="secondary" onclick="loadSystemControlSettings()">Load</button></div>
-        <div id="systemMsg" class="log">Sedia.</div>
-      </section>
-    </div>
+  <section id="examReport" class="panel">
+    <section class="report-card-premium">
+      <h2>📊 Student Exam Record Report</h2>
+      <p>Rekod peperiksaan tahunan dan bulanan. Admin boleh lihat berapa kali anak membuat peperiksaan dalam sesuatu bulan dan download CSV.</p>
+    </section>
+    <section class="card" style="margin-top:16px">
+      <h2>Filter Rekod</h2>
+      <div class="report-filter-grid">
+        <div><label>Parent / Username</label><select id="reportAccount" onchange="loadReportStudents()"></select></div>
+        <div><label>Pelajar</label><select id="reportStudent"></select></div>
+        <div><label>Tahun</label><input id="reportYear" type="number" min="2024" max="2099" /></div>
+        <div><label>Bulan</label><select id="reportMonth"><option value="">Semua Bulan</option><option value="01">Januari</option><option value="02">Februari</option><option value="03">Mac</option><option value="04">April</option><option value="05">Mei</option><option value="06">Jun</option><option value="07">Julai</option><option value="08">Ogos</option><option value="09">September</option><option value="10">Oktober</option><option value="11">November</option><option value="12">Disember</option></select></div>
+        <div class="actions"><button onclick="loadExamReport()">Jana Report</button><button class="secondary" onclick="downloadExamReportCsv()">Download CSV</button></div>
+      </div>
+    </section>
+    <section class="card" style="margin-top:16px"><div id="examReportBox">Pilih parent, pelajar, tahun dan bulan untuk jana report.</div></section>
   </section>
 
   <section id="settings" class="panel">
@@ -336,7 +249,7 @@ table{width:100%;border-collapse:collapse}
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
-<script src="firebase-config.js?v=1.44"></script>
+<script src="firebase-config.js?v=3.16"></script>
 <script>
 firebase.initializeApp(window.UPKK_FIREBASE_CONFIG);
 const db = firebase.database();
@@ -432,11 +345,7 @@ function showTab(id, btn){
   if(id === 'questions') loadQuestionSubjects();
   if(id === 'users') loadUsers();
   if(id === 'history') loadHistory();
-  if(id === 'noteManager') { loadNoteSubjects().then(loadQuestionNotes).catch(err=>adminMsg('noteManagerMsg', err.message)); }
-  if(id === 'licenseManager') loadLicenseUsers();
-  if(id === 'resultManager') loadAdminResults();
-  if(id === 'contentManager') { loadAppContentSettings(); loadWhatsappSettings(); }
-  if(id === 'systemControl') loadSystemControlSettings();
+  if(id === 'examReport') initExamReport();
 }
 function applyTypeDefaults(){
   const type = $('type').value;
@@ -728,8 +637,7 @@ async function loadQuestionsForSubject(){
 
 function clearQuestionForm(){
   currentQuestionIndex = -1;
-  ['qId','qRumi','qJawi','optRumi0','optRumi1','optRumi2','optRumi3','optJawi0','optJawi1','optJawi2','optJawi3','qNote'].forEach(id => { if($(id)) $(id).value = ''; });
-  if($('qDisplayNote')) $('qDisplayNote').checked = false;
+  ['qId','qRumi','qJawi','optRumi0','optRumi1','optRumi2','optRumi3','optJawi0','optJawi1','optJawi2','optJawi3'].forEach(id => { if($(id)) $(id).value = ''; });
   $('qAnswer').value = '0';
   $('qLevel').value = 'mudah';
   $('qMarks').value = '1';
@@ -766,8 +674,6 @@ function editQuestion(idx){
   $('qMarks').value = Number(q.marks || 1);
   $('qSection').value = q.section || q.sectionRumi || 'BAHAGIAN A';
   $('qInstruction').value = q.instruction || q.instructionRumi || 'Jawab semua soalan. Pilih jawapan yang paling tepat.';
-  if($('qNote')) $('qNote').value = q.note || '';
-  if($('qDisplayNote')) $('qDisplayNote').checked = q.displayNoteToStudent === true;
   qMsg('Edit soalan: ' + (q.id || idx));
 }
 
@@ -793,9 +699,6 @@ function buildQuestionFromForm(){
     instruction: $('qInstruction').value.trim() || 'Jawab semua soalan. Pilih jawapan yang paling tepat.',
     sectionRumi: $('qSection').value.trim() || 'BAHAGIAN A',
     instructionRumi: $('qInstruction').value.trim() || 'Jawab semua soalan. Pilih jawapan yang paling tepat.',
-    note: ($('qNote')?.value || '').trim(),
-    displayNoteToStudent: !!$('qDisplayNote')?.checked,
-    hideNoteFromStudent: !$('qDisplayNote')?.checked,
     updatedAt: new Date().toISOString(),
     updatedBy: currentAdminSession?.adminId || 'admin'
   };
@@ -949,183 +852,106 @@ async function exportQuestionBank(){
 
 
 
-function adminMsg(id, text){ if($(id)) $(id).textContent = new Date().toLocaleString('ms-MY') + ' - ' + text; }
-function isoAddDays(days){ const d = new Date(); d.setDate(d.getDate() + Number(days||0)); return d.toISOString(); }
-function normalizeDateText(v){ if(!v) return '-'; const d=new Date(v); return isNaN(d.getTime()) ? String(v) : d.toLocaleDateString('ms-MY'); }
-function adminCsvEscape(v){ const s=String(v??''); return /[",\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s; }
-function downloadTextFile(filename, text, type='text/plain'){ const blob=new Blob([text],{type}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url); }
-
-async function loadNoteSubjects(){
-  const snap = await db.ref(questionRoot).get();
-  const data = snap.exists()?snap.val():{};
-  const keys = Object.keys(data).sort();
-  if($('noteSubject')) $('noteSubject').innerHTML = keys.map(k=>`<option value="${esc(k)}">${esc(k)}</option>`).join('');
-  if($('qmSubject') && !$('qmSubject').options.length) $('qmSubject').innerHTML = keys.map(k=>`<option value="${esc(k)}">${esc(k)}</option>`).join('');
+let reportUsersCache = {};
+let latestExamReportRows = [];
+function reportMonthName(mm){ return ({'01':'Januari','02':'Februari','03':'Mac','04':'April','05':'Mei','06':'Jun','07':'Julai','08':'Ogos','09':'September','10':'Oktober','11':'November','12':'Disember'})[String(mm||'').padStart(2,'0')] || 'Semua Bulan'; }
+function reportPercent(r){ return Math.round((Number(r.score||0)/Math.max(Number(r.total||1),1))*100); }
+function reportDateIso(r){ return r.rawCreatedAt || r.createdAt || r.answeredAt || r.date || ''; }
+function reportMonthKey(r){ const d = new Date(reportDateIso(r)); if(!Number.isNaN(d.getTime())) return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; return String(r.reportMonth||''); }
+function reportPerformance(pct){ if(pct>=80) return ['Cemerlang','']; if(pct>=50) return ['Baik','warn']; return ['Perlu Ulangkaji','bad']; }
+async function initExamReport(){
+  const yearEl = $('reportYear'); if(yearEl && !yearEl.value) yearEl.value = new Date().getFullYear();
+  const monthEl = $('reportMonth'); if(monthEl && monthEl.value === '') monthEl.value = String(new Date().getMonth()+1).padStart(2,'0');
+  await loadReportAccounts();
 }
-async function loadQuestionNotes(){
-  await loadNoteSubjects();
-  const subject = $('noteSubject')?.value || '';
-  if(!subject) return adminMsg('noteManagerMsg','Tiada subjek.');
-  const snap = await db.ref(questionRoot + '/' + subject + '/questions').get();
-  const questions = snap.exists() && Array.isArray(snap.val()) ? snap.val() : [];
-  const rows = questions.map((q,idx)=> q && q.note ? `<tr><td>${idx+1}</td><td><code>${esc(q.id||'-')}</code></td><td>${esc(String(q.note||'')).slice(0,180)}</td><td>${q.displayNoteToStudent===true?'<span class="status-ok">SHOW</span>':'<span class="status-bad">HIDE</span>'}</td><td><div class="actions"><button class="mini secondary" onclick="setQuestionNoteVisible('${esc(subject)}',${idx},true)">Show</button><button class="mini warning" onclick="setQuestionNoteVisible('${esc(subject)}',${idx},false)">Hide</button><button class="mini danger" onclick="removeQuestionNote('${esc(subject)}',${idx})">Remove</button></div></td></tr>` : '').join('');
-  $('noteManagerBox').innerHTML = `<table><thead><tr><th>No</th><th>ID</th><th>Note</th><th>Status</th><th>Aksi</th></tr></thead><tbody>${rows || '<tr><td colspan="5">Tiada note untuk subjek ini.</td></tr>'}</tbody></table>`;
-  adminMsg('noteManagerMsg','Note dimuatkan untuk subjek ' + subject);
+async function loadReportAccounts(){
+  const sel = $('reportAccount'); if(!sel) return;
+  const snap = await db.ref(userRoot).get();
+  reportUsersCache = snap.exists() ? (snap.val()||{}) : {};
+  const rows = Object.entries(reportUsersCache).map(([id,u])=>({id, username:u.username||id, students:u.students||{}})).sort((a,b)=>String(a.username).localeCompare(String(b.username)));
+  sel.innerHTML = rows.map(x=>`<option value="${esc(x.id)}">${esc(x.username)} — ${esc(x.id)}</option>`).join('') || '<option value="">Belum ada user</option>';
+  loadReportStudents();
 }
-async function setQuestionNoteVisible(subject, idx, visible){
-  const path = questionRoot + '/' + subject + '/questions/' + idx;
-  await db.ref(path).update({displayNoteToStudent:!!visible, hideNoteFromStudent:!visible, updatedAt:new Date().toISOString(), updatedBy:currentAdminSession?.adminId||'admin'});
-  await db.ref(adminLogRoot).push({action:visible?'show_question_note':'hide_question_note', subject, idx, adminId:currentAdminSession?.adminId||'', at:new Date().toISOString()});
-  await loadQuestionNotes();
+function loadReportStudents(){
+  const accountId = $('reportAccount')?.value || '';
+  const stSel = $('reportStudent'); if(!stSel) return;
+  const students = reportUsersCache?.[accountId]?.students || {};
+  const rows = Object.entries(students).map(([slot,s])=>({slot, name:s?.name || slot}));
+  stSel.innerHTML = rows.map(x=>`<option value="${esc(x.slot)}">${esc(x.name)} — ${esc(x.slot)}</option>`).join('') || '<option value="student_1">student_1</option>';
 }
-async function removeQuestionNote(subject, idx){
-  if(!confirm('Remove note soalan ini?')) return;
-  await db.ref(questionRoot + '/' + subject + '/questions/' + idx).update({note:null, displayNoteToStudent:false, hideNoteFromStudent:true, updatedAt:new Date().toISOString(), updatedBy:currentAdminSession?.adminId||'admin'});
-  await db.ref(adminLogRoot).push({action:'remove_question_note', subject, idx, adminId:currentAdminSession?.adminId||'', at:new Date().toISOString()});
-  await loadQuestionNotes();
-}
-async function bulkHideNotes(){
-  const subject = $('noteSubject')?.value || '';
-  if(!subject) return;
-  if(!confirm('Hide semua note untuk subjek ini daripada paparan pelajar?')) return;
-  const snap = await db.ref(questionRoot + '/' + subject + '/questions').get();
-  const arr = snap.exists() && Array.isArray(snap.val()) ? snap.val() : [];
-  arr.forEach(q=>{ if(q && q.note){ q.displayNoteToStudent=false; q.hideNoteFromStudent=true; q.updatedAt=new Date().toISOString(); q.updatedBy=currentAdminSession?.adminId||'admin'; } });
-  await db.ref(questionRoot + '/' + subject + '/questions').set(arr);
-  await db.ref(adminLogRoot).push({action:'bulk_hide_question_notes', subject, count:arr.filter(q=>q&&q.note).length, adminId:currentAdminSession?.adminId||'', at:new Date().toISOString()});
-  await loadQuestionNotes();
-}
-async function bulkRemoveNotes(){
-  const subject = $('noteSubject')?.value || '';
-  if(!subject) return;
-  if(!confirm('PERHATIAN: Remove semua field note untuk subjek ini?')) return;
-  const snap = await db.ref(questionRoot + '/' + subject + '/questions').get();
-  const arr = snap.exists() && Array.isArray(snap.val()) ? snap.val() : [];
-  arr.forEach(q=>{ if(q && q.note){ q.note=null; q.displayNoteToStudent=false; q.hideNoteFromStudent=true; q.updatedAt=new Date().toISOString(); q.updatedBy=currentAdminSession?.adminId||'admin'; } });
-  await db.ref(questionRoot + '/' + subject + '/questions').set(arr);
-  await db.ref(adminLogRoot).push({action:'bulk_remove_question_notes', subject, adminId:currentAdminSession?.adminId||'', at:new Date().toISOString()});
-  await loadQuestionNotes();
-}
-
-async function loadLicenseUsers(){
-  const search = String($('licSearch')?.value||'').toLowerCase().trim();
-  const [usersSnap, usernameSnap] = await Promise.all([db.ref(userRoot).get(), db.ref(usernameRoot).get()]);
-  const users = usersSnap.exists()?usersSnap.val():{};
-  const usernames = usernameSnap.exists()?usernameSnap.val():{};
-  const rows = Object.entries(users).filter(([id,u])=> !search || id.toLowerCase().includes(search) || String(u.username||'').toLowerCase().includes(search) || String(u.accountId||'').toLowerCase().includes(search)).map(([id,u])=>{
-    const sub = u.subscription || usernameSubscriptionFromIndex(usernames, u.username) || {};
-    const trialUntil = sub.trialUntil || sub.latihanTrialUntil || sub.trial?.endDate || '';
-    const examUntil = sub.examUntil || sub.examLicenseUntil || sub.exam?.endDate || '';
-    return `<tr><td><code>${esc(id)}</code></td><td>${esc(u.username||'-')}</td><td>${normalizeDateText(trialUntil)}</td><td>${normalizeDateText(examUntil)}</td><td><button class="mini secondary" onclick="selectLicenseUser('${esc(id)}','${esc(u.username||'')}')">Pilih</button></td></tr>`;
-  }).join('');
-  $('licenseUserBox').innerHTML = `<table><thead><tr><th>Account ID</th><th>Username</th><th>Trial</th><th>Exam</th><th>Aksi</th></tr></thead><tbody>${rows || '<tr><td colspan="5">Tiada user dijumpai.</td></tr>'}</tbody></table>`;
-}
-function selectLicenseUser(id, username){ $('licAccountId').value=id; $('licUsername').value=username; adminMsg('licenseMsg','User dipilih: ' + username); }
-async function updateUserSubscription(kind){
-  const accountId = safeKey($('licAccountId')?.value || '').toLowerCase();
-  const username = String($('licUsername')?.value || '').trim();
-  if(!accountId) return adminMsg('licenseMsg','Sila pilih/isi Account ID.');
-  const days = kind==='trial' ? Number($('licTrialDays')?.value||30) : Number($('licExamDays')?.value||365);
-  const endIso = isoAddDays(days);
-  const now = new Date().toISOString();
-  const updates = {updatedAt:now, scope:'username'};
-  if(kind==='trial') Object.assign(updates,{trialActive:true, trialUntil:endIso, latihanTrialUntil:endIso, trialCode:'ADMIN-MANUAL'});
-  if(kind==='exam') Object.assign(updates,{examActive:true, examUntil:endIso, examLicenseUntil:endIso, examCode:'ADMIN-MANUAL'});
-  await db.ref(userRoot + '/' + accountId + '/subscription').update(updates);
-  if(username){ await db.ref(usernameRoot + '/' + safeKey(username) + '/subscription').update(updates); }
-  await db.ref(adminLogRoot).push({action:kind==='trial'?'admin_activate_trial':'admin_activate_exam', accountId, username, days, until:endIso, adminId:currentAdminSession?.adminId||'', at:now});
-  adminMsg('licenseMsg',(kind==='trial'?'Trial':'Exam') + ' disimpan hingga ' + normalizeDateText(endIso));
-  await loadLicenseUsers();
-}
-function activateTrialForUser(){ updateUserSubscription('trial'); }
-function activateExamForUser(){ updateUserSubscription('exam'); }
-async function checkLicenseExpiryAdmin(){ await runExpiryCheck(); await loadLicenseUsers(); adminMsg('licenseMsg','Expiry check selesai.'); }
-
-let __ADMIN_RESULTS_CACHE = [];
-async function loadAdminResults(){
-  const filter = String($('resultFilter')?.value||'').toLowerCase().trim();
-  const usersSnap = await db.ref(userRoot).get();
-  const users = usersSnap.exists()?usersSnap.val():{};
-  const rows=[];
-  Object.entries(users).forEach(([accId,u])=>{
-    const username = u.username || accId;
-    const students = u.students || {};
-    Object.entries(students).forEach(([slot,st])=>{
-      const hist = st.history || st.historyCache || {};
-      const list = Array.isArray(hist) ? hist : Object.values(hist||{});
-      list.forEach((r,i)=>{
-        if(!r) return;
-        const rec={accountId:accId, username, studentSlot:slot, studentName:st.name||r.studentName||'', type:r.type||'', subject:r.subject||r.subjectKey||'', score:r.score||0, total:r.total||0, date:r.date||r.rawCreatedAt||r.answeredAt||'', key:i};
-        const hay = Object.values(rec).join(' ').toLowerCase();
-        if(!filter || hay.includes(filter)) rows.push(rec);
-      });
+async function fetchStudentExamRows(accountId, studentSlot, year, month){
+  const rows = [];
+  const reportBase = `${APP_ROOT}/examReports/${accountId}/${studentSlot}/${year}`;
+  try{
+    const snap = month ? await db.ref(`${reportBase}/${month}`).get() : await db.ref(reportBase).get();
+    if(snap.exists()){
+      const val = snap.val() || {};
+      if(month){ Object.values(val).forEach(v=>v&&rows.push(v)); }
+      else Object.values(val).forEach(mv=>Object.values(mv||{}).forEach(v=>v&&rows.push(v)));
+    }
+  }catch(err){ console.warn('examReports read failed:', err); }
+  if(rows.length) return rows;
+  try{
+    const key = `${accountId}_${studentSlot}`;
+    const snap = await db.ref(`${APP_ROOT}/results/${key}`).get();
+    const all = snap.exists() ? Object.values(snap.val()||{}) : [];
+    return all.filter(r=>{
+      const mk = reportMonthKey(r);
+      if(!mk.startsWith(String(year))) return false;
+      if(month && mk !== `${year}-${month}`) return false;
+      return String(r.type||'').toLowerCase().includes('exam');
     });
-  });
-  __ADMIN_RESULTS_CACHE = rows.slice(-1000).reverse();
-  const html = __ADMIN_RESULTS_CACHE.slice(0,300).map(r=>`<tr><td>${esc(r.username)}</td><td>${esc(r.studentName||r.studentSlot)}</td><td>${esc(r.type)}</td><td>${esc(r.subject)}</td><td>${esc(r.score)}/${esc(r.total)}</td><td>${esc(r.date)}</td><td><button class="mini secondary" onclick="$('resultAccountId').value='${esc(r.accountId)}';$('resultStudentSlot').value='${esc(r.studentSlot)}'">Pilih</button></td></tr>`).join('');
-  $('resultManagerBox').innerHTML = `<table><thead><tr><th>Username</th><th>Pelajar</th><th>Jenis</th><th>Subjek</th><th>Markah</th><th>Tarikh</th><th>Aksi</th></tr></thead><tbody>${html || '<tr><td colspan="7">Tiada result.</td></tr>'}</tbody></table>`;
+  }catch(err){ console.warn('legacy results read failed:', err); return rows; }
 }
-function exportAdminResultsCSV(){
-  const header=['username','studentName','studentSlot','type','subject','score','total','date','accountId'];
-  const csv=[header.join(',')].concat(__ADMIN_RESULTS_CACHE.map(r=>header.map(h=>adminCsvEscape(r[h])).join(','))).join('\n');
-  downloadTextFile('upkk-results-' + new Date().toISOString().slice(0,10) + '.csv', csv, 'text/csv');
+async function loadExamReport(){
+  const accountId = $('reportAccount')?.value || '';
+  const studentSlot = $('reportStudent')?.value || 'student_1';
+  const year = String($('reportYear')?.value || new Date().getFullYear());
+  const month = $('reportMonth')?.value || '';
+  const box = $('examReportBox');
+  if(!accountId){ box.innerHTML = '<div class="empty">Pilih parent dahulu.</div>'; return; }
+  box.innerHTML = 'Memuatkan report...';
+  const account = reportUsersCache?.[accountId] || {};
+  const student = account?.students?.[studentSlot] || {};
+  const rows = (await fetchStudentExamRows(accountId, studentSlot, year, month)).sort((a,b)=>new Date(reportDateIso(a))-new Date(reportDateIso(b)));
+  latestExamReportRows = rows;
+  const total = rows.length;
+  const avg = total ? Math.round(rows.reduce((s,r)=>s+reportPercent(r),0)/total) : 0;
+  const best = total ? Math.max(...rows.map(reportPercent)) : 0;
+  const monthCounts = {};
+  rows.forEach(r=>{ const mk = reportMonthKey(r).slice(5,7) || '??'; monthCounts[mk]=(monthCounts[mk]||0)+1; });
+  const chips = Object.entries(monthCounts).map(([mm,c])=>`<span class="month-chip">${reportMonthName(mm)}: ${c} kali</span>`).join('');
+  const body = rows.map((r,i)=>{ const pct=reportPercent(r); const [label,cls]=reportPerformance(pct); return `<tr><td data-label="#">${i+1}</td><td data-label="Tarikh">${esc(reportDateIso(r))}</td><td data-label="Subjek">${esc(r.subject||r.subjectKey||'-')}</td><td data-label="Markah">${esc(r.score)}/${esc(r.total)} (${pct}%)</td><td data-label="Status"><span class="performance-pill ${cls}">${label}</span></td><td data-label="Mode">${esc(r.mode||'-')}</td></tr>`; }).join('');
+  box.innerHTML = `
+    <h2>${esc(student.name || studentSlot)}</h2>
+    <p class="hint">Parent: ${esc(account.username||accountId)} • Tahun ${esc(year)} • ${month?reportMonthName(month):'Semua Bulan'}</p>
+    <div class="report-dashboard"><div class="report-stat"><b>${total}</b><span>Jumlah Peperiksaan</span></div><div class="report-stat"><b>${avg}%</b><span>Purata Markah</span></div><div class="report-stat"><b>${best}%</b><span>Markah Tertinggi</span></div><div class="report-stat"><b>${month?reportMonthName(month):Object.keys(monthCounts).length}</b><span>${month?'Bulan Dipilih':'Bulan Aktif'}</span></div></div>
+    <div class="month-chip-row">${chips || '<span class="month-chip">Belum ada rekod bulan ini</span>'}</div>
+    <div class="report-table-wrap"><table><thead><tr><th>#</th><th>Tarikh</th><th>Subjek</th><th>Markah</th><th>Status</th><th>Mode</th></tr></thead><tbody>${body || '<tr><td colspan="6">Belum ada rekod peperiksaan.</td></tr>'}</tbody></table></div>`;
 }
-async function resetStudentResultsAdmin(){
-  const accountId = safeKey($('resultAccountId')?.value || '').toLowerCase();
-  const slot = String($('resultStudentSlot')?.value || '').trim() || 'student_1';
-  if(!accountId) return alert('Isi Account ID.');
-  if(!confirm('Reset semua result untuk ' + accountId + ' / ' + slot + '?')) return;
-  const base = userRoot + '/' + accountId + '/students/' + safeKey(slot);
-  await db.ref(base).update({history:null, historyCache:null, stats:null, usedMap:null, examSessions:null, resultsResetAt:new Date().toISOString(), resultsResetBy:currentAdminSession?.adminId||'admin'});
-  await db.ref(adminLogRoot).push({action:'reset_student_results', accountId, slot, adminId:currentAdminSession?.adminId||'', at:new Date().toISOString()});
-  alert('Result pelajar telah direset.');
-  await loadAdminResults();
-}
-
-async function loadAppContentSettings(){
-  const snap = await db.ref(APP_ROOT + '/settings/appContent').get();
-  const v = snap.exists()?snap.val():{};
-  $('contentBannerTitle').value=v.bannerTitle||''; $('contentBannerMessage').value=v.bannerMessage||'';
-  $('contentPopupTitle').value=v.popupTitle||''; $('contentPopupMessage').value=v.popupMessage||''; $('contentPopupActive').checked=!!v.popupActive;
-  $('motivationHigh').value=v.motivationHigh||''; $('motivationMid').value=v.motivationMid||''; $('motivationLow').value=v.motivationLow||'';
-  adminMsg('contentMsg','App content dimuatkan.');
-}
-async function saveAppContentSettings(){
-  const payload={bannerTitle:$('contentBannerTitle').value.trim(), bannerMessage:$('contentBannerMessage').value.trim(), popupTitle:$('contentPopupTitle').value.trim(), popupMessage:$('contentPopupMessage').value.trim(), popupActive:!!$('contentPopupActive').checked, motivationHigh:$('motivationHigh').value.trim(), motivationMid:$('motivationMid').value.trim(), motivationLow:$('motivationLow').value.trim(), updatedAt:new Date().toISOString(), updatedBy:currentAdminSession?.adminId||'admin'};
-  await db.ref(APP_ROOT + '/settings/appContent').update(payload);
-  await db.ref(adminLogRoot).push({action:'save_app_content', adminId:currentAdminSession?.adminId||'', at:new Date().toISOString()});
-  adminMsg('contentMsg','App content disimpan.');
-}
-async function loadWhatsappSettings(){
-  const snap = await db.ref(APP_ROOT + '/settings/whatsapp').get();
-  const v = snap.exists()?snap.val():{};
-  $('waNumber').value=v.number||''; $('waSupportMsg').value=v.supportMessage||'Assalamualaikum, saya perlukan bantuan UPKK SmartKids.'; $('waBuyMsg').value=v.buyLicenseMessage||'Assalamualaikum, saya ingin membeli lesen peperiksaan UPKK SmartKids.'; $('waRenewMsg').value=v.renewLicenseMessage||'Assalamualaikum, saya ingin renew lesen peperiksaan UPKK SmartKids.';
-  adminMsg('contentMsg','WhatsApp settings dimuatkan.');
-}
-async function saveWhatsappSettings(){
-  const payload={number:String($('waNumber').value||'').replace(/\D/g,''), supportMessage:$('waSupportMsg').value.trim(), buyLicenseMessage:$('waBuyMsg').value.trim(), renewLicenseMessage:$('waRenewMsg').value.trim(), updatedAt:new Date().toISOString(), updatedBy:currentAdminSession?.adminId||'admin'};
-  await db.ref(APP_ROOT + '/settings/whatsapp').update(payload);
-  await db.ref(adminLogRoot).push({action:'save_whatsapp_settings', adminId:currentAdminSession?.adminId||'', at:new Date().toISOString()});
-  adminMsg('contentMsg','WhatsApp settings disimpan.');
-}
-async function loadSystemControlSettings(){
-  const snap = await db.ref(APP_ROOT + '/settings/systemControl').get();
-  const v = snap.exists()?snap.val():{};
-  $('maintenanceMode').checked=!!v.maintenanceMode; $('maintenanceMessage').value=v.maintenanceMessage||''; $('appVersionNotice').value=v.appVersionNotice||''; $('forceRefreshNotice').value=v.forceRefreshNotice||''; $('forceRefreshActive').checked=!!v.forceRefreshActive; $('globalAnnouncement').value=v.globalAnnouncement||'';
-  adminMsg('systemMsg','System control dimuatkan.');
-}
-async function saveSystemControlSettings(){
-  const payload={maintenanceMode:!!$('maintenanceMode').checked, maintenanceMessage:$('maintenanceMessage').value.trim(), appVersionNotice:$('appVersionNotice').value.trim(), forceRefreshNotice:$('forceRefreshNotice').value.trim(), forceRefreshActive:!!$('forceRefreshActive').checked, globalAnnouncement:$('globalAnnouncement').value.trim(), updatedAt:new Date().toISOString(), updatedBy:currentAdminSession?.adminId||'admin'};
-  await db.ref(APP_ROOT + '/settings/systemControl').update(payload);
-  await db.ref(adminLogRoot).push({action:'save_system_control', adminId:currentAdminSession?.adminId||'', at:new Date().toISOString()});
-  adminMsg('systemMsg','System control disimpan.');
+function csvEscape(v){ return '"' + String(v??'').replace(/"/g,'""') + '"'; }
+function downloadExamReportCsv(){
+  if(!latestExamReportRows.length){ alert('Jana report dahulu atau tiada rekod untuk dimuat turun.'); return; }
+  const headers = ['Date','Parent','StudentSlot','StudentName','Subject','Type','Score','Total','Percent','Mode','DurationSec'];
+  const accountId = $('reportAccount')?.value || '';
+  const studentSlot = $('reportStudent')?.value || '';
+  const studentName = reportUsersCache?.[accountId]?.students?.[studentSlot]?.name || studentSlot;
+  const lines = [headers.join(',')].concat(latestExamReportRows.map(r=>[
+    reportDateIso(r), reportUsersCache?.[accountId]?.username || accountId, studentSlot, studentName, r.subject||r.subjectKey||'', r.type||'', r.score||0, r.total||0, reportPercent(r), r.mode||'', r.durationSec||''
+  ].map(csvEscape).join(',')));
+  const blob = new Blob([lines.join('\n')], {type:'text/csv;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `UPKK-exam-report-${accountId}-${studentSlot}-${$('reportYear')?.value||''}-${$('reportMonth')?.value||'all'}.csv`;
+  document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
 }
 
 async function writeDefaultSettings(){
   await db.ref(APP_ROOT + '/settings/accessControl').update({registrationRequiresCode:true, defaultTrialDays:30, defaultExamDays:365, updatedAt:new Date().toISOString()});
   alert('Default settings disimpan.');
 }
-async function loadAll(){ await Promise.all([loadSummary(), loadCodes(), loadUsers(), loadHistory(), loadNoteSubjects().catch(()=>{})]); }
+async function loadAll(){ await Promise.all([loadSummary(), loadCodes(), loadUsers(), loadHistory()]); }
 async function initAdminPanel(){ const ok = await verifyAdminSession(); if(ok){ await loadAll(); const hash=(location.hash||'').replace('#',''); if(hash) showTab(hash); } }
 initAdminPanel().catch(err=>{ console.error(err); alert('Admin load error: ' + err.message); redirectAdminLogin('Ralat akses admin.'); });
 </script>

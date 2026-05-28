@@ -2309,9 +2309,3 @@ img,svg,canvas,video{
 @media (prefers-reduced-motion: reduce){
   .upkk-result-card,.upkk-result-orbit,.upkk-stars span,.upkk-confetti i,.upkk-slip-card,.upkk-result-actions{animation:none!important;}
 }
-
-
-/* ADMIN EXPANSION v3.15 - admin managed app notices */
-.upkk-admin-notice,.upkk-admin-banner{border:1px solid rgba(22,163,74,.18);background:linear-gradient(135deg,#ffffff,#f0fdf4);box-shadow:0 16px 35px rgba(22,163,74,.10)}
-.upkk-admin-notice.maintenance{border-color:rgba(245,158,11,.35);background:linear-gradient(135deg,#fffbeb,#ffffff)}
-.upkk-admin-banner .title,.upkk-admin-notice .title{margin-bottom:8px}
