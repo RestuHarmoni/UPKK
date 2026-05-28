@@ -1593,3 +1593,269 @@ img,svg,canvas,video{
 /* Jawi helper tools */
 .jawi-tools{margin:8px 0 10px;gap:8px;flex-wrap:wrap}
 .jawi-tools button{white-space:nowrap}
+
+/* =========================================================
+   V2 DESKTOP / TABLET STABLE VIEW UPGRADE
+   Purpose: make PC, laptop, tablet, Android and iPhone views
+   cleaner without changing Firebase/data logic.
+   ========================================================= */
+
+/* Tablet and large phones */
+@media (min-width: 700px) {
+  body {
+    background:
+      radial-gradient(circle at top left, rgba(15,138,75,.12), transparent 28%),
+      radial-gradient(circle at bottom right, rgba(244,185,66,.12), transparent 24%),
+      linear-gradient(160deg,#f0fff6 0%,#ffffff 45%,#e7fff0 100%);
+  }
+
+  .phone-shell {
+    max-width: 720px;
+    padding: 18px 20px calc(126px + env(safe-area-inset-bottom));
+    border-left: 1px solid rgba(15,138,75,.08);
+    border-right: 1px solid rgba(15,138,75,.08);
+    box-shadow: 0 24px 80px rgba(15,83,43,.08);
+  }
+
+  .app-header {
+    border-radius: 0 0 24px 24px;
+    padding: 14px 16px;
+  }
+
+  .brand-logo {
+    height: 64px;
+  }
+
+  .brand-text h1 {
+    font-size: 22px;
+  }
+
+  .brand-text p {
+    font-size: 12px;
+  }
+
+  .app-main {
+    gap: 16px;
+  }
+
+  .card {
+    padding: 20px;
+    border-radius: 28px;
+  }
+
+  .title {
+    font-size: 30px;
+  }
+
+  .subtitle,
+  .small {
+    font-size: 14px;
+  }
+
+  .subject-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+  }
+
+  .stats {
+    gap: 12px;
+  }
+
+  .bottom-nav {
+    width: min(680px, calc(100% - 32px));
+    bottom: 14px;
+    border: 1px solid rgba(15,138,75,.12);
+    border-radius: 26px;
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+    box-shadow: 0 18px 50px rgba(15,83,43,.18);
+  }
+
+  .nav-btn {
+    min-height: 58px;
+    border-radius: 20px;
+  }
+}
+
+/* Desktop / laptop */
+@media (min-width: 1024px) {
+  body {
+    min-height: 100vh;
+    padding: 24px;
+    overflow-x: hidden;
+  }
+
+  .phone-shell {
+    max-width: 1180px;
+    min-height: calc(100vh - 48px);
+    margin: 0 auto;
+    padding: 24px 28px 118px;
+    border-radius: 34px;
+    background:
+      radial-gradient(circle at top right, rgba(15,138,75,.10), transparent 30%),
+      linear-gradient(180deg,#fbfffd 0%,#f4fff8 100%);
+    border: 1px solid rgba(15,138,75,.12);
+    box-shadow: 0 28px 90px rgba(15,83,43,.14);
+    overflow: hidden;
+  }
+
+  .app-header {
+    position: sticky;
+    top: 0;
+    margin: -24px -28px 22px;
+    padding: 18px 28px;
+    border-radius: 34px 34px 24px 24px;
+    background: rgba(255,255,255,.88);
+    border-bottom: 1px solid rgba(15,138,75,.10);
+  }
+
+  .brand-logo {
+    height: 72px;
+  }
+
+  .brand-text h1 {
+    font-size: 26px;
+  }
+
+  .brand-text p {
+    font-size: 12px;
+    letter-spacing: 1px;
+  }
+
+  .app-main {
+    width: 100%;
+    max-width: 1120px;
+    margin: 0 auto;
+    gap: 20px;
+  }
+
+  .card {
+    border-radius: 30px;
+    padding: 24px;
+  }
+
+  .hero,
+  .dashboard-profile-card,
+  .profile-card {
+    padding: 28px;
+  }
+
+  .title {
+    font-size: 36px;
+    max-width: 900px;
+  }
+
+  .subtitle {
+    font-size: 15px;
+    max-width: 880px;
+  }
+
+  .stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+  }
+
+  .stat {
+    min-height: 92px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .subject-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 18px;
+  }
+
+  .subject {
+    min-height: 132px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+  }
+
+  .subject:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 18px 42px rgba(15,138,75,.14);
+    border-color: rgba(15,138,75,.28);
+  }
+
+  .btn,
+  button {
+    cursor: pointer;
+  }
+
+  .bottom-nav {
+    width: min(760px, calc(100% - 80px));
+    bottom: 28px;
+    border-radius: 28px;
+    padding: 10px 14px;
+  }
+
+  .nav-btn {
+    min-height: 62px;
+    font-size: 20px;
+  }
+
+  .nav-btn span {
+    font-size: 12px;
+  }
+
+  .copyright {
+    margin: 18px 0 0;
+  }
+
+  /* Make long forms and admin-like cards more readable on desktop */
+  input,
+  select,
+  textarea {
+    font-size: 15px;
+  }
+
+  textarea {
+    min-height: 96px;
+  }
+}
+
+/* Wide desktop */
+@media (min-width: 1366px) {
+  .phone-shell {
+    max-width: 1280px;
+  }
+
+  .app-main {
+    max-width: 1200px;
+  }
+
+  .subject-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .title {
+    font-size: 40px;
+  }
+}
+
+/* Keep very small iPhones clean */
+@media (max-width: 380px) {
+  .phone-shell {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  .brand-logo {
+    height: 48px;
+  }
+
+  .brand-text h1 {
+    font-size: 16px;
+  }
+
+  .brand-text p {
+    font-size: 9px;
+  }
+
+  .nav-btn span {
+    font-size: 9px;
+  }
+}
