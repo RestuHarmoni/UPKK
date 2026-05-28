@@ -14,7 +14,7 @@ const serviceAccount = require('./serviceAccountKey.json');
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
-  databaseURL: 'https://upkksmartkids-app-default-rtdb.asia-southeast1.firebasedatabase.app/'
+  databaseURL: 'https://upkksmartkids-app-default-rtdb.asia-southeast1.firebasedatabase.app'
 });
 
 async function resetUsers(){

@@ -14,7 +14,7 @@ const admin = require('firebase-admin');
 const crypto = require('crypto');
 const serviceAccount = require('./serviceAccountKey.json');
 
-const DATABASE_URL = 'https://YOUR-PROJECT-ID-default-rtdb.asia-southeast1.firebasedatabase.app'; // tukar ikut Firebase anda
+const DATABASE_URL = 'https://upkksmartkids-app-default-rtdb.asia-southeast1.firebasedatabase.app'; // tukar ikut Firebase anda
 const ADMIN_ID = 'admin';              // tukar jika mahu
 const ADMIN_PASSWORD = 'CHANGE_ME_NOW'; // wajib tukar sebelum run
 

@@ -5,7 +5,7 @@
 window.UPKK_FIREBASE_CONFIG = {
   apiKey: "ISI_API_KEY_FIREBASE",
   authDomain: "upkksmartkids-app.firebaseapp.com",
-  databaseURL: "https://upkksmartkids-app-default-rtdb.asia-southeast1.firebasedatabase.app/",
+  databaseURL: "https://upkksmartkids-app-default-rtdb.asia-southeast1.firebasedatabase.app",
   projectId: "upkksmartkids-app",
   storageBucket: "upkksmartkids-app.firebasestorage.app",
   messagingSenderId: "468488446410",
