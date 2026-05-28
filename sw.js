@@ -1,4 +1,4 @@
-const CACHE_NAME = 'upkk-smartkids-v3-16-admin-report-password';
+const CACHE_NAME = 'upkk-smartkids-v3-13-phase1-sound-result-admin-v317';
 const CORE_ASSETS = [
   './',
   './index.html',

@@ -44,19 +44,10 @@ table{width:100%;border-collapse:collapse}
   .grid,.cards,.stats{grid-template-columns:repeat(2,minmax(0,1fr))!important}
 }
 
-
-
-/* ADMIN REPORT DESIGN v3.16 */
-.report-filter-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;align-items:end}
-.report-dashboard{margin-top:16px;display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
-.report-stat{border-radius:20px;padding:16px;background:linear-gradient(135deg,#ecfdf5,#ffffff);border:1px solid #bbf7d0;box-shadow:0 12px 28px rgba(22,163,74,.08)}
-.report-stat b{display:block;font-size:28px;color:#065f46;line-height:1}.report-stat span{display:block;margin-top:5px;color:#64748b;font-weight:800;font-size:12px;text-transform:uppercase;letter-spacing:.4px}
-.report-card-premium{position:relative;overflow:hidden;border-radius:24px;background:linear-gradient(135deg,#0f766e,#16a34a);color:white;padding:22px;margin-top:16px;box-shadow:0 18px 38px rgba(15,118,110,.24)}
-.report-card-premium:after{content:"";position:absolute;right:-70px;top:-80px;width:220px;height:220px;border-radius:999px;background:rgba(255,255,255,.13)}
-.report-card-premium h2,.report-card-premium p{position:relative;z-index:1}.report-card-premium p{margin:.35rem 0 0;color:rgba(255,255,255,.82)}
-.report-table-wrap{overflow:auto;border:1px solid #e2e8f0;border-radius:18px;margin-top:14px}.report-table-wrap table{margin:0}.report-table-wrap th{background:#ecfdf5;color:#065f46}
-.performance-pill{display:inline-flex;align-items:center;border-radius:999px;padding:5px 9px;font-weight:900;font-size:12px;background:#dcfce7;color:#166534}.performance-pill.warn{background:#fef3c7;color:#92400e}.performance-pill.bad{background:#fee2e2;color:#991b1b}
-.month-chip-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.month-chip{border:1px solid #bbf7d0;background:#f0fdf4;color:#166534;border-radius:999px;padding:8px 11px;font-weight:900;font-size:12px}
+    .admin-report-hero{background:linear-gradient(135deg,#ecfdf5,#eff6ff);border:1px solid #bbf7d0;border-radius:22px;padding:18px;margin:10px 0 14px}
+    .admin-stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:12px 0}
+    .admin-stat{background:white;border:1px solid #dcfce7;border-radius:16px;padding:14px;box-shadow:0 8px 20px rgba(0,0,0,.04)}
+    .admin-stat strong{display:block;font-size:24px;color:#15803d}.admin-badge{display:inline-flex;padding:5px 9px;border-radius:999px;background:#dcfce7;color:#166534;font-weight:900;font-size:12px}
 
 </style>
 </head>
@@ -72,8 +63,14 @@ table{width:100%;border-collapse:collapse}
     <button class="tab" onclick="showTab('questions', this)">Question Bank</button>
     <button class="tab" onclick="showTab('users', this)">Users</button>
     <button class="tab" onclick="showTab('history', this)">Redeem History</button>
-    <button class="tab" onclick="showTab('examReport', this)">Exam Report</button>
     <button class="tab" onclick="showTab('settings', this)">Settings</button>
+    <button class="tab" onclick="showTab('whatsapp', this)">WhatsApp Settings</button>
+    <button class="tab" onclick="showTab('questionNotes', this)">Question Note Manager</button>
+    <button class="tab" onclick="showTab('licenseManager', this)">Trial / License Manager</button>
+    <button class="tab" onclick="showTab('resultsManager', this)">Results Manager</button>
+    <button class="tab" onclick="showTab('appContent', this)">App Content Manager</button>
+    <button class="tab" onclick="showTab('systemControl', this)">System Control</button>
+    <button class="tab" onclick="showTab('examReport', this)">Exam Report Analytic</button>
   </div>
 
   <section id="dashboard" class="panel active">
@@ -196,24 +193,6 @@ table{width:100%;border-collapse:collapse}
     <section class="card"><h2>Redeem History</h2><div id="historyBox">Memuatkan...</div></section>
   </section>
 
-  <section id="examReport" class="panel">
-    <section class="report-card-premium">
-      <h2>📊 Student Exam Record Report</h2>
-      <p>Rekod peperiksaan tahunan dan bulanan. Admin boleh lihat berapa kali anak membuat peperiksaan dalam sesuatu bulan dan download CSV.</p>
-    </section>
-    <section class="card" style="margin-top:16px">
-      <h2>Filter Rekod</h2>
-      <div class="report-filter-grid">
-        <div><label>Parent / Username</label><select id="reportAccount" onchange="loadReportStudents()"></select></div>
-        <div><label>Pelajar</label><select id="reportStudent"></select></div>
-        <div><label>Tahun</label><input id="reportYear" type="number" min="2024" max="2099" /></div>
-        <div><label>Bulan</label><select id="reportMonth"><option value="">Semua Bulan</option><option value="01">Januari</option><option value="02">Februari</option><option value="03">Mac</option><option value="04">April</option><option value="05">Mei</option><option value="06">Jun</option><option value="07">Julai</option><option value="08">Ogos</option><option value="09">September</option><option value="10">Oktober</option><option value="11">November</option><option value="12">Disember</option></select></div>
-        <div class="actions"><button onclick="loadExamReport()">Jana Report</button><button class="secondary" onclick="downloadExamReportCsv()">Download CSV</button></div>
-      </div>
-    </section>
-    <section class="card" style="margin-top:16px"><div id="examReportBox">Pilih parent, pelajar, tahun dan bulan untuk jana report.</div></section>
-  </section>
-
   <section id="settings" class="panel">
     <div class="grid">
       <section class="card">
@@ -245,11 +224,131 @@ table{width:100%;border-collapse:collapse}
       </section>
     </div>
   </section>
+
+  <section id="whatsapp" class="panel">
+    <div class="grid">
+      <section class="card">
+        <h2>WhatsApp Settings</h2>
+        <p class="hint">Tetapan nombor WhatsApp dan template mesej. Akan disimpan di <code>apps/UPKK/settings/whatsapp</code>.</p>
+        <label>Nombor WhatsApp</label><input id="waNumber" placeholder="60123456789" />
+        <label>Mesej Support</label><textarea id="waSupportMsg">Assalamualaikum, saya perlukan bantuan UPKK SmartKids.</textarea>
+        <label>Mesej Beli Lesen</label><textarea id="waBuyMsg">Assalamualaikum, saya ingin membeli lesen peperiksaan UPKK SmartKids.</textarea>
+        <label>Mesej Renew Lesen</label><textarea id="waRenewMsg">Assalamualaikum, saya ingin renew lesen peperiksaan UPKK SmartKids.</textarea>
+        <label>Mesej Lapor Masalah</label><textarea id="waProblemMsg">Assalamualaikum, saya ingin laporkan masalah aplikasi UPKK SmartKids.</textarea>
+        <div class="actions"><button onclick="saveWhatsAppSettings()">Simpan WhatsApp</button><button class="secondary" onclick="loadWhatsAppSettings()">Refresh</button></div>
+        <div id="waMsg" class="log">Sedia.</div>
+      </section>
+      <section class="card">
+        <h2>Preview Link</h2>
+        <p class="hint">Tekan untuk test buka WhatsApp selepas simpan.</p>
+        <div class="actions"><button class="secondary" onclick="testWhatsAppLink('support')">Test Support</button><button class="secondary" onclick="testWhatsAppLink('buy')">Test Beli Lesen</button><button class="secondary" onclick="testWhatsAppLink('renew')">Test Renew</button></div>
+      </section>
+    </div>
+  </section>
+
+  <section id="questionNotes" class="panel">
+    <div class="grid">
+      <section class="card">
+        <h2>Question Note Manager</h2>
+        <p class="hint">Urus nota dalaman soalan. Nota developer boleh disembunyikan daripada pelajar tanpa edit seed JSON.</p>
+        <label>Subjek</label><select id="noteSubject"></select>
+        <div class="actions"><button onclick="loadQuestionNoteList()">Load Note</button><button class="warning" onclick="bulkHideQuestionNotes()">Bulk Hide Note</button><button class="danger" onclick="bulkRemoveQuestionNotes()">Bulk Remove Note</button></div>
+      </section>
+      <section class="card"><h2>Senarai Note</h2><div id="questionNoteBox">Pilih subjek dan tekan Load Note.</div></section>
+    </div>
+  </section>
+
+  <section id="licenseManager" class="panel">
+    <div class="grid">
+      <section class="card">
+        <h2>Trial / Exam License Manager</h2>
+        <p class="hint">Lihat dan renew entitlement user. Data disimpan pada akaun user/username sedia ada.</p>
+        <label>Search Username / User ID</label><input id="licenseSearch" placeholder="contoh: parent123" />
+        <div class="actions"><button onclick="loadLicenseManager()">Search / Refresh</button><button class="secondary" onclick="loadLicenseManager(true)">Load Semua</button></div>
+        <div id="licenseBox">Tekan refresh.</div>
+      </section>
+      <section class="card">
+        <h2>Manual Renew</h2>
+        <label>User ID / Account ID</label><input id="licenseUserId" />
+        <label>Username</label><input id="licenseUsername" />
+        <label>Jenis</label><select id="licenseKind"><option value="trial">Trial Latihan</option><option value="exam">Exam License</option><option value="full">Full Access</option></select>
+        <label>Tempoh Hari</label><input id="licenseDays" type="number" value="365" />
+        <div class="actions"><button onclick="saveManualLicense()">Aktif/Renew</button></div>
+        <div id="licenseMsg" class="log">Sedia.</div>
+      </section>
+    </div>
+  </section>
+
+  <section id="resultsManager" class="panel">
+    <div class="grid">
+      <section class="card">
+        <h2>Results Manager</h2>
+        <p class="hint">Lihat result pelajar, filter dan export CSV. Reset/padam rekod perlukan password parent.</p>
+        <label>Search Student / Username</label><input id="resultSearch" placeholder="nama pelajar / username / student id" />
+        <div class="actions"><button onclick="loadResultsManager()">Load Result</button><button class="secondary" onclick="exportResultsCSV()">Export CSV</button><button class="danger" onclick="openParentPasswordReset()">Reset Rekod Terpilih</button></div>
+        <div id="resultBox">Tekan Load Result.</div>
+      </section>
+      <section class="card">
+        <h2>Password Parent Confirmation</h2>
+        <p class="hint">Digunakan sebelum tindakan reset/padam rekod.</p>
+        <label>Username Parent</label><input id="parentConfirmUsername" />
+        <label>Password Parent</label><input id="parentConfirmPassword" type="password" />
+        <label>Firebase Result Key</label><input id="resetResultKey" placeholder="contoh: ACCOUNT_student_1" />
+        <div class="actions"><button class="danger" onclick="confirmResetResultWithParentPassword()">Sahkan & Reset</button></div>
+        <div id="resetMsg" class="log">Sedia.</div>
+      </section>
+    </div>
+  </section>
+
+  <section id="appContent" class="panel">
+    <div class="grid">
+      <section class="card">
+        <h2>App Content Manager</h2>
+        <p class="hint">Kawal banner, popup notice dan motivasi tanpa edit code.</p>
+        <label>Banner Pengumuman</label><textarea id="contentBanner" placeholder="Contoh: Selamat belajar UPKK!"></textarea>
+        <label>Popup Notice</label><textarea id="contentPopup" placeholder="Contoh: Peperiksaan percubaan dibuka minggu ini."></textarea>
+        <label>Motivasi Result</label><textarea id="contentMotivation" placeholder="Satu mesej setiap baris"></textarea>
+        <div class="actions"><button onclick="saveAppContent()">Simpan Content</button><button class="secondary" onclick="loadAppContent()">Refresh</button></div>
+        <div id="contentMsg" class="log">Sedia.</div>
+      </section>
+      <section class="card"><h2>Preview</h2><div id="contentPreview" class="log">Belum dimuatkan.</div></section>
+    </div>
+  </section>
+
+  <section id="systemControl" class="panel">
+    <div class="grid">
+      <section class="card">
+        <h2>System Control</h2>
+        <p class="hint">Kawalan maintenance, app version notice dan force refresh.</p>
+        <label>Maintenance Mode</label><select id="sysMaintenance"><option value="false">OFF</option><option value="true">ON</option></select>
+        <label>Maintenance Message</label><textarea id="sysMaintenanceMsg">Sistem sedang diselenggara. Sila cuba sebentar lagi.</textarea>
+        <label>App Version Notice</label><input id="sysVersionNotice" placeholder="v3.17" />
+        <label>Force Refresh Notice</label><textarea id="sysForceNotice">Versi baru tersedia. Sila refresh aplikasi.</textarea>
+        <div class="actions"><button onclick="saveSystemControl()">Simpan System Control</button><button class="warning" onclick="bumpForceRefreshVersion()">Bump Force Refresh</button><button class="secondary" onclick="loadSystemControl()">Refresh</button></div>
+        <div id="systemMsg" class="log">Sedia.</div>
+      </section>
+    </div>
+  </section>
+
+  <section id="examReport" class="panel">
+    <div class="grid">
+      <section class="card">
+        <h2>Exam Report Analytic</h2>
+        <p class="hint">Report peperiksaan ikut tahun/bulan. Rekod baru akan dibaca dari <code>results</code> dan <code>examHistory</code> jika tersedia.</p>
+        <label>Tahun</label><input id="reportYear" type="number" value="2026" />
+        <label>Bulan</label><select id="reportMonth"><option value="">Semua Bulan</option><option value="01">Januari</option><option value="02">Februari</option><option value="03">Mac</option><option value="04">April</option><option value="05">Mei</option><option value="06">Jun</option><option value="07">Julai</option><option value="08">Ogos</option><option value="09">September</option><option value="10">Oktober</option><option value="11">November</option><option value="12">Disember</option></select>
+        <label>Search Pelajar / Username</label><input id="reportSearch" />
+        <div class="actions"><button onclick="loadExamReport()">Generate Report</button><button class="secondary" onclick="downloadExamReportCSV()">Download CSV</button></div>
+      </section>
+      <section class="card"><h2>Design Report</h2><div id="examReportBox">Tekan Generate Report.</div></section>
+    </div>
+  </section>
+
 </main>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
-<script src="firebase-config.js?v=3.16"></script>
+<script src="firebase-config.js?v=1.43"></script>
 <script>
 firebase.initializeApp(window.UPKK_FIREBASE_CONFIG);
 const db = firebase.database();
@@ -345,7 +444,13 @@ function showTab(id, btn){
   if(id === 'questions') loadQuestionSubjects();
   if(id === 'users') loadUsers();
   if(id === 'history') loadHistory();
-  if(id === 'examReport') initExamReport();
+  if(id === 'whatsapp') loadWhatsAppSettings();
+  if(id === 'questionNotes') loadQuestionNoteSubjects();
+  if(id === 'licenseManager') loadLicenseManager(true);
+  if(id === 'resultsManager') loadResultsManager();
+  if(id === 'appContent') loadAppContent();
+  if(id === 'systemControl') loadSystemControl();
+  if(id === 'examReport') loadExamReport();
 }
 function applyTypeDefaults(){
   const type = $('type').value;
@@ -851,101 +956,97 @@ async function exportQuestionBank(){
 }
 
 
-
-let reportUsersCache = {};
-let latestExamReportRows = [];
-function reportMonthName(mm){ return ({'01':'Januari','02':'Februari','03':'Mac','04':'April','05':'Mei','06':'Jun','07':'Julai','08':'Ogos','09':'September','10':'Oktober','11':'November','12':'Disember'})[String(mm||'').padStart(2,'0')] || 'Semua Bulan'; }
-function reportPercent(r){ return Math.round((Number(r.score||0)/Math.max(Number(r.total||1),1))*100); }
-function reportDateIso(r){ return r.rawCreatedAt || r.createdAt || r.answeredAt || r.date || ''; }
-function reportMonthKey(r){ const d = new Date(reportDateIso(r)); if(!Number.isNaN(d.getTime())) return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; return String(r.reportMonth||''); }
-function reportPerformance(pct){ if(pct>=80) return ['Cemerlang','']; if(pct>=50) return ['Baik','warn']; return ['Perlu Ulangkaji','bad']; }
-async function initExamReport(){
-  const yearEl = $('reportYear'); if(yearEl && !yearEl.value) yearEl.value = new Date().getFullYear();
-  const monthEl = $('reportMonth'); if(monthEl && monthEl.value === '') monthEl.value = String(new Date().getMonth()+1).padStart(2,'0');
-  await loadReportAccounts();
+/* ADMIN EXPANSION COMPLETE v3.17 */
+const settingsRoot = APP_ROOT + '/settings';
+const contentRoot = APP_ROOT + '/content';
+const resultsRoot = APP_ROOT + '/results';
+const examHistoryRoot = APP_ROOT + '/examHistory';
+let cachedResultsRows = [];
+let cachedReportRows = [];
+function setLogBox(id,msg){ const el=$(id); if(el) el.textContent = new Date().toLocaleString('ms-MY') + ' - ' + msg; }
+function normalizeMsPhone(v){ return String(v||'').replace(/[^0-9]/g,'').replace(/^0/,'60'); }
+function waUrl(number,msg){ return 'https://wa.me/' + normalizeMsPhone(number) + '?text=' + encodeURIComponent(msg||''); }
+async function loadWhatsAppSettings(){
+  const snap = await db.ref(settingsRoot + '/whatsapp').get();
+  const w = snap.exists()?snap.val():{};
+  if($('waNumber')) $('waNumber').value = w.number || w.whatsappNumber || '';
+  if($('waSupportMsg')) $('waSupportMsg').value = w.supportMessage || 'Assalamualaikum, saya perlukan bantuan UPKK SmartKids.';
+  if($('waBuyMsg')) $('waBuyMsg').value = w.buyLicenseMessage || 'Assalamualaikum, saya ingin membeli lesen peperiksaan UPKK SmartKids.';
+  if($('waRenewMsg')) $('waRenewMsg').value = w.renewLicenseMessage || 'Assalamualaikum, saya ingin renew lesen peperiksaan UPKK SmartKids.';
+  if($('waProblemMsg')) $('waProblemMsg').value = w.problemMessage || 'Assalamualaikum, saya ingin laporkan masalah aplikasi UPKK SmartKids.';
+  setLogBox('waMsg','WhatsApp settings dimuatkan.');
 }
-async function loadReportAccounts(){
-  const sel = $('reportAccount'); if(!sel) return;
-  const snap = await db.ref(userRoot).get();
-  reportUsersCache = snap.exists() ? (snap.val()||{}) : {};
-  const rows = Object.entries(reportUsersCache).map(([id,u])=>({id, username:u.username||id, students:u.students||{}})).sort((a,b)=>String(a.username).localeCompare(String(b.username)));
-  sel.innerHTML = rows.map(x=>`<option value="${esc(x.id)}">${esc(x.username)} — ${esc(x.id)}</option>`).join('') || '<option value="">Belum ada user</option>';
-  loadReportStudents();
+async function saveWhatsAppSettings(){
+  const data={number:normalizeMsPhone($('waNumber').value),supportMessage:$('waSupportMsg').value,buyLicenseMessage:$('waBuyMsg').value,renewLicenseMessage:$('waRenewMsg').value,problemMessage:$('waProblemMsg').value,updatedAt:new Date().toISOString()};
+  await db.ref(settingsRoot + '/whatsapp').update(data);
+  await db.ref(adminLogRoot).push({action:'save_whatsapp_settings',adminId:currentAdminSession?.adminId||'',at:new Date().toISOString()});
+  setLogBox('waMsg','WhatsApp settings disimpan.');
 }
-function loadReportStudents(){
-  const accountId = $('reportAccount')?.value || '';
-  const stSel = $('reportStudent'); if(!stSel) return;
-  const students = reportUsersCache?.[accountId]?.students || {};
-  const rows = Object.entries(students).map(([slot,s])=>({slot, name:s?.name || slot}));
-  stSel.innerHTML = rows.map(x=>`<option value="${esc(x.slot)}">${esc(x.name)} — ${esc(x.slot)}</option>`).join('') || '<option value="student_1">student_1</option>';
+function testWhatsAppLink(type){
+  const n=$('waNumber').value; const msg= type==='buy' ? $('waBuyMsg').value : type==='renew' ? $('waRenewMsg').value : $('waSupportMsg').value;
+  if(!n) return alert('Isi nombor WhatsApp dahulu.'); window.open(waUrl(n,msg),'_blank','noopener,noreferrer');
 }
-async function fetchStudentExamRows(accountId, studentSlot, year, month){
-  const rows = [];
-  const reportBase = `${APP_ROOT}/examReports/${accountId}/${studentSlot}/${year}`;
-  try{
-    const snap = month ? await db.ref(`${reportBase}/${month}`).get() : await db.ref(reportBase).get();
-    if(snap.exists()){
-      const val = snap.val() || {};
-      if(month){ Object.values(val).forEach(v=>v&&rows.push(v)); }
-      else Object.values(val).forEach(mv=>Object.values(mv||{}).forEach(v=>v&&rows.push(v)));
-    }
-  }catch(err){ console.warn('examReports read failed:', err); }
-  if(rows.length) return rows;
-  try{
-    const key = `${accountId}_${studentSlot}`;
-    const snap = await db.ref(`${APP_ROOT}/results/${key}`).get();
-    const all = snap.exists() ? Object.values(snap.val()||{}) : [];
-    return all.filter(r=>{
-      const mk = reportMonthKey(r);
-      if(!mk.startsWith(String(year))) return false;
-      if(month && mk !== `${year}-${month}`) return false;
-      return String(r.type||'').toLowerCase().includes('exam');
-    });
-  }catch(err){ console.warn('legacy results read failed:', err); return rows; }
+async function loadQuestionNoteSubjects(){
+  const snap=await db.ref(questionRoot).get(); const data=snap.exists()?snap.val():{}; const subjects=Object.keys(data);
+  const sel=$('noteSubject'); if(sel) sel.innerHTML=subjects.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('') || '<option value="">Tiada subjek</option>';
 }
+async function getSubjectQuestions(subject){ const snap=await db.ref(questionRoot + '/' + subject + '/questions').get(); return snap.exists() ? snap.val() : []; }
+async function saveSubjectQuestions(subject,questions){ await db.ref(questionRoot + '/' + subject + '/questions').set(questions); }
+async function loadQuestionNoteList(){
+  const subject=$('noteSubject').value; if(!subject) return; const qs=await getSubjectQuestions(subject);
+  const rows=(Array.isArray(qs)?qs:Object.values(qs)).map((q,i)=> q && (q.note || q.internalNote || q.hideNote!==undefined) ? `<tr><td>${i+1}</td><td>${esc(q.id||q.questionId||'-')}</td><td>${esc((q.rumi||q.question||q.text||'').slice(0,90))}</td><td>${esc(q.note||q.internalNote||'')}</td><td>${q.hideNote?'Hidden':'Visible'}</td><td><button class="mini warning" onclick="toggleQuestionNote('${esc(subject)}',${i},true)">Hide</button> <button class="mini secondary" onclick="toggleQuestionNote('${esc(subject)}',${i},false)">Show</button> <button class="mini danger" onclick="removeQuestionNote('${esc(subject)}',${i})">Remove</button></td></tr>` : '').join('');
+  $('questionNoteBox').innerHTML=`<table><thead><tr><th>No</th><th>ID</th><th>Soalan</th><th>Note</th><th>Status</th><th>Aksi</th></tr></thead><tbody>${rows||'<tr><td colspan="6">Tiada note ditemui.</td></tr>'}</tbody></table>`;
+}
+async function toggleQuestionNote(subject,index,hide){ const qs=await getSubjectQuestions(subject); if(qs[index]) qs[index].hideNote=!!hide; await saveSubjectQuestions(subject,qs); await loadQuestionNoteList(); }
+async function removeQuestionNote(subject,index){ if(!confirm('Remove note soalan ini?')) return; const qs=await getSubjectQuestions(subject); if(qs[index]){ delete qs[index].note; delete qs[index].internalNote; qs[index].hideNote=true; } await saveSubjectQuestions(subject,qs); await loadQuestionNoteList(); }
+async function bulkHideQuestionNotes(){ const subject=$('noteSubject').value; if(!subject) return; const qs=await getSubjectQuestions(subject); qs.forEach(q=>{ if(q && (q.note||q.internalNote)) q.hideNote=true; }); await saveSubjectQuestions(subject,qs); await loadQuestionNoteList(); }
+async function bulkRemoveQuestionNotes(){ const subject=$('noteSubject').value; if(!subject || !confirm('Remove semua note untuk subjek ini?')) return; const qs=await getSubjectQuestions(subject); qs.forEach(q=>{ if(q){ delete q.note; delete q.internalNote; q.hideNote=true; } }); await saveSubjectQuestions(subject,qs); await loadQuestionNoteList(); }
+async function loadLicenseManager(all=false){
+  const [usersSnap, entSnap]=await Promise.all([db.ref(userRoot).get(),db.ref(entRoot).get()]); const users=usersSnap.exists()?usersSnap.val():{}; const ents=entSnap.exists()?entSnap.val():{}; const term=String($('licenseSearch')?.value||'').toLowerCase();
+  const rows=Object.entries(users).filter(([id,u])=>all || !term || id.toLowerCase().includes(term) || String(u.username||'').toLowerCase().includes(term)).map(([id,u])=>{ const e=ents[id]||u.entitlements||{}; const sub=u.subscription||{}; return `<tr><td><code>${esc(id)}</code></td><td>${esc(u.username||'-')}</td><td>${dateText(sub.trialUntil||e.latihanTrial?.endDate||'')}</td><td>${dateText(sub.examUntil||e.exam?.endDate||'')}</td><td><button class="mini" onclick="fillLicenseForm('${esc(id)}','${esc(u.username||'')}')">Pilih</button></td></tr>`; }).join('');
+  $('licenseBox').innerHTML=`<table><thead><tr><th>User ID</th><th>Username</th><th>Trial Tamat</th><th>Exam Tamat</th><th>Aksi</th></tr></thead><tbody>${rows||'<tr><td colspan="5">Tiada user ditemui.</td></tr>'}</tbody></table>`;
+}
+function fillLicenseForm(id,username){ $('licenseUserId').value=id; $('licenseUsername').value=username; }
+async function saveManualLicense(){
+  const id=$('licenseUserId').value.trim(); const username=$('licenseUsername').value.trim(); const kind=$('licenseKind').value; const days=Number($('licenseDays').value||365); if(!id && !username) return alert('Isi User ID atau Username.');
+  const until=new Date(Date.now()+days*86400000).toISOString(); const data={updatedAt:new Date().toISOString(),scope:'username'}; if(kind==='trial') data.trialUntil=until; if(kind==='exam') data.examUntil=until; if(kind==='full'){data.trialUntil=until; data.examUntil=until;}
+  if(id) await db.ref(userRoot + '/' + safeFirebaseKey(id) + '/subscription').update(data);
+  if(username) await db.ref(usernameRoot + '/' + safeKey(username) + '/subscription').update(data);
+  await db.ref(adminLogRoot).push({action:'manual_license_update',id,username,kind,days,adminId:currentAdminSession?.adminId||'',at:new Date().toISOString()});
+  setLogBox('licenseMsg','License/Trial dikemaskini sehingga ' + dateText(until)); await loadLicenseManager(true);
+}
+async function loadResultsManager(){
+  const snap=await db.ref(resultsRoot).get(); const data=snap.exists()?snap.val():{}; const term=String($('resultSearch')?.value||'').toLowerCase(); cachedResultsRows=[];
+  Object.entries(data).forEach(([key,val])=>{ const list=Array.isArray(val)?val:Object.values(val||{}); list.forEach((r,i)=>{ if(typeof r==='object'){ const row={key,attempt:i+1,studentName:r.studentName||r.name||'',subject:r.subject||'',score:r.score??r.percent??'',type:r.type||'',date:r.at||r.date||r.createdAt||''}; const hay=JSON.stringify(row).toLowerCase(); if(!term || hay.includes(term)) cachedResultsRows.push(row); } }); });
+  const rows=cachedResultsRows.slice(-300).reverse().map(r=>`<tr><td><code>${esc(r.key)}</code></td><td>${esc(r.studentName)}</td><td>${esc(r.subject)}</td><td>${esc(r.type)}</td><td>${esc(r.score)}</td><td>${r.date?new Date(r.date).toLocaleString('ms-MY'):'-'}</td></tr>`).join('');
+  $('resultBox').innerHTML=`<table><thead><tr><th>Result Key</th><th>Pelajar</th><th>Subjek</th><th>Jenis</th><th>Markah</th><th>Tarikh</th></tr></thead><tbody>${rows||'<tr><td colspan="6">Belum ada result.</td></tr>'}</tbody></table>`;
+}
+function downloadCSV(filename, rows){ const csv=rows.map(r=>r.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\n'); const blob=new Blob([csv],{type:'text/csv'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=filename; a.click(); URL.revokeObjectURL(url); }
+function exportResultsCSV(){ downloadCSV('upkk-results-'+new Date().toISOString().slice(0,10)+'.csv', [['Result Key','Attempt','Pelajar','Subjek','Jenis','Markah','Tarikh'],...cachedResultsRows.map(r=>[r.key,r.attempt,r.studentName,r.subject,r.type,r.score,r.date])]); }
+function openParentPasswordReset(){ alert('Isi Username Parent, Password Parent dan Result Key di kotak sebelah kanan, kemudian tekan Sahkan & Reset.'); }
+async function confirmParentPassword(username,password){
+  const snap=await db.ref(userRoot).get(); const users=snap.exists()?snap.val():{}; const entry=Object.entries(users).find(([id,u])=>String(u.username||id).toLowerCase()===String(username||'').toLowerCase()); if(!entry) return false; const u=entry[1]||{};
+  if(u.password && String(u.password)===String(password)) return true; if(u.pin && String(u.pin)===String(password)) return true; return false;
+}
+async function confirmResetResultWithParentPassword(){
+  const username=$('parentConfirmUsername').value.trim(); const pass=$('parentConfirmPassword').value; const key=$('resetResultKey').value.trim(); if(!username||!pass||!key) return setLogBox('resetMsg','Isi username, password dan result key.');
+  const ok=await confirmParentPassword(username,pass); if(!ok) return setLogBox('resetMsg','Password parent salah atau user tidak ditemui.'); if(!confirm('Reset/padam result key ini? Rekod ini akan dibuang dari node results.')) return;
+  await db.ref(resultsRoot + '/' + safeFirebaseKey(key)).remove(); await db.ref(adminLogRoot).push({action:'reset_result_with_parent_password',key,username,adminId:currentAdminSession?.adminId||'',at:new Date().toISOString()}); setLogBox('resetMsg','Result berjaya direset.'); await loadResultsManager();
+}
+async function loadAppContent(){ const snap=await db.ref(contentRoot).get(); const c=snap.exists()?snap.val():{}; $('contentBanner').value=c.banner||''; $('contentPopup').value=c.popupNotice||''; $('contentMotivation').value=Array.isArray(c.motivation)?c.motivation.join('\n'):(c.motivation||''); $('contentPreview').textContent=JSON.stringify(c,null,2)||'Tiada content.'; }
+async function saveAppContent(){ const data={banner:$('contentBanner').value,popupNotice:$('contentPopup').value,motivation:String($('contentMotivation').value||'').split('\n').map(x=>x.trim()).filter(Boolean),updatedAt:new Date().toISOString()}; await db.ref(contentRoot).update(data); setLogBox('contentMsg','App content disimpan.'); await loadAppContent(); }
+async function loadSystemControl(){ const snap=await db.ref(settingsRoot + '/systemControl').get(); const s=snap.exists()?snap.val():{}; $('sysMaintenance').value=String(!!s.maintenanceMode); $('sysMaintenanceMsg').value=s.maintenanceMessage||'Sistem sedang diselenggara. Sila cuba sebentar lagi.'; $('sysVersionNotice').value=s.versionNotice||''; $('sysForceNotice').value=s.forceRefreshNotice||'Versi baru tersedia. Sila refresh aplikasi.'; }
+async function saveSystemControl(){ const data={maintenanceMode:$('sysMaintenance').value==='true',maintenanceMessage:$('sysMaintenanceMsg').value,versionNotice:$('sysVersionNotice').value,forceRefreshNotice:$('sysForceNotice').value,updatedAt:new Date().toISOString()}; await db.ref(settingsRoot + '/systemControl').update(data); setLogBox('systemMsg','System control disimpan.'); }
+async function bumpForceRefreshVersion(){ await db.ref(settingsRoot + '/systemControl').update({forceRefreshVersion:Date.now(),forceRefreshNotice:$('sysForceNotice').value,updatedAt:new Date().toISOString()}); setLogBox('systemMsg','Force refresh version dinaikkan.'); }
 async function loadExamReport(){
-  const accountId = $('reportAccount')?.value || '';
-  const studentSlot = $('reportStudent')?.value || 'student_1';
-  const year = String($('reportYear')?.value || new Date().getFullYear());
-  const month = $('reportMonth')?.value || '';
-  const box = $('examReportBox');
-  if(!accountId){ box.innerHTML = '<div class="empty">Pilih parent dahulu.</div>'; return; }
-  box.innerHTML = 'Memuatkan report...';
-  const account = reportUsersCache?.[accountId] || {};
-  const student = account?.students?.[studentSlot] || {};
-  const rows = (await fetchStudentExamRows(accountId, studentSlot, year, month)).sort((a,b)=>new Date(reportDateIso(a))-new Date(reportDateIso(b)));
-  latestExamReportRows = rows;
-  const total = rows.length;
-  const avg = total ? Math.round(rows.reduce((s,r)=>s+reportPercent(r),0)/total) : 0;
-  const best = total ? Math.max(...rows.map(reportPercent)) : 0;
-  const monthCounts = {};
-  rows.forEach(r=>{ const mk = reportMonthKey(r).slice(5,7) || '??'; monthCounts[mk]=(monthCounts[mk]||0)+1; });
-  const chips = Object.entries(monthCounts).map(([mm,c])=>`<span class="month-chip">${reportMonthName(mm)}: ${c} kali</span>`).join('');
-  const body = rows.map((r,i)=>{ const pct=reportPercent(r); const [label,cls]=reportPerformance(pct); return `<tr><td data-label="#">${i+1}</td><td data-label="Tarikh">${esc(reportDateIso(r))}</td><td data-label="Subjek">${esc(r.subject||r.subjectKey||'-')}</td><td data-label="Markah">${esc(r.score)}/${esc(r.total)} (${pct}%)</td><td data-label="Status"><span class="performance-pill ${cls}">${label}</span></td><td data-label="Mode">${esc(r.mode||'-')}</td></tr>`; }).join('');
-  box.innerHTML = `
-    <h2>${esc(student.name || studentSlot)}</h2>
-    <p class="hint">Parent: ${esc(account.username||accountId)} • Tahun ${esc(year)} • ${month?reportMonthName(month):'Semua Bulan'}</p>
-    <div class="report-dashboard"><div class="report-stat"><b>${total}</b><span>Jumlah Peperiksaan</span></div><div class="report-stat"><b>${avg}%</b><span>Purata Markah</span></div><div class="report-stat"><b>${best}%</b><span>Markah Tertinggi</span></div><div class="report-stat"><b>${month?reportMonthName(month):Object.keys(monthCounts).length}</b><span>${month?'Bulan Dipilih':'Bulan Aktif'}</span></div></div>
-    <div class="month-chip-row">${chips || '<span class="month-chip">Belum ada rekod bulan ini</span>'}</div>
-    <div class="report-table-wrap"><table><thead><tr><th>#</th><th>Tarikh</th><th>Subjek</th><th>Markah</th><th>Status</th><th>Mode</th></tr></thead><tbody>${body || '<tr><td colspan="6">Belum ada rekod peperiksaan.</td></tr>'}</tbody></table></div>`;
+  const year=String($('reportYear').value||new Date().getFullYear()); const month=$('reportMonth').value; const term=String($('reportSearch').value||'').toLowerCase(); const snap=await db.ref(resultsRoot).get(); const data=snap.exists()?snap.val():{}; cachedReportRows=[];
+  Object.entries(data).forEach(([key,val])=>{ const list=Array.isArray(val)?val:Object.values(val||{}); list.forEach((r,i)=>{ if(typeof r==='object'){ const d=new Date(r.at||r.date||r.createdAt||Date.now()); const ym=d.toISOString().slice(0,7); if(!ym.startsWith(year)) return; if(month && ym.slice(5,7)!==month) return; const row={key,attempt:i+1,studentName:r.studentName||r.name||key,subject:r.subject||'',score:Number(r.score??r.percent??0),type:r.type||'',date:d.toISOString().slice(0,10)}; const hay=JSON.stringify(row).toLowerCase(); if(!term||hay.includes(term)) cachedReportRows.push(row); } }); });
+  const total=cachedReportRows.length; const avg=total?Math.round(cachedReportRows.reduce((a,b)=>a+Number(b.score||0),0)/total):0; const high=total?Math.max(...cachedReportRows.map(r=>Number(r.score||0))):0; const students=new Set(cachedReportRows.map(r=>r.key)).size;
+  const rows=cachedReportRows.map(r=>`<tr><td>${esc(r.date)}</td><td>${esc(r.studentName)}</td><td>${esc(r.subject)}</td><td>${esc(r.type)}</td><td>${esc(r.score)}</td></tr>`).join('');
+  $('examReportBox').innerHTML=`<div class="admin-report-hero"><span class="admin-badge">UPKK SmartKids Report</span><h2>Laporan Peperiksaan ${esc(month||'Tahunan')} / ${esc(year)}</h2><p class="hint">Ringkasan prestasi pelajar berdasarkan rekod results Firebase.</p></div><div class="admin-stat-grid"><div class="admin-stat"><strong>${total}</strong>Jumlah Exam</div><div class="admin-stat"><strong>${students}</strong>Pelajar</div><div class="admin-stat"><strong>${avg}%</strong>Purata</div><div class="admin-stat"><strong>${high}%</strong>Tertinggi</div></div><table><thead><tr><th>Tarikh</th><th>Pelajar</th><th>Subjek</th><th>Jenis</th><th>Markah</th></tr></thead><tbody>${rows||'<tr><td colspan="5">Tiada rekod.</td></tr>'}</tbody></table>`;
 }
-function csvEscape(v){ return '"' + String(v??'').replace(/"/g,'""') + '"'; }
-function downloadExamReportCsv(){
-  if(!latestExamReportRows.length){ alert('Jana report dahulu atau tiada rekod untuk dimuat turun.'); return; }
-  const headers = ['Date','Parent','StudentSlot','StudentName','Subject','Type','Score','Total','Percent','Mode','DurationSec'];
-  const accountId = $('reportAccount')?.value || '';
-  const studentSlot = $('reportStudent')?.value || '';
-  const studentName = reportUsersCache?.[accountId]?.students?.[studentSlot]?.name || studentSlot;
-  const lines = [headers.join(',')].concat(latestExamReportRows.map(r=>[
-    reportDateIso(r), reportUsersCache?.[accountId]?.username || accountId, studentSlot, studentName, r.subject||r.subjectKey||'', r.type||'', r.score||0, r.total||0, reportPercent(r), r.mode||'', r.durationSec||''
-  ].map(csvEscape).join(',')));
-  const blob = new Blob([lines.join('\n')], {type:'text/csv;charset=utf-8'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `UPKK-exam-report-${accountId}-${studentSlot}-${$('reportYear')?.value||''}-${$('reportMonth')?.value||'all'}.csv`;
-  document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-}
+function downloadExamReportCSV(){ downloadCSV('upkk-exam-report-'+new Date().toISOString().slice(0,10)+'.csv', [['Result Key','Attempt','Pelajar','Subjek','Jenis','Markah','Tarikh'],...cachedReportRows.map(r=>[r.key,r.attempt,r.studentName,r.subject,r.type,r.score,r.date])]); }
+
 
 async function writeDefaultSettings(){
   await db.ref(APP_ROOT + '/settings/accessControl').update({registrationRequiresCode:true, defaultTrialDays:30, defaultExamDays:365, updatedAt:new Date().toISOString()});

@@ -1,4 +1,4 @@
-const APP_VERSION = '8.21-ADMIN-REPORT-PARENT-PASSWORD';
+const APP_VERSION = '8.20-EXAM-UX-FIX';
 const PIN_LENGTH = 6;
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCK_MINUTES = 10;
@@ -386,11 +386,6 @@ function syncResultToFirebase(rec){
   db.ref(`${studentBase}/stats`).update({...stats, lastPercent:percent, lastSubject:rec.subject, lastType:rec.type, updatedAt:new Date().toISOString()}).catch(err=>console.warn('Firebase stats sync failed:', err));
   if(String(rec.type||'').toLowerCase().includes('exam')){
     db.ref(fbPath('results', resultStudentKey())).push(payload).catch(err=>console.warn('Firebase exam result sync failed:', err));
-    const d = new Date(payload.rawCreatedAt || Date.now());
-    const year = String(d.getFullYear());
-    const month = String(d.getMonth()+1).padStart(2,'0');
-    const examReportPayload = {...payload, percent, year, month, reportMonth:`${year}-${month}`};
-    db.ref(fbPath('examReports', `${accountId}/${studentSlot}/${year}/${month}`)).push(examReportPayload).catch(err=>console.warn('Firebase monthly exam report sync failed:', err));
   }
   db.ref(fbPath('leaderboard', `global/${leaderboardKey}`)).update({
     key: leaderboardKey,
@@ -885,31 +880,6 @@ async function firebaseGetOnce(path){
   if(typeof ref.get === 'function') return await ref.get();
   return await new Promise((resolve,reject)=>ref.once('value', resolve, reject));
 }
-
-async function verifyCurrentParentPassword(inputPin){
-  const pin = cleanPin(inputPin || '');
-  if(pin.length !== PIN_LENGTH) return false;
-  const localPin = cleanPin(profile.pin || '');
-  if(localPin && pin === localPin) return true;
-  const db = firebaseDb();
-  if(db && profile?.accountId){
-    try{
-      const snap = await firebaseGetOnce(`${accountPath(profile.accountId)}/pin`);
-      const remotePin = cleanPin(snap.exists() ? snap.val() : '');
-      if(remotePin && pin === remotePin) return true;
-    }catch(err){ console.warn('Parent password verify skipped:', err); }
-  }
-  return false;
-}
-async function requireParentPassword(actionText='tindakan ini'){
-  const raw = await appPrompt(`Masukkan password/PIN akaun parent untuk ${actionText}.`, {
-    title:'Pengesahan Parent', inputType:'password', inputMode:'numeric', placeholder:'PIN 6 angka', okText:'Sahkan'
-  });
-  if(raw === null) return false;
-  const ok = await verifyCurrentParentPassword(raw);
-  if(!ok){ await appAlert('Password/PIN parent salah. Tindakan dibatalkan.'); return false; }
-  return true;
-}
 async function registerCurrentDeviceOnLogin(accountId, devices={}, fallbackAllowed=[]){
   const db = firebaseDb();
   const safeAccountId = safeFirebaseKey(accountId || profile.accountId || '');
@@ -1280,7 +1250,7 @@ async function deleteCurrentProfile(){
     render();
   });
 }
-function resetCurrentStudentProgress(){ appConfirm('Reset sejarah soalan dan keputusan untuk pelajar ini sahaja?', async ()=>{ const verified = await requireParentPassword('reset rekod pelajar ini'); if(!verified) return; localStorage.removeItem(studentKey(HISTORY_KEY)); localStorage.removeItem(studentKey(USED_KEY)); syncHistoryToFirebase([]); render(); }); }
+function resetCurrentStudentProgress(){ appConfirm('Reset sejarah soalan dan keputusan untuk pelajar ini sahaja?', ()=>{ localStorage.removeItem(studentKey(HISTORY_KEY)); localStorage.removeItem(studentKey(USED_KEY)); render(); }); }
 function uppercaseName(v){ return (v||'').toLocaleUpperCase('ms-MY').replace(/\s+/g,' ').trimStart(); }
 function avatarSrc(){ return profile.avatar === 'girl' ? 'assets/avatar-girl.webp' : 'assets/avatar-boy.webp'; }
 function modeLabel(){ return profile.mode === 'jawi' ? 'JAWI' : 'RUMI'; }
@@ -2538,7 +2508,7 @@ function renderQuiz(){
   const opts=q.preparedOptions.map((o,i)=>{ let cls='option'; if(profile.mode==='jawi') cls+=' rtl'; if(isExam && i===selectedAnswer) cls+=' active'; if(!isExam && done&&i===q.preparedAnswer) cls+=' correct'; if(!isExam && done&&i===selectedAnswer&&i!==q.preparedAnswer) cls+=' wrong'; return `<button class="${cls}" ${(!isExam&&done)?'disabled':''} onclick="chooseAnswer(${i})">${optionText(o,i)}</button>`; }).join('');
   const paperClass=isExam?' exam-paper':'';
   const examNav = isExam ? `<div class="exam-actions"><button class="btn secondary exam-prev-btn" ${currentQuiz.index<=0?'disabled':''} onclick="prevQuestion()">← Sebelum</button><button class="btn secondary exam-next-btn" ${currentQuiz.index>=currentQuiz.questions.length-1?'disabled':''} onclick="nextQuestion()">Seterusnya →</button><button class="btn danger exam-submit-btn" onclick="confirmSubmitExam()">Hantar Peperiksaan</button></div>` : '';
-  const practiceNext = (!isExam && done) ? `<div class="feedback ${selectedAnswer===q.preparedAnswer?'':'bad'}">${selectedAnswer===q.preparedAnswer?'Betul!':'Belum tepat. Jawapan betul telah ditanda.'}</div><button class="btn" onclick="nextQuestion()">${currentQuiz.index===currentQuiz.questions.length-1?'Lihat Keputusan':'Soalan Seterusnya'}</button>` : '';
+  const practiceNext = (!isExam && done) ? `<div class="feedback ${selectedAnswer===q.preparedAnswer?'':'bad'}">${selectedAnswer===q.preparedAnswer?'Betul!':'Belum tepat. Jawapan betul telah ditanda.'}</div>${q.note?`<div class="answer-note">${escapeHtml(q.note)}</div>`:''}<button class="btn" onclick="nextQuestion()">${currentQuiz.index===currentQuiz.questions.length-1?'Lihat Keputusan':'Soalan Seterusnya'}</button>` : '';
   const examPalette = isExam ? examQuestionPalette() : '';
   $app.innerHTML = `<section class="card${paperClass}"><div class="quiz-top exam-quiz-top"><span class="pill">${currentQuiz.icon} ${escapeHtml(currentQuiz.type)}</span><span class="pill">${currentQuiz.index+1}/${currentQuiz.questions.length}</span></div><div class="progress exam-progress"><span style="width:${pct}%"></span></div>${questionHtml(q)}<div style="height:12px"></div>${opts}${practiceNext}${examNav}${examPalette}</section>`;
 }
@@ -2625,7 +2595,7 @@ function renderFinish(qz){ const pct=Math.round(qz.score/qz.questions.length*100
   upkkCelebrateFinish(qz);
 }
 function renderResult(){ const h=history().reverse(); if(!h.length){ $app.innerHTML=`${profileSummary()}<section class="card empty">Belum ada rekod keputusan.</section>`; return; } $app.innerHTML = `${profileSummary()}<section class="card"><span class="badge">🏆 REKOD KEPUTUSAN</span><h2 class="title">Sejarah latihan & exam murid ini</h2>${h.map(x=>`<div class="stat" style="text-align:left;margin-top:8px"><b>${escapeHtml(x.type)} • ${escapeHtml(x.subject)} — ${x.score}/${x.total}</b><span>${escapeHtml(x.date)} • ${escapeHtml(x.mode)}</span></div>`).join('')}<div style="height:12px"></div><button class="btn danger" onclick="clearResults()">Padam Rekod</button></section>`; }
-function clearResults(){ appConfirm('Padam semua rekod keputusan?', async ()=>{ const verified = await requireParentPassword('padam rekod keputusan'); if(!verified) return; localStorage.removeItem(studentKey(HISTORY_KEY)); syncHistoryToFirebase([]); renderResult(); }); }
+function clearResults(){ appConfirm('Padam semua rekod keputusan?', ()=>{ localStorage.removeItem(studentKey(HISTORY_KEY)); syncHistoryToFirebase([]); renderResult(); }); }
 
 // Development helper only: enablePremiumForTesting() can be run from browser console by developer.
 function enablePremiumForTesting(){ profile.plan=PREMIUM_STATUS.PREMIUM; profile.premiumCode='DEV-LOCAL-ONLY'; saveProfile(); render(); }
