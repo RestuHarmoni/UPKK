@@ -119,6 +119,11 @@ table{width:100%;border-collapse:collapse}
         <textarea id="qRumi" placeholder="Tulis soalan rumi"></textarea>
         <label>Soalan Jawi</label>
         <textarea id="qJawi" placeholder="Tulis soalan jawi"></textarea>
+        <div class="actions jawi-tools">
+          <button type="button" class="secondary" onclick="generateJawiDraft()">Generate Jawi Draft</button>
+          <button type="button" class="secondary" onclick="openEJawiMakmur()">Semak di eJawiMakmur</button>
+        </div>
+        <p class="hint">Auto Jawi ini hanya draft asas. Sila semak dan betulkan ejaan Jawi sebelum simpan.</p>
 
         <label>Pilihan Jawapan Rumi</label>
         <input id="optRumi0" placeholder="Pilihan A" />
@@ -127,6 +132,9 @@ table{width:100%;border-collapse:collapse}
         <input id="optRumi3" placeholder="Pilihan D" />
 
         <label>Pilihan Jawapan Jawi</label>
+        <div class="actions jawi-tools">
+          <button type="button" class="secondary" onclick="generateOptionJawiDraft()">Generate Pilihan Jawi</button>
+        </div>
         <input id="optJawi0" placeholder="Pilihan A Jawi" />
         <input id="optJawi1" placeholder="Pilihan B Jawi" />
         <input id="optJawi2" placeholder="Pilihan C Jawi" />
@@ -686,6 +694,93 @@ async function deleteQuestion(){
     console.error(err);
     qMsg('Gagal padam soalan: ' + err.message);
   }
+}
+
+
+const JAWI_DRAFT_MAP = {
+  'a':'ا','b':'ب','c':'چ','d':'د','e':'','f':'ف','g':'ݢ','h':'ه','i':'ي','j':'ج','k':'ک','l':'ل','m':'م','n':'ن','o':'و','p':'ڤ','q':'ق','r':'ر','s':'س','t':'ت','u':'و','v':'ۏ','w':'و','x':'کس','y':'ي','z':'ز'
+};
+
+const JAWI_PHRASE_MAP = [
+  ['allah','الله'], ['muhammad','محمد'], ['saw','ﷺ'], ['nabi','نبي'], ['rasul','رسول'],
+  ['islam','اسلام'], ['iman','ايمان'], ['rukun','روكون'], ['solat','صلاة'], ['puasa','ڤواسا'],
+  ['zakat','زکاة'], ['haji','حج'], ['quran','قرءان'], ['al-quran','القرءان'], ['kitab','کتاب'],
+  ['malaikat','ملائکة'], ['hari','هاري'], ['kiamat','قيامت'], ['akhirat','اخيرة'],
+  ['apakah','اڤاکه'], ['siapakah','سياڤاکه'], ['berapakah','براڤاکه'], ['kepada','کڤد'],
+  ['dengan','دڠن'], ['yang','يڠ'], ['ialah','اياله'], ['adalah','اداله'], ['disebut','دسبوت'],
+  ['diturunkan','دتورونکن'], ['wajib','واجب'], ['sifat','صيفت'], ['maksud','مقصود']
+];
+
+function basicRumiToJawi(input){
+  if(!input) return '';
+  let text = String(input);
+
+  JAWI_PHRASE_MAP.forEach(([r,j]) => {
+    const re = new RegExp('\\b' + r.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'gi');
+    text = text.replace(re, j);
+  });
+
+  return text.split(/(\s+|[.,!?;:()\-\/]+)/).map(part => {
+    if(!part || /^\s+$/.test(part) || /^[.,!?;:()\-\/]+$/.test(part)) return part;
+    if(/[\u0600-\u06FF]/.test(part)) return part;
+    if(/[0-9]/.test(part)) return part;
+
+    let w = part.toLowerCase();
+
+    w = w
+      .replace(/ngg/g, 'ڠݢ')
+      .replace(/ng/g, 'ڠ')
+      .replace(/ny/g, 'ڽ')
+      .replace(/sy/g, 'ش')
+      .replace(/kh/g, 'خ')
+      .replace(/gh/g, 'غ')
+      .replace(/zh/g, 'ذ')
+      .replace(/th/g, 'ث');
+
+    let out = '';
+    for(const ch of w){
+      out += JAWI_DRAFT_MAP[ch] !== undefined ? JAWI_DRAFT_MAP[ch] : ch;
+    }
+
+    out = out
+      .replace(/کک/g, 'ک')
+      .replace(/اا/g, 'ا')
+      .replace(/يي/g, 'ي')
+      .replace(/وو/g, 'و');
+
+    return out;
+  }).join('');
+}
+
+function generateJawiDraft(){
+  const rumi = $('qRumi')?.value || '';
+  if(!rumi.trim()){
+    qMsg('Isi soalan Rumi dahulu sebelum generate Jawi.');
+    return;
+  }
+  const draft = basicRumiToJawi(rumi);
+  if(($('qJawi').value || '').trim()){
+    if(!confirm('Soalan Jawi sedia ada akan diganti dengan draft baru. Teruskan?')) return;
+  }
+  $('qJawi').value = draft;
+  qMsg('Draft Jawi dijana. Sila semak ejaan sebelum simpan.');
+}
+
+function generateOptionJawiDraft(){
+  [0,1,2,3].forEach(i => {
+    const src = $('optRumi'+i)?.value || '';
+    const target = $('optJawi'+i);
+    if(target && src.trim()){
+      target.value = basicRumiToJawi(src);
+    }
+  });
+  qMsg('Draft pilihan Jawi dijana. Sila semak sebelum simpan.');
+}
+
+function openEJawiMakmur(){
+  const url = 'https://www.ejawimakmur.my/';
+  window.open(url, '_blank', 'noopener,noreferrer');
+  qMsg('eJawiMakmur dibuka di tab baru untuk semakan manual.');
 }
 
 async function exportQuestionBank(){

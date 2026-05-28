@@ -1588,3 +1588,8 @@ img,svg,canvas,video{
 .admin-login-responsive-root{
   min-height:100dvh;
 }
+
+
+/* Jawi helper tools */
+.jawi-tools{margin:8px 0 10px;gap:8px;flex-wrap:wrap}
+.jawi-tools button{white-space:nowrap}

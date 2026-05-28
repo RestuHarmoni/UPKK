@@ -1,4 +1,4 @@
-const CACHE_NAME = 'upkk-smartkids-admin-question-manager-v2';
+const CACHE_NAME = 'upkk-smartkids-admin-question-manager-v3';
 const CORE_ASSETS = [
   './',
   './index.html',
