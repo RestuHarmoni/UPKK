@@ -13,9 +13,36 @@
     button{width:100%;border:0;border-radius:12px;padding:13px 16px;font-weight:900;cursor:pointer;background:var(--green);color:white}
     .msg{margin-top:14px;padding:12px;border-radius:12px;background:#f1f5f9;white-space:pre-wrap}.bad{background:#fee2e2;color:#991b1b}.ok{background:#dcfce7;color:#166534}
     code{background:#f1f5f9;border-radius:8px;padding:2px 6px}
-  </style>
+  
+/* RESPONSIVE ADMIN PACK v2.10 */
+html,body{max-width:100%;overflow-x:hidden}
+input,select,textarea,button{font-size:16px}
+table{width:100%;border-collapse:collapse}
+@media(max-width:760px){
+  header{padding:16px!important}
+  header .wrap,main{width:100%!important;max-width:100%!important}
+  main{padding:14px!important}
+  h1{font-size:22px!important}
+  .top{align-items:flex-start!important}
+  .tabs{display:grid!important;grid-template-columns:1fr 1fr!important;gap:8px!important}
+  .tab{width:100%!important;padding:11px 8px!important;font-size:13px!important}
+  .grid,.cards,.stats{grid-template-columns:1fr!important}
+  .card{border-radius:18px!important;padding:14px!important}
+  .row,.form-row,.actions{display:grid!important;grid-template-columns:1fr!important;gap:10px!important}
+  table,thead,tbody,tr,th,td{display:block}
+  thead{display:none}
+  tr{border:1px solid #e5e7eb;border-radius:16px;margin-bottom:10px;background:white;padding:10px}
+  td{border:0!important;padding:7px 4px!important}
+  td:before{content:attr(data-label);display:block;font-weight:900;color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:.3px;margin-bottom:2px}
+}
+@media(min-width:761px) and (max-width:1100px){
+  header .wrap,main{max-width:920px!important}
+  .grid,.cards,.stats{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+}
+
+</style>
 </head>
-<body>
+<body class="admin-login-responsive-root">
   <main class="box">
     <h1>Admin Login</h1>
     <p class="hint">Masuk menggunakan ID admin khas. Akaun pelajar tidak boleh membuka panel admin.</p>

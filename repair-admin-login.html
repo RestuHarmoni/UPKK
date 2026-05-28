@@ -10,7 +10,34 @@
     input,button{width:100%;padding:12px;border-radius:10px;border:1px solid #cbd5e1;margin:7px 0 14px;font-size:15px}
     button{background:#16a34a;color:white;border:0;font-weight:800;cursor:pointer}
     .msg{white-space:pre-wrap;background:#f1f5f9;border-radius:10px;padding:12px}
-  </style>
+  
+/* RESPONSIVE ADMIN PACK v2.10 */
+html,body{max-width:100%;overflow-x:hidden}
+input,select,textarea,button{font-size:16px}
+table{width:100%;border-collapse:collapse}
+@media(max-width:760px){
+  header{padding:16px!important}
+  header .wrap,main{width:100%!important;max-width:100%!important}
+  main{padding:14px!important}
+  h1{font-size:22px!important}
+  .top{align-items:flex-start!important}
+  .tabs{display:grid!important;grid-template-columns:1fr 1fr!important;gap:8px!important}
+  .tab{width:100%!important;padding:11px 8px!important;font-size:13px!important}
+  .grid,.cards,.stats{grid-template-columns:1fr!important}
+  .card{border-radius:18px!important;padding:14px!important}
+  .row,.form-row,.actions{display:grid!important;grid-template-columns:1fr!important;gap:10px!important}
+  table,thead,tbody,tr,th,td{display:block}
+  thead{display:none}
+  tr{border:1px solid #e5e7eb;border-radius:16px;margin-bottom:10px;background:white;padding:10px}
+  td{border:0!important;padding:7px 4px!important}
+  td:before{content:attr(data-label);display:block;font-weight:900;color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:.3px;margin-bottom:2px}
+}
+@media(min-width:761px) and (max-width:1100px){
+  header .wrap,main{max-width:920px!important}
+  .grid,.cards,.stats{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+}
+
+</style>
 </head>
 <body>
 <div class="box">
@@ -25,7 +52,7 @@
 </div>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
-<script src="firebase-config.js?v=1.43"></script>
+<script src="firebase-config.js?v=2.10"></script>
 <script>
 firebase.initializeApp(window.UPKK_FIREBASE_CONFIG);
 const db = firebase.database();

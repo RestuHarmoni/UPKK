@@ -1,4 +1,4 @@
-const CACHE_NAME = 'upkk-smartkids-security-1.43-2';
+const CACHE_NAME = 'upkk-smartkids-responsive-2.10';
 const CORE_ASSETS = [
   './',
   './index.html',

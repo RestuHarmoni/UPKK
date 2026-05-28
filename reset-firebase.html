@@ -13,7 +13,34 @@
     input{width:100%;box-sizing:border-box;padding:14px;border:1px solid #cbd5e1;border-radius:12px;margin:8px 0 16px;font-size:16px}
     .log{white-space:pre-wrap;background:#0f172a;color:#e2e8f0;padding:14px;border-radius:12px;min-height:120px}
     .warn{border-left:5px solid #dc2626;background:#fff1f2;padding:12px;border-radius:12px}
-  </style>
+  
+/* RESPONSIVE ADMIN PACK v2.10 */
+html,body{max-width:100%;overflow-x:hidden}
+input,select,textarea,button{font-size:16px}
+table{width:100%;border-collapse:collapse}
+@media(max-width:760px){
+  header{padding:16px!important}
+  header .wrap,main{width:100%!important;max-width:100%!important}
+  main{padding:14px!important}
+  h1{font-size:22px!important}
+  .top{align-items:flex-start!important}
+  .tabs{display:grid!important;grid-template-columns:1fr 1fr!important;gap:8px!important}
+  .tab{width:100%!important;padding:11px 8px!important;font-size:13px!important}
+  .grid,.cards,.stats{grid-template-columns:1fr!important}
+  .card{border-radius:18px!important;padding:14px!important}
+  .row,.form-row,.actions{display:grid!important;grid-template-columns:1fr!important;gap:10px!important}
+  table,thead,tbody,tr,th,td{display:block}
+  thead{display:none}
+  tr{border:1px solid #e5e7eb;border-radius:16px;margin-bottom:10px;background:white;padding:10px}
+  td{border:0!important;padding:7px 4px!important}
+  td:before{content:attr(data-label);display:block;font-weight:900;color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:.3px;margin-bottom:2px}
+}
+@media(min-width:761px) and (max-width:1100px){
+  header .wrap,main{max-width:920px!important}
+  .grid,.cards,.stats{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+}
+
+</style>
 </head>
 <body>
 <main>
@@ -24,14 +51,14 @@
   <label><input id="deletePremium" type="checkbox" /> Padam juga premiumCodes</label>
   <br><br>
   <button class="danger" id="resetBtn" disabled>Padam User Firebase Sekarang</button>
-  <button class="secondary" onclick="location.href='index.html?v=1.38'">Kembali ke App</button>
+  <button class="secondary" onclick="location.href='index.html?v=2.10'">Kembali ke App</button>
   <h3>Log</h3>
   <div id="log" class="log">Belum mula.</div>
 </main>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
-<script src="firebase-config.js?v=1.38"></script>
+<script src="firebase-config.js?v=2.10"></script>
 <script>
 (function(){
   const logBox = document.getElementById('log');
