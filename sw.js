@@ -1,4 +1,4 @@
-const CACHE_NAME = 'upkk-smartkids-v3-13-phase1-sound-result';
+const CACHE_NAME = 'upkk-smartkids-v3-15-admin-expansion';
 const CORE_ASSETS = [
   './',
   './index.html',
@@ -36,6 +36,7 @@ const CORE_ASSETS = [
   './splash.html',
   './reset-firebase.html',
   './admin.html',
+  './style.css',
   './admin-login.html'
 ];
 
