@@ -2559,19 +2559,123 @@ function examPerformanceMessage(pct){
   if(pct>=50) return 'Bagus, teruskan usaha.';
   return 'Jangan putus asa, cuba lagi.';
 }
+
+function resultMotivationMessage(pct,isExam=false){
+  const strong = [
+    'Mumtaz! Ilmu yang diamalkan akan jadi cahaya dalam hidup.',
+    'Hebat! Teruskan langkah kecil hari ini untuk kejayaan besar esok.',
+    'Masya-Allah, usaha yang konsisten sedang membuahkan hasil.'
+  ];
+  const good = [
+    'Bagus! Sedikit ulang kaji lagi boleh bawa markah lebih tinggi.',
+    'Tahniah, teruskan latihan sampai lebih yakin.',
+    'Usaha yang baik. Jangan berhenti, ilmu perlukan latihan.'
+  ];
+  const tryAgain = [
+    'Tidak mengapa, cuba lagi. Setiap kesilapan ialah peluang belajar.',
+    'Jangan putus asa. Ulang kaji perlahan-lahan, insya-Allah boleh.',
+    'Hari ini belajar, esok lebih baik. Teruskan usaha.'
+  ];
+  const list = pct>=80 ? strong : pct>=50 ? good : tryAgain;
+  const index = Math.abs(Math.round(pct + (isExam?7:3))) % list.length;
+  return list[index];
+}
+function resultStarRating(pct){
+  const stars = pct>=90 ? 5 : pct>=75 ? 4 : pct>=60 ? 3 : pct>=40 ? 2 : 1;
+  return Array.from({length:5},(_,i)=>`<span class="${i<stars?'on':''}">★</span>`).join('');
+}
+function resultAwardTitle(pct,isExam=false){
+  if(pct>=90) return isExam ? 'Mumtaz Peperiksaan!' : 'Mumtaz Latihan!';
+  if(pct>=80) return 'Cemerlang!';
+  if(pct>=60) return 'Bagus!';
+  if(pct>=40) return 'Teruskan Usaha!';
+  return 'Jom Cuba Lagi!';
+}
+function celebrationConfettiMarkup(){
+  return `<div class="celebration-confetti" aria-hidden="true">${Array.from({length:34},(_,i)=>`<i style="--i:${i};--x:${(i*37)%100};--d:${(i%9)*.08}s;--r:${(i*29)%360}deg"></i>`).join('')}</div>`;
+}
+function playResultSound(pct){
+  try{
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if(!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const base = pct>=80 ? [523.25,659.25,783.99,1046.5] : pct>=50 ? [440,523.25,659.25] : [392,440,523.25];
+    base.forEach((freq,idx)=>{
+      const osc=ctx.createOscillator();
+      const gain=ctx.createGain();
+      osc.type='sine'; osc.frequency.value=freq;
+      gain.gain.setValueAtTime(0.0001, ctx.currentTime + idx*.11);
+      gain.gain.exponentialRampToValueAtTime(0.055, ctx.currentTime + idx*.11 + .02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + idx*.11 + .18);
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.start(ctx.currentTime + idx*.11); osc.stop(ctx.currentTime + idx*.11 + .2);
+    });
+    setTimeout(()=>ctx.close().catch(()=>{}), 1200);
+  }catch(e){}
+}
+function triggerResultCelebration(pct){
+  setTimeout(()=>{
+    const root=document.querySelector('.result-celebration-wrap');
+    if(root) root.classList.add('play');
+    playResultSound(pct);
+  }, 120);
+}
+function animateResultNumbers(){
+  const els=document.querySelectorAll('[data-count-to]');
+  els.forEach(el=>{
+    const target=Number(el.getAttribute('data-count-to')||0);
+    const suffix=el.getAttribute('data-count-suffix')||'';
+    const duration=850;
+    const start=performance.now();
+    const step=(t)=>{
+      const p=Math.min(1,(t-start)/duration);
+      const eased=1-Math.pow(1-p,3);
+      el.textContent=String(Math.round(target*eased))+suffix;
+      if(p<1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  });
+}
+function closeCelebrationPopup(){
+  const pop=document.querySelector('.celebration-popup-layer');
+  if(pop) pop.classList.add('hide');
+}
+function celebrationPopup(qz,pct,grade,isExamResult){
+  const title=resultAwardTitle(pct,isExamResult);
+  const motivation=resultMotivationMessage(pct,isExamResult);
+  return `<div class="celebration-popup-layer" role="dialog" aria-modal="true">
+    ${celebrationConfettiMarkup()}
+    <div class="celebration-popup-card">
+      <button class="celebration-close" onclick="closeCelebrationPopup()" aria-label="Tutup">×</button>
+      <div class="celebration-medal">${pct>=80?'🏆':pct>=50?'🌟':'💪'}</div>
+      <span class="badge">${isExamResult?'PEPERIKSAAN SELESAI':'LATIHAN SELESAI'}</span>
+      <h2>${escapeHtml(title)}</h2>
+      <p>${escapeHtml(motivation)}</p>
+      <div class="celebration-stars">${resultStarRating(pct)}</div>
+      <div class="celebration-score-ring" style="--pct:${pct}"><b data-count-to="${pct}" data-count-suffix="%">0%</b><span>${escapeHtml(grade)}</span></div>
+      <div class="celebration-mini-stats">
+        <div><b>${qz.score}/${qz.questions.length}</b><span>Markah</span></div>
+        <div><b>${examDurationText(qz.durationSec||0)}</b><span>Masa</span></div>
+      </div>
+      <button class="btn" onclick="closeCelebrationPopup()">Teruskan</button>
+    </div>
+  </div>`;
+}
 function renderExamCompletionModal(qz,pct,grade){
   const duration=examDurationText(qz.durationSec);
   const nextKey=examNextSubjectKey(qz.subjectKey);
   const nextBtn=nextKey ? `<button class="btn" onclick="startExam('${nextKey}')">Subjek Seterusnya</button>` : `<button class="btn" onclick="page='exam';render()">Lihat Semua Subjek</button>`;
-  return `<div class="exam-complete-modal" role="dialog" aria-modal="true">
-    <div class="exam-complete-card">
-      <div class="exam-complete-icon">🏆</div>
+  return `<div class="exam-complete-modal result-soft-modal" role="dialog" aria-modal="true">
+    ${celebrationConfettiMarkup()}
+    <div class="exam-complete-card result-premium-card">
+      <div class="exam-complete-icon">${pct>=80?'🏆':pct>=50?'🌟':'💪'}</div>
       <span class="badge">PEPERIKSAAN SELESAI</span>
-      <h2>Alhamdulillah, ${escapeHtml(profile.name)}!</h2>
-      <p class="exam-complete-message">${escapeHtml(profile.name)} berjaya menjawab ${qz.questions.length} soalan ${escapeHtml(qz.title)} dalam masa ${duration}. Teruskan berusaha sehingga berjaya dunia dan akhirat.</p>
+      <h2>${escapeHtml(resultAwardTitle(pct,true))}</h2>
+      <p class="exam-complete-message">${escapeHtml(resultMotivationMessage(pct,true))}</p>
+      <div class="celebration-stars modal-stars">${resultStarRating(pct)}</div>
       <div class="exam-complete-stats">
         <div><b>${qz.score}/${qz.questions.length}</b><span>Markah</span></div>
-        <div><b>${pct}%</b><span>${grade}</span></div>
+        <div><b data-count-to="${pct}" data-count-suffix="%">0%</b><span>${grade}</span></div>
         <div><b>${duration}</b><span>Masa</span></div>
       </div>
       <p class="exam-complete-performance">${examPerformanceMessage(pct)}</p>
@@ -2587,10 +2691,13 @@ function renderFinish(qz){ const pct=Math.round(qz.score/qz.questions.length*100
   const isExamResult = isExamQuizType(qz.type);
   const repeatAction = isExamResult ? `repeatExamOrNotify('${qz.subjectKey}')` : `startPractice('${qz.subjectKey}')`;
   const repeatNote = isExamResult && !examAllSubjectsCompleted() ? `<div class="exam-repeat-note">Untuk ulang peperiksaan penuh, sila lengkapkan semua subjek terlebih dahulu.</div>` : '';
-  const examModal = isExamResult ? renderExamCompletionModal(qz,pct,grade) : '';
+  const examModal = isExamResult ? renderExamCompletionModal(qz,pct,grade) : celebrationPopup(qz,pct,grade,false);
   const nextKey = isExamResult ? examNextSubjectKey(qz.subjectKey) : '';
   const nextAction = nextKey ? `<button class="btn" onclick="startExam('${nextKey}')">Subjek Seterusnya</button><div style="height:10px"></div>` : '';
-  $app.innerHTML = `${examModal}<section class="card hero"><span class="badge">🏆 SLIP KEPUTUSAN</span><h2 class="title">Tahniah, ${escapeHtml(profile.name)}!</h2><p class="subtitle">${escapeHtml(qz.type)} • ${escapeHtml(qz.title)} • Mode ${modeLabel()}</p><div class="stats"><div class="stat"><b>${qz.score}</b><span>Betul</span></div><div class="stat"><b>${qz.questions.length-qz.score}</b><span>Salah</span></div><div class="stat"><b>${pct}%</b><span>${grade}</span></div></div></section><section class="card">${repeatNote}${nextAction}<button class="btn" onclick="${repeatAction}">Ulang ${isExamResult?'Peperiksaan':escapeHtml(qz.title)}</button><div style="height:10px"></div><button class="btn secondary" onclick="page='${isExamResult?'exam':'subjects'}';render()">${isExamResult?'Pilih Subjek Lain':'Pilih Subjek Lain'}</button></section>`;
+  const wrong = qz.questions.length-qz.score;
+  $app.innerHTML = `<div class="result-celebration-wrap">${examModal}<section class="card hero result-hero-premium"><div class="result-glow-orb"></div><span class="badge">🏆 SLIP KEPUTUSAN</span><h2 class="title">Tahniah, ${escapeHtml(profile.name)}!</h2><p class="subtitle">${escapeHtml(qz.type)} • ${escapeHtml(qz.title)} • Mode ${modeLabel()}</p><div class="result-score-stage"><div class="result-score-circle" style="--pct:${pct}"><b data-count-to="${pct}" data-count-suffix="%">0%</b><span>${escapeHtml(grade)}</span></div><div class="result-summary-copy"><h3>${escapeHtml(resultAwardTitle(pct,isExamResult))}</h3><p>${escapeHtml(resultMotivationMessage(pct,isExamResult))}</p><div class="celebration-stars">${resultStarRating(pct)}</div></div></div><div class="stats result-stats-premium"><div class="stat"><b data-count-to="${qz.score}">0</b><span>Betul</span></div><div class="stat"><b data-count-to="${wrong}">0</b><span>Salah</span></div><div class="stat"><b>${examDurationText(qz.durationSec||0)}</b><span>Masa</span></div></div></section><section class="card result-action-card">${repeatNote}${nextAction}<button class="btn" onclick="${repeatAction}">Ulang ${isExamResult?'Peperiksaan':escapeHtml(qz.title)}</button><div style="height:10px"></div><button class="btn secondary" onclick="page='${isExamResult?'exam':'subjects'}';render()">${isExamResult?'Pilih Subjek Lain':'Pilih Subjek Lain'}</button></section></div>`;
+  triggerResultCelebration(pct);
+  animateResultNumbers();
 }
 function renderResult(){ const h=history().reverse(); if(!h.length){ $app.innerHTML=`${profileSummary()}<section class="card empty">Belum ada rekod keputusan.</section>`; return; } $app.innerHTML = `${profileSummary()}<section class="card"><span class="badge">🏆 REKOD KEPUTUSAN</span><h2 class="title">Sejarah latihan & exam murid ini</h2>${h.map(x=>`<div class="stat" style="text-align:left;margin-top:8px"><b>${escapeHtml(x.type)} • ${escapeHtml(x.subject)} — ${x.score}/${x.total}</b><span>${escapeHtml(x.date)} • ${escapeHtml(x.mode)}</span></div>`).join('')}<div style="height:12px"></div><button class="btn danger" onclick="clearResults()">Padam Rekod</button></section>`; }
 function clearResults(){ appConfirm('Padam semua rekod keputusan?', ()=>{ localStorage.removeItem(studentKey(HISTORY_KEY)); syncHistoryToFirebase([]); renderResult(); }); }
