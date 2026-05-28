@@ -1,0 +1,34 @@
+UPKK SmartKids - Admin Login Fix
+
+Masalah dijumpai:
+1. admin-login.html login menggunakan apps/UPKK/adminAccounts/{adminId} dan passwordHash.
+2. firebase-database-seed.json sebelum ini belum ada adminAccounts yang sepadan.
+3. firebase-admin-create-admin.js sebelum ini default ADMIN_ID=admin dan ADMIN_PASSWORD=CHANGE_ME_NOW.
+
+Telah dibaiki:
+- Tambah adminAccounts dalam firebase-database-seed.json:
+  ID: superadmin
+  Password: Admin123!
+- Tambah juga alias:
+  ID: admin
+  Password: Admin123!
+- firebase-admin-create-admin.js kini default:
+  ADMIN_ID=superadmin
+  ADMIN_PASSWORD=Admin123!
+- admin-login.html kini support rekod lama plaintext password dan auto-upgrade ke passwordHash.
+- Tambah repair-admin-login.html untuk create/reset admin terus melalui browser jika rules masih allow write.
+
+Database URL:
+https://upkksmartkids-app-default-rtdb.asia-southeast1.firebasedatabase.app
+
+Cara cepat:
+1. Upload ZIP ini.
+2. Buka /repair-admin-login.html
+3. Klik Create / Reset Admin.
+4. Buka /admin-login.html
+5. Login:
+   ID: superadmin
+   Password: Admin123!
+
+Nota keselamatan:
+Selepas admin login berjaya, padam repair-admin-login.html dari hosting production.
