@@ -216,13 +216,14 @@ table{width:100%;border-collapse:collapse}
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
-<script src="firebase-config.js?v=1.42"></script>
+<script src="firebase-config.js?v=1.43"></script>
 <script>
 firebase.initializeApp(window.UPKK_FIREBASE_CONFIG);
 const db = firebase.database();
 const APP_ROOT = 'apps/UPKK';
 const codeRoot = APP_ROOT + '/accessCodes';
 const userRoot = APP_ROOT + '/users';
+const usernameRoot = APP_ROOT + '/usernames';
 const entRoot = APP_ROOT + '/entitlements';
 const historyRoot = APP_ROOT + '/redeemHistory';
 const adminLogRoot = APP_ROOT + '/adminLogs';
@@ -371,16 +372,33 @@ async function loadCodes(){
     <td><div class="actions"><button class="danger mini" onclick="$('revokeCode').value='${esc(code)}';revokeCode()">Tarik Sah</button><button class="secondary mini" onclick="$('revokeCode').value='${esc(code)}';reactivateCode()">Aktif</button></div></td></tr>`).join('');
   $('tableBox').innerHTML = `<table><thead><tr><th>Kod</th><th>Jenis</th><th>Status</th><th>Guna</th><th>Tempoh</th><th>Tamat Kod</th><th>Catatan</th><th>Aksi</th></tr></thead><tbody>${rows || '<tr><td colspan="8">Belum ada kod.</td></tr>'}</tbody></table>`;
 }
+function usernameSubscriptionFromIndex(indexMap={}, username=''){
+  const raw = indexMap[safeKey(username)] || indexMap[String(username||'').trim().toLowerCase()] || {};
+  if(raw && typeof raw === 'object') return raw.subscription || {};
+  return {};
+}
+function dateText(iso){
+  return iso ? new Date(iso).toLocaleDateString('ms-MY') : '-';
+}
 async function loadUsers(){
-  const [usersSnap, entSnap] = await Promise.all([db.ref(userRoot).limitToLast(200).get(), db.ref(entRoot).get()]);
-  const users = usersSnap.exists()?usersSnap.val():{}; const ents = entSnap.exists()?entSnap.val():{};
+  const [usersSnap, entSnap, usernameSnap] = await Promise.all([
+    db.ref(userRoot).limitToLast(200).get(),
+    db.ref(entRoot).get(),
+    db.ref(usernameRoot).get()
+  ]);
+  const users = usersSnap.exists()?usersSnap.val():{};
+  const ents = entSnap.exists()?entSnap.val():{};
+  const usernameIndex = usernameSnap.exists()?usernameSnap.val():{};
   const rows = Object.entries(users).sort((a,b)=>a[0].localeCompare(b[0])).map(([uid,u])=>{
-    const e = ents[uid] || {};
-    const trial = e.latihanTrial?.endDate ? new Date(e.latihanTrial.endDate).toLocaleDateString('ms-MY') : '-';
-    const exam = e.examLicense?.endDate ? new Date(e.examLicense.endDate).toLocaleDateString('ms-MY') : '-';
-    return `<tr><td><code>${esc(uid)}</code></td><td>${esc(u.name||u.fullName||u.username||'-')}</td><td>${esc(u.status||u.accountStatus||'-')}</td><td>${trial}</td><td>${exam}</td></tr>`;
+    const username = u.username || '-';
+    const sub = u.subscription || usernameSubscriptionFromIndex(usernameIndex, username) || {};
+    const e = ents[uid] || u.entitlements || {};
+    const trialUntil = sub.trialUntil || sub.latihanTrialUntil || sub.trial?.endDate || e.latihanTrial?.endDate || '';
+    const examUntil = sub.examUntil || sub.examLicenseUntil || sub.exam?.endDate || e.examLicense?.endDate || '';
+    const scope = (sub.scope || (sub.trialUntil || sub.examUntil ? 'username' : 'legacy')).toUpperCase();
+    return `<tr><td><code>${esc(uid)}</code></td><td>${esc(username)}</td><td>${esc(u.status||u.accountStatus||'active')}</td><td>${dateText(trialUntil)}</td><td>${dateText(examUntil)}</td><td>${esc(scope)}</td></tr>`;
   }).join('');
-  $('usersBox').innerHTML = `<table><thead><tr><th>User ID</th><th>Nama/Username</th><th>Status</th><th>Trial Tamat</th><th>Exam Tamat</th></tr></thead><tbody>${rows || '<tr><td colspan="5">Belum ada user.</td></tr>'}</tbody></table>`;
+  $('usersBox').innerHTML = `<table><thead><tr><th>User ID</th><th>Username</th><th>Status</th><th>Trial Tamat</th><th>Exam Tamat</th><th>Scope</th></tr></thead><tbody>${rows || '<tr><td colspan="6">Belum ada user.</td></tr>'}</tbody></table>`;
 }
 async function loadHistory(){
   const snap = await db.ref(historyRoot).limitToLast(200).get();

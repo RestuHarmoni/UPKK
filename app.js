@@ -54,8 +54,8 @@ let page = 'splash';
 let profile = loadProfile();
 let currentQuiz = null;
 let selectedAnswer = null;
-const UPKK_APP_VERSION = '1.20';
-const UPKK_APP_VERSION_NAME = 'UPKK_SmartKids_V1_14_OFFICIAL_EXAM_UI_TEMPLATE';
+const UPKK_APP_VERSION = '1.21';
+const UPKK_APP_VERSION_NAME = 'UPKK_SmartKids_V2_USERNAME_SUBSCRIPTION';
 let quizType = 'practice';
 let examTimer = null;
 let deviceListenerRef = null;
@@ -230,6 +230,7 @@ function firebaseAccountPayload(){
     plan: profile.plan || PREMIUM_STATUS.FREE,
     premiumCode: profile.premiumCode || '',
     entitlements: profile.entitlements || {},
+    subscription: profile.subscription || {},
     deviceLimit: DEVICE_LIMIT,
     lastDeviceId: deviceId(),
     updatedAt: new Date().toISOString(),
@@ -319,6 +320,7 @@ async function refreshAllAccountProfilesFromFirebase(accountId=profile.accountId
         plan: account.plan || profile.plan || PREMIUM_STATUS.FREE,
         premiumCode: account.premiumCode || profile.premiumCode || '',
         entitlements: account.entitlements || profile.entitlements || {},
+        subscription: account.subscription || profile.subscription || {},
         devices: account.devices || profile.devices || {},
         allowedDevices: account.allowedDevices || profile.allowedDevices || [],
         studentId: slot,
@@ -342,7 +344,7 @@ function syncProfileToFirebase(){
   if(!db || !profile?.username || !profile?.studentId) return;
   const ak = accountKey(profile.username);
   Promise.all([
-    db.ref(fbPath('usernames', ak)).set(profile.accountId || ak),
+    db.ref(fbPath('usernames', ak)).set({accountId: profile.accountId || ak, username: profile.username || '', subscription: profile.subscription || {}, updatedAt: new Date().toISOString()}),
     db.ref(accountPath(profile.accountId)).update(firebaseAccountPayload()),
     db.ref(studentSlotPath(profile.accountId, profile.studentId)).update(firebaseStudentPayload())
   ]).catch(err=>console.warn('Firebase profile sync failed:', err));
@@ -421,18 +423,89 @@ function isFutureIso(iso){
   const t = new Date(iso).getTime();
   return Number.isFinite(t) && t > Date.now();
 }
+function getUsernameSubscription(){
+  return profile.subscription || profile.accountSubscription || {};
+}
+function normalizeSubscriptionRecord(sub={}){
+  const trialUntil = sub.trialUntil || sub.latihanTrialUntil || sub.trial?.endDate || sub.latihanTrial?.endDate || '';
+  const examUntil = sub.examUntil || sub.examLicenseUntil || sub.exam?.endDate || sub.examLicense?.endDate || '';
+  return {
+    trialActive: !!(sub.trialActive ?? sub.latihanTrialActive ?? sub.trial?.active ?? sub.latihanTrial?.active),
+    trialUntil,
+    trialCode: sub.trialCode || sub.trial?.code || sub.latihanTrial?.code || '',
+    examActive: !!(sub.examActive ?? sub.examLicenseActive ?? sub.exam?.active ?? sub.examLicense?.active),
+    examUntil,
+    examCode: sub.examCode || sub.exam?.code || sub.examLicense?.code || '',
+    updatedAt: sub.updatedAt || ''
+  };
+}
+function latestEntitlement(a,b){
+  if(!a) return b || null;
+  if(!b) return a || null;
+  const ta = new Date(a.endDate || '').getTime() || 0;
+  const tb = new Date(b.endDate || '').getTime() || 0;
+  return tb > ta ? b : a;
+}
+function subscriptionToEntitlements(sub={}){
+  const s = normalizeSubscriptionRecord(sub);
+  const out = {};
+  if(s.trialUntil || s.trialActive){
+    out.latihanTrial = {active: !!s.trialActive, code: s.trialCode || '', startDate: sub.trialStartDate || '', endDate: s.trialUntil || '', validDays: Number(sub.trialValidDays || TRIAL_DAYS)};
+  }
+  if(s.examUntil || s.examActive){
+    out.examLicense = {active: !!s.examActive, code: s.examCode || '', startDate: sub.examStartDate || '', endDate: s.examUntil || '', validDays: Number(sub.examValidDays || EXAM_LICENSE_DAYS), package:'yearly_exam'};
+  }
+  return out;
+}
+function entitlementsToSubscription(entitlements={}, base={}){
+  const e = entitlements || {};
+  const current = normalizeSubscriptionRecord(base || {});
+  const trialEnd = e.latihanTrial?.endDate || current.trialUntil || '';
+  const examEnd = e.examLicense?.endDate || current.examUntil || '';
+  return {
+    ...base,
+    trialActive: !!((e.latihanTrial?.active && isFutureIso(trialEnd)) || (current.trialActive && isFutureIso(current.trialUntil))),
+    trialUntil: trialEnd || '',
+    trialCode: e.latihanTrial?.code || current.trialCode || '',
+    trialValidDays: Number(e.latihanTrial?.validDays || base.trialValidDays || TRIAL_DAYS),
+    examActive: !!((e.examLicense?.active && isFutureIso(examEnd)) || (current.examActive && isFutureIso(current.examUntil))),
+    examUntil: examEnd || '',
+    examCode: e.examLicense?.code || current.examCode || '',
+    examValidDays: Number(e.examLicense?.validDays || base.examValidDays || EXAM_LICENSE_DAYS),
+    scope: 'username',
+    updatedAt: new Date().toISOString()
+  };
+}
+function mergeSubscriptionWithEntitlements(subscription={}, entitlements={}){
+  const fromSub = subscriptionToEntitlements(subscription);
+  const merged = {...(entitlements || {})};
+  merged.latihanTrial = latestEntitlement(merged.latihanTrial, fromSub.latihanTrial) || merged.latihanTrial;
+  merged.examLicense = latestEntitlement(merged.examLicense, fromSub.examLicense) || merged.examLicense;
+  return entitlementsToSubscription(merged, subscription || {});
+}
 function getProfileEntitlements(){
-  return profile.entitlements || {};
+  const subEnt = subscriptionToEntitlements(getUsernameSubscription());
+  const e = profile.entitlements || {};
+  return {
+    ...e,
+    latihanTrial: latestEntitlement(e.latihanTrial, subEnt.latihanTrial),
+    examLicense: latestEntitlement(e.examLicense, subEnt.examLicense)
+  };
 }
 function hasActiveLatihanAccess(){
   const e = getProfileEntitlements();
+  const s = normalizeSubscriptionRecord(getUsernameSubscription());
   return !!(e.latihanTrial && e.latihanTrial.active && isFutureIso(e.latihanTrial.endDate)) ||
          !!(e.examLicense && e.examLicense.active && isFutureIso(e.examLicense.endDate)) ||
+         !!(s.trialActive && isFutureIso(s.trialUntil)) ||
+         !!(s.examActive && isFutureIso(s.examUntil)) ||
          profile.plan === PREMIUM_STATUS.PREMIUM;
 }
 function hasActiveExamAccess(){
   const e = getProfileEntitlements();
+  const s = normalizeSubscriptionRecord(getUsernameSubscription());
   return !!(e.examLicense && e.examLicense.active && isFutureIso(e.examLicense.endDate)) ||
+         !!(s.examActive && isFutureIso(s.examUntil)) ||
          profile.plan === PREMIUM_STATUS.PREMIUM;
 }
 function entitlementLabel(){
@@ -443,13 +516,59 @@ function entitlementLabel(){
   if(hasActiveLatihanAccess()) return `Trial latihan hingga ${trial}`;
   return 'Tiada akses aktif';
 }
+function usernameIndexAccountId(v){
+  if(!v) return '';
+  if(typeof v === 'string') return v;
+  if(typeof v === 'object') return v.accountId || v.uid || v.userId || '';
+  return '';
+}
+async function loadUsernameSubscriptionFromFirebase(username=profile.username, accountId=profile.accountId, accountData=null){
+  const db = firebaseDb();
+  if(!db || !username) return profile.subscription || {};
+  const key = safeFirebaseKey(cleanUsername(username));
+  const usernameRef = db.ref(fbPath('usernames', key));
+  const usernameSnap = await usernameRef.get();
+  const usernameVal = usernameSnap.exists() ? usernameSnap.val() : {};
+  let sub = (usernameVal && typeof usernameVal === 'object' && usernameVal.subscription) ? usernameVal.subscription : {};
+  let legacyEntitlements = {};
+  try{
+    if(accountData && accountData.entitlements) legacyEntitlements = {...legacyEntitlements, ...accountData.entitlements};
+    if(accountId){
+      const legacySnap = await db.ref(fbPath('entitlements', safeFirebaseKey(accountId))).get();
+      if(legacySnap.exists()) legacyEntitlements = {...legacyEntitlements, ...(legacySnap.val() || {})};
+    }
+  }catch(e){ console.warn('Legacy entitlement read failed:', e); }
+  const merged = mergeSubscriptionWithEntitlements(sub, legacyEntitlements);
+  const hasMergedData = merged.trialUntil || merged.examUntil || merged.trialActive || merged.examActive;
+  if(hasMergedData || typeof usernameVal === 'string'){
+    await usernameRef.set({
+      accountId: accountId || usernameIndexAccountId(usernameVal) || '',
+      username: cleanUsername(username),
+      subscription: merged,
+      migratedAt: new Date().toISOString()
+    }).catch(err=>console.warn('Username subscription migration failed:', err));
+  }
+  return merged;
+}
 async function syncEntitlementsToFirebase(){
   const db = firebaseDb();
   if(!db || !profile.accountId) return;
+  const username = cleanUsername(profile.username || '');
+  const subscription = mergeSubscriptionWithEntitlements(profile.subscription || {}, profile.entitlements || {});
+  profile.subscription = subscription;
   await db.ref(fbPath('entitlements', safeFirebaseKey(profile.accountId))).set(profile.entitlements || {});
+  if(username){
+    await db.ref(fbPath('usernames', safeFirebaseKey(username))).set({
+      accountId: profile.accountId || '',
+      username,
+      subscription,
+      updatedAt: new Date().toISOString()
+    });
+  }
   await db.ref(accountPath(profile.accountId)).update({
     plan: profile.plan || PREMIUM_STATUS.FREE,
     entitlements: profile.entitlements || {},
+    subscription,
     updatedAt: new Date().toISOString()
   });
 }
@@ -510,6 +629,7 @@ async function redeemAccessCode(code, mode='register'){
       mode
     }
   });
+  profile.subscription = mergeSubscriptionWithEntitlements(profile.subscription || {}, profile.entitlements || {});
   await syncEntitlementsToFirebase().catch(()=>{});
   saveProfile();
   return data;
@@ -866,6 +986,8 @@ function normalizeProfile(p){
   out.allowedDevices = Object.values(out.devices).filter(d=>d.active!==false).map(d=>d.deviceId);
   if(!out.devices[deviceKey()] && activeDeviceCount(out.devices)<DEVICE_LIMIT){ out.devices[deviceKey()] = currentDeviceRecord(); }
   out.allowedDevices = Object.values(out.devices).filter(d=>d.active!==false).map(d=>d.deviceId);
+  out.subscription = normalizeSubscriptionRecord(out.subscription || out.accountSubscription || {});
+  if(!out.entitlements || typeof out.entitlements !== 'object') out.entitlements = {};
   out.name=uppercaseName(out.name||'').trim();
   out.maxLoginAttempt=MAX_LOGIN_ATTEMPTS;
   out.loginAttempts=Number(out.loginAttempts||0);
@@ -1769,7 +1891,7 @@ async function resetLoginState(username, isRemote){
     if(db){
       try{
         const idx = await firebaseGetOnce(fbPath('usernames', safeFirebaseKey(username)));
-        const accountId = idx.exists() ? idx.val() : profile.accountId;
+        const accountId = idx.exists() ? usernameIndexAccountId(idx.val()) : profile.accountId;
         await db.ref(accountPath(accountId)).update({loginAttempts:0, temporaryLock:false, lockedUntil:'', lastLoginAt:new Date().toISOString()});
       }catch(err){ console.warn('Login reset failed:', err); }
     }
@@ -1809,7 +1931,8 @@ async function loginExistingStudentByUsername(username, pin){
   if(db){
     try{
       const userIndexSnap = await firebaseGetOnce(fbPath('usernames', safeFirebaseKey(username)));
-      const accountIdFromIndex = userIndexSnap.exists() ? userIndexSnap.val() : '';
+      const usernameIndexValue = userIndexSnap.exists() ? userIndexSnap.val() : '';
+      const accountIdFromIndex = usernameIndexAccountId(usernameIndexValue);
       const snap = accountIdFromIndex ? await firebaseGetOnce(accountPath(accountIdFromIndex)) : {exists:()=>false};
       if(!snap.exists()){
         // Kalau Firebase tiada data, baru fallback local cache.
@@ -1826,12 +1949,14 @@ async function loginExistingStudentByUsername(username, pin){
         plan: account.plan || PREMIUM_STATUS.FREE,
         premiumCode: account.premiumCode || '',
         entitlements: account.entitlements || {},
+        subscription: account.subscription || {},
         allowedDevices: account.allowedDevices || [],
         devices: account.devices || {},
         loginAttempts: account.loginAttempts || 0,
         temporaryLock: !!account.temporaryLock,
         lockedUntil: account.lockedUntil || ''
       });
+      accountData.subscription = await loadUsernameSubscriptionFromFirebase(username, accountData.accountId, account);
       if(isAccountLocked(accountData)){ alert(`Akaun dikunci sementara. Cuba semula dalam ${lockRemainingText(accountData.lockedUntil)}.`); return; }
       if(accountData.pin && accountData.pin !== pin){ await recordFailedLogin(username, accountData, true); return; }
 
@@ -1858,7 +1983,7 @@ async function loginExistingStudentByUsername(username, pin){
       saveProfiles(profiles);
       const activeSlot = account.activeStudent || slots[0];
       const activeKey = accountLocalKey({accountId:accountData.accountId, studentId:activeSlot});
-      profile = normalizeProfile({...profiles[activeKey], pin, loginAttempts:0, temporaryLock:false, lockedUntil:'', allowedDevices:accountData.allowedDevices, devices:accountData.devices});
+      profile = normalizeProfile({...profiles[activeKey], pin, loginAttempts:0, temporaryLock:false, lockedUntil:'', allowedDevices:accountData.allowedDevices, devices:accountData.devices, subscription:accountData.subscription || {}});
       saveProfile();
       await resetLoginState(username, true);
       startDeviceRealtimeListener();
@@ -1962,7 +2087,7 @@ async function saveProfileFromForm(){
 
   if(db){
     try{
-      await db.ref(fbPath('usernames', safeFirebaseKey(username))).set(profile.accountId);
+      await db.ref(fbPath('usernames', safeFirebaseKey(username))).set({accountId: profile.accountId, username, subscription: profile.subscription || {}, createdAt: new Date().toISOString()});
       await db.ref(accountPath(profile.accountId)).update(firebaseAccountPayload());
       await db.ref(`${accountPath(profile.accountId)}/devices`).set(normalizeDeviceMap(profile.devices, profile.allowedDevices));
       await db.ref(studentSlotPath(profile.accountId, profile.studentId)).update(firebaseStudentPayload());
