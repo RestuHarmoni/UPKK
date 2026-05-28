@@ -1,4 +1,4 @@
-const CACHE_NAME = 'upkk-smartkids-v3-12-phase1-result';
+const CACHE_NAME = 'upkk-smartkids-v3-13-phase1-sound-result';
 const CORE_ASSETS = [
   './',
   './index.html',
@@ -21,6 +21,11 @@ const CORE_ASSETS = [
   './assets/icons/favicon-16.png',
   './assets/avatar-boy.webp',
   './assets/avatar-girl.webp',
+  './assets/sounds/tap.wav',
+  './assets/sounds/correct.wav',
+  './assets/sounds/wrong.wav',
+  './assets/sounds/finish.wav',
+  './assets/sounds/popup.wav',
   './dashboard.html',
   './latihan.html',
   './exam.html',
