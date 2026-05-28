@@ -1505,16 +1505,9 @@ function renderProfile(){
     <div class="field" style="margin-top:12px"><label>PIN 6 Angka</label><input id="pinInput" class="input" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="new-password" value="${escapeHtml(profile.studentId?'':profile.pin||'')}" placeholder="CONTOH: 482913" /></div>
     <div class="field" style="margin-top:12px"><label>Access Code / Trial Code</label><input id="accessCodeInput" class="input" type="text" autocapitalize="characters" autocomplete="one-time-code" value="" placeholder="CONTOH: TRIAL-UPKK-2026" /></div>
     <p class="small">Kod trial membuka Latihan 30 hari. Kod exam membuka Peperiksaan 1 tahun.</p>
-    <div style="height:12px"></div>
-    <label class="small"><b>Pilih Avatar</b></label>
-    <div style="height:8px"></div>
-    <div class="grid2"><button class="choice ${!profile.studentId&&profile.avatar==='boy'?'active':''}" onclick="selectAvatar('boy')"><img class="avatar" src="assets/avatar-boy.webp">Lelaki</button><button class="choice ${!profile.studentId&&profile.avatar==='girl'?'active':''}" onclick="selectAvatar('girl')"><img class="avatar" src="assets/avatar-girl.webp">Perempuan</button></div>
-    <div style="height:12px"></div>
-    <label class="small"><b>Mode Tulisan</b></label>
-    <div style="height:8px"></div>
-    <div class="grid2"><button class="choice ${profile.mode==='rumi'?'active':''}" onclick="selectMode('rumi')"><div class="mode mode-rumi">Aa</div><b>RUMI</b></button><button class="choice ${profile.mode==='jawi'?'active':''}" onclick="selectMode('jawi')"><div class="mode mode-jawi">ا ب</div><b>JAWI</b></button></div>
+    <p class="small" style="margin-top:10px">Avatar dan mode tulisan boleh ditukar selepas daftar di bahagian Setting.</p>
     <div style="height:14px"></div>
-    <button class="btn" onclick="saveProfileFromForm()">Simpan Profil Pelajar</button>
+    <button class="btn" onclick="saveProfileFromForm()">Daftar</button>
     <div style="height:10px"></div>
     <button class="btn secondary" onclick="showLoginStart()">Kembali</button>
   </section>`;
@@ -1893,7 +1886,8 @@ async function saveProfileFromForm(){
   const accessCode=String(document.getElementById('accessCodeInput')?.value||'').trim().toUpperCase();
   if(!username){ alert('Sila isi username.'); return; }
   if(username.length < 3){ alert('Username minimum 3 aksara.'); return; }
-  if(!profile.avatar){ alert('Sila pilih avatar dahulu.'); return; }
+  if(!profile.avatar) profile.avatar = 'boy';
+  if(!profile.mode) profile.mode = 'rumi';
   if(pin.length !== PIN_LENGTH){ alert('Sila tetapkan PIN 6 angka.'); return; }
   if(!accessCode){ alert('Sila masukkan access code / trial code untuk daftar.'); return; }
 
