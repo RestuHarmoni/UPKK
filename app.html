@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="ms">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>UPKK SmartKids</title>
+  <meta name="theme-color" content="#0f8a4b" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="UPKK Kids" />
+  <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/icons/favicon-32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="assets/icons/favicon-16.png" />
+  <link rel="manifest" href="manifest.json?v=1.38" />
+  <link rel="stylesheet" href="style.css?v=1.38" />
+</head>
+<body>
+  <div id="splashScreen" class="splash-screen">
+    <div class="splash-content">
+      <img src="assets/logo-pwa.png" alt="UPKK SmartKids" class="splash-logo app-logo-icon" />
+      <div class="splash-title">UPKK SmartKids</div>
+      <div class="splash-subtitle">Belajar Dengan Bijak, Berjaya Dengan Adab</div><div class="splash-copy">© Copyright by Restu Harmoni</div>
+    </div>
+  </div>
+
+  <div id="phoneShell" class="phone-shell app-hidden">
+    <header class="app-header">
+      <img src="assets/logo-pwa.png" alt="UPKK SmartKids" class="brand-logo app-logo-icon" />
+      <div class="brand-text">
+        <h1>UPKK SmartKids</h1>
+        <p>Belajar Dengan Bijak, Berjaya Dengan Adab</p>
+      </div>
+    </header>
+
+    <main id="app" class="app-main"></main>
+
+    <div class="copyright">© Copyright by Restu Harmoni</div>
+
+    <nav class="bottom-nav" aria-label="Navigasi utama">
+      <button class="nav-btn active" data-nav="home">🏠<span>Home</span></button>
+      <button class="nav-btn" data-nav="subjects">📚<span>Latihan Pintar</span></button>
+      <button class="nav-btn" data-nav="exam">📝<span>Peperiksaan</span></button>
+      <button class="nav-btn" data-nav="result">🏆<span>Rank</span></button>
+      <button class="nav-btn" data-nav="settings">⚙️<span>Setting</span></button>
+    </nav>
+  </div>
+  <!-- Firebase-first: SDK dimuat sebelum app.js supaya semua data terus dibaca daripada Firebase. -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+  <script src="firebase-config.js?v=1.38"></script>
+  <script src="app.js?v=1.38"></script>
+  <script src="pwa-register.js?v=1.38"></script>
+</body>
+</html>
