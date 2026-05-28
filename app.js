@@ -1,4 +1,4 @@
-const APP_VERSION = '8.19-FAST-LOGIN';
+const APP_VERSION = '8.20-EXAM-UX-FIX';
 const PIN_LENGTH = 6;
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCK_MINUTES = 10;
@@ -945,7 +945,9 @@ function saveUsed(u){ localStorage.setItem(studentKey(USED_KEY), JSON.stringify(
 async function switchProfile(profileKey){
   const profiles=loadProfiles();
   if(!profiles[profileKey]) return;
-  const stayInSettings = page === 'settings';
+  const previousPage = page;
+  const stayInSettings = previousPage === 'settings';
+  const stayInExam = previousPage === 'exam';
   profile=normalizeProfile(profiles[profileKey]);
   localStorage.setItem(CURRENT_PROFILE_ID_KEY, accountLocalKey(profile));
   localStorage.setItem(LOGGED_IN_KEY, '1');
@@ -956,10 +958,13 @@ async function switchProfile(profileKey){
   if(stayInSettings){
     window.__UPKK_SETTING_NOTICE = 'Profil pelajar aktif dikemaskini. Anda boleh edit profil pelajar ini di bawah.';
     page='settings';
+  } else if(stayInExam){
+    page='exam';
   } else {
     page='home';
   }
   render();
+  if(page==='exam') setTimeout(scrollMainToTop, 0);
 }
 function startAddStudentProfile(){
   if(!profile.studentId){ alert('Sila login dahulu.'); return; }
@@ -1313,9 +1318,22 @@ function startSplashFlow(){
   }, 250);
 }
 function resetProfileFlow(){ newStudentProfile(); }
+
+function scrollMainToTop(){
+  try{
+    const appMain = document.querySelector('.app-main');
+    const phoneShell = document.getElementById('phoneShell');
+    window.scrollTo({ top: 0, behavior: 'auto' });
+    if(appMain) appMain.scrollTo({ top: 0, behavior: 'auto' });
+    if(phoneShell) phoneShell.scrollTo({ top: 0, behavior: 'auto' });
+    const appNode = document.getElementById('app');
+    if(appNode) appNode.scrollIntoView({ block: 'start', behavior: 'auto' });
+  }catch(e){}
+}
+
 function bindNav(){
   document.querySelectorAll('.nav-btn').forEach(btn=>{
-    btn.addEventListener('click',()=>{ clearTimer(); page=btn.dataset.nav; currentQuiz=null; selectedAnswer=null; setActiveNav(); render(); });
+    btn.addEventListener('click',()=>{ clearTimer(); page=btn.dataset.nav; currentQuiz=null; selectedAnswer=null; setActiveNav(); render(); if(page==='exam') setTimeout(scrollMainToTop, 0); });
   });
 }
 function setActiveNav(){ document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active', b.dataset.nav===page)); }
@@ -2193,7 +2211,7 @@ function renderExamMenu(){
     <div class="exam-hero-content">
       <span class="latihan-kicker">📝 PEPERIKSAAN RASMI</span>
       <h2>Peperiksaan UPKK SmartKids</h2>
-      <p>Template ini rujuk gaya <b>Latihan Pintar</b>, tetapi dibuat lebih fokus untuk peperiksaan: timer jelas, progress kemas, autosave, resume dan submit rasmi.</p>
+      
       <div class="exam-overview-cards">
         <div><b>${readySubjects}/6</b><span>Subjek Sedia</span></div>
         <div><b>${completedSubjects}/6</b><span>Subjek Selesai</span></div>
