@@ -1,4 +1,4 @@
-const APP_VERSION = '8.20-EXAM-UX-FIX';
+const APP_VERSION = '8.21-ADMIN-REPORT-A4-WHATSAPP-FIX';
 const PIN_LENGTH = 6;
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCK_MINUTES = 10;
@@ -182,6 +182,35 @@ function firebaseDb(){
 function fbPath(group, tail=''){
   const base = (window.UPKK_DB_PATHS && window.UPKK_DB_PATHS[group]) || `apps/${APP_CODE}/${group}`;
   return tail ? `${base}/${tail}` : base;
+}
+
+const UPKK_DEFAULT_WHATSAPP = {
+  number: '',
+  supportMessage: 'Assalamualaikum, saya perlukan bantuan UPKK SmartKids.',
+  buyLicenseMessage: 'Assalamualaikum, saya ingin membeli lesen peperiksaan UPKK SmartKids.',
+  renewLicenseMessage: 'Assalamualaikum, saya ingin renew lesen peperiksaan UPKK SmartKids.',
+  problemMessage: 'Assalamualaikum, saya ingin laporkan masalah aplikasi UPKK SmartKids.'
+};
+let UPKK_WHATSAPP_CACHE = null;
+function normalizeMsPhoneNumber(v){ return String(v||'').replace(/[^0-9]/g,'').replace(/^0/,'60'); }
+function buildWhatsAppUrl(number, message){ return 'https://wa.me/' + normalizeMsPhoneNumber(number) + '?text=' + encodeURIComponent(message || ''); }
+async function loadWhatsAppSettingsForUser(){
+  if(UPKK_WHATSAPP_CACHE) return UPKK_WHATSAPP_CACHE;
+  const db = firebaseDb();
+  if(!db) return UPKK_DEFAULT_WHATSAPP;
+  try{
+    const snap = await firebaseGetOnce(fbPath('settings','whatsapp'));
+    UPKK_WHATSAPP_CACHE = {...UPKK_DEFAULT_WHATSAPP, ...(snap.exists()?snap.val():{})};
+    return UPKK_WHATSAPP_CACHE;
+  }catch(err){ console.warn('WhatsApp settings load failed:', err); return UPKK_DEFAULT_WHATSAPP; }
+}
+async function openUpkkWhatsApp(type='support'){
+  upkkPlaySound('tap');
+  const w = await loadWhatsAppSettingsForUser();
+  const number = normalizeMsPhoneNumber(w.number || w.whatsappNumber || '');
+  if(!number){ alert('Nombor WhatsApp support belum ditetapkan oleh admin.'); return; }
+  const msg = type==='buy' ? w.buyLicenseMessage : type==='renew' ? w.renewLicenseMessage : type==='problem' ? w.problemMessage : w.supportMessage;
+  window.open(buildWhatsAppUrl(number,msg),'_blank','noopener,noreferrer');
 }
 function formatStudentId(num){ return `${ID_PREFIX}-${APP_YEAR_SHORT}-` + String(num).padStart(5,'0'); }
 function isOfficialStudentId(id){ return new RegExp(`^${ID_PREFIX}-${APP_YEAR_SHORT}-\\d{5}$`).test(String(id||'')); }
@@ -1814,6 +1843,10 @@ function renderSettings(){
     <span class="badge">🎟️ ACCESS / LESEN</span>
     <p class="small">Status akses: <b>${escapeHtml(planLabel())}</b></p>
     <button class="btn gold" onclick="redeemExamLicenseFromSettings()">Redeem Kod Trial / Lesen Exam</button>
+    <div style="height:10px"></div>
+    <button class="btn secondary" onclick="openUpkkWhatsApp('buy')">💬 Beli Lesen Melalui WhatsApp</button>
+    <div style="height:10px"></div>
+    <button class="btn secondary" onclick="openUpkkWhatsApp('support')">📱 Hubungi Admin</button>
   </section>
   <section class="card">
     <span class="badge">🗑️ DELETE PROFIL PELAJAR</span>
@@ -2307,6 +2340,8 @@ function renderExamMenu(){
       <h2>Peperiksaan memerlukan lesen 1 tahun</h2>
       <p class="small">Akaun trial boleh guna modul Latihan. Untuk buka Peperiksaan, redeem kod lesen exam daripada admin/guru selepas subscribe.</p>
       <button class="btn gold" onclick="redeemExamLicenseFromSettings()">Redeem Kod Lesen Peperiksaan</button>
+      <div style="height:10px"></div><button class="btn secondary" onclick="openUpkkWhatsApp('buy')">💬 Beli Lesen Melalui WhatsApp</button>
+      <div style="height:10px"></div><button class="btn secondary" onclick="openUpkkWhatsApp('support')">📱 Hubungi Admin</button>
       <div style="height:10px"></div><button class="btn secondary" onclick="page='subjects';render()">Pergi ke Latihan</button>
     </section>`;
     return;
@@ -2527,7 +2562,7 @@ function renderQuiz(){
   const opts=q.preparedOptions.map((o,i)=>{ let cls='option'; if(profile.mode==='jawi') cls+=' rtl'; if(isExam && i===selectedAnswer) cls+=' active'; if(!isExam && done&&i===q.preparedAnswer) cls+=' correct'; if(!isExam && done&&i===selectedAnswer&&i!==q.preparedAnswer) cls+=' wrong'; return `<button class="${cls}" ${(!isExam&&done)?'disabled':''} onclick="chooseAnswer(${i})">${optionText(o,i)}</button>`; }).join('');
   const paperClass=isExam?' exam-paper':'';
   const examNav = isExam ? `<div class="exam-actions"><button class="btn secondary exam-prev-btn" ${currentQuiz.index<=0?'disabled':''} onclick="prevQuestion()">← Sebelum</button><button class="btn secondary exam-next-btn" ${currentQuiz.index>=currentQuiz.questions.length-1?'disabled':''} onclick="nextQuestion()">Seterusnya →</button><button class="btn danger exam-submit-btn" onclick="confirmSubmitExam()">Hantar Peperiksaan</button></div>` : '';
-  const practiceNext = (!isExam && done) ? `<div class="feedback ${selectedAnswer===q.preparedAnswer?'':'bad'}">${selectedAnswer===q.preparedAnswer?'Betul!':'Belum tepat. Jawapan betul telah ditanda.'}</div>${q.note?`<div class="answer-note">${escapeHtml(q.note)}</div>`:''}<button class="btn" onclick="nextQuestion()">${currentQuiz.index===currentQuiz.questions.length-1?'Lihat Keputusan':'Soalan Seterusnya'}</button>` : '';
+  const practiceNext = (!isExam && done) ? `<div class="feedback ${selectedAnswer===q.preparedAnswer?'':'bad'}">${selectedAnswer===q.preparedAnswer?'Betul!':'Belum tepat. Jawapan betul telah ditanda.'}</div>${(q.note && !q.hideNote)?`<div class="answer-note">${escapeHtml(q.note)}</div>`:''}<button class="btn" onclick="nextQuestion()">${currentQuiz.index===currentQuiz.questions.length-1?'Lihat Keputusan':'Soalan Seterusnya'}</button>` : '';
   const examPalette = isExam ? examQuestionPalette() : '';
   $app.innerHTML = `<section class="card${paperClass}"><div class="quiz-top exam-quiz-top"><span class="pill">${currentQuiz.icon} ${escapeHtml(currentQuiz.type)}</span><span class="pill">${currentQuiz.index+1}/${currentQuiz.questions.length}</span></div><div class="progress exam-progress"><span style="width:${pct}%"></span></div>${questionHtml(q)}<div style="height:12px"></div>${opts}${practiceNext}${examNav}${examPalette}</section>`;
 }
