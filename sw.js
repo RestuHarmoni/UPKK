@@ -1,4 +1,4 @@
-const CACHE_NAME = 'upkk-smartkids-v3-37-student-realtime-sync';
+const CACHE_NAME = 'upkk-smartkids-v3-38-logo-aligned';
 const CORE_ASSETS = [
   './',
   './index.html',
@@ -11,7 +11,9 @@ const CORE_ASSETS = [
   './assets/images/logo.webp',
   './assets/images/avatar-boy.webp',
   './assets/images/avatar-girl.webp',
-  './assets/icons/icon-192.png'
+  './assets/icons/icon-192.png',
+  './assets/icons/icon-512.png',
+  './assets/icons/icon-maskable-512.png'
 ];
 
 self.addEventListener('install', (event) => {
