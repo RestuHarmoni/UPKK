@@ -1,4 +1,4 @@
-const APP_VERSION = '8.39-ADMIN-AUDIO-URL';
+const APP_VERSION = '8.40-ADMIN-AUDIO-MP3-UPLOAD';
 const PIN_LENGTH = 6;
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCK_MINUTES = 10;
@@ -3487,15 +3487,8 @@ function upkkVoiceReward(pct){
     if(!UPKK_UI_SOUND.enabled || !event || event.enabled === false || event.voiceEnabled === false) return;
     const finalVolume = Math.max(0, Math.min(1, Number(UPKK_UI_SOUND.volume ?? 0.85) * Number(event.volume ?? 0.9)));
     if(event.audioUrl && upkkPlayCustomAudio(event.audioUrl, finalVolume)) return;
-    if(!('speechSynthesis' in window)) return;
-    const msg = pct>=90 ? 'Tahniah, hebat sangat!' : pct>=80 ? 'Alhamdulillah, cemerlang!' : pct>=60 ? 'Bagus, teruskan usaha!' : 'Cuba lagi ya, jangan putus asa.';
-    const u = new SpeechSynthesisUtterance(msg);
-    u.lang = 'ms-MY';
-    u.rate = 0.95;
-    u.pitch = 1.05;
-    u.volume = finalVolume;
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(u);
+    // Voice popup kini hanya guna MP3 custom dari Admin Panel.
+    // Jika tiada MP3 diupload, app tidak akan guna suara robot / browser TTS.
   }catch(e){}
 }
 function upkkMotivationMessage(pct){
