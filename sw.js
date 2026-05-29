@@ -1,4 +1,4 @@
-const CACHE_NAME = 'upkk-smartkids-v3-33-exam-lazy-count-fix';
+const CACHE_NAME = 'upkk-smartkids-v3-34-student-slot-reuse';
 const CORE_ASSETS = [
   './',
   './index.html',

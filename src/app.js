@@ -263,11 +263,26 @@ function isStudentProfileId(id){ return /^student_\d+$/i.test(String(id||'')); }
 function isValidStudentId(id){ return isOfficialStudentId(id) || isStudentProfileId(id); }
 function nextStudentProfileId(username){
   const baseAccountId = profile.accountId || '';
-  const list = Object.values(loadProfiles()).map(normalizeProfile).filter(p => baseAccountId ? p.accountId === baseAccountId : (p.username||'') === cleanUsername(username));
-  let max = 0;
-  list.forEach(p=>{ const m = String(p.studentId||'').match(/^student_(\d+)$/i); if(m) max = Math.max(max, Number(m[1])); });
-  if(max === 0 && list.length) max = list.length;
-  return `student_${max + 1}`;
+  const list = Object.values(loadProfiles())
+    .map(normalizeProfile)
+    .filter(p => baseAccountId ? p.accountId === baseAccountId : (p.username||'') === cleanUsername(username));
+
+  const usedSlots = new Set();
+  list.forEach(p => {
+    const m = String(p.studentId||'').match(/^student_(\d+)$/i);
+    if(m){
+      const n = Number(m[1]);
+      if(n >= 1 && n <= 3) usedSlots.add(n);
+    }
+  });
+
+  // Reuse the smallest empty student slot first.
+  // Example: student_1 + student_3 exists, new student must become student_2.
+  for(let i = 1; i <= 3; i++){
+    if(!usedSlots.has(i)) return `student_${i}`;
+  }
+
+  return null;
 }
 async function generateSequentialStudentId(){
   const db = firebaseDb();
@@ -1366,6 +1381,7 @@ async function saveNewStudentProfile(){
   newProfile.devices = normalizeDeviceMap(parent.devices, parent.allowedDevices);
   newProfile.allowedDevices = Object.values(newProfile.devices).filter(d=>d.active!==false).map(d=>d.deviceId);
   newProfile.studentId = nextStudentProfileId(parentUsername);
+  if(!newProfile.studentId){ alert('Maksimum 3 pelajar untuk satu username.'); return; }
   newProfile.name = fullName;
   newProfile.avatar = draft.avatar;
   newProfile.mode = (draft.mode==='jawi') ? 'jawi' : 'rumi';
