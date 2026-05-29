@@ -2504,3 +2504,17 @@ body.settings-touch-fix {}
 .compact-profile-detail em {
   font-style: normal;
 }
+
+/* v3.28 Settings: keep edit form hidden until parent requests it */
+.settings-action-card{
+  position:relative;
+  z-index:2;
+}
+.settings-edit-student-card{
+  position:relative;
+  z-index:3;
+}
+.settings-clean-form-card .choice,
+.settings-clean-form-card .btn{
+  touch-action:manipulation;
+}

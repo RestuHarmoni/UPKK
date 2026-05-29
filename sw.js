@@ -1,4 +1,4 @@
-const CACHE_NAME = 'upkk-smartkids-v3-27-settings-touch-fix';
+const CACHE_NAME = 'upkk-smartkids-v3-28-settings-edit-hidden';
 const CORE_ASSETS = [
   './',
   './index.html',

@@ -1291,6 +1291,7 @@ function startAddStudentProfile(){
   const sameFamily = Object.values(loadProfiles()).map(normalizeProfile).filter(p => p.accountId === profile.accountId);
   if(sameFamily.length >= 3){ alert('Maksimum 3 pelajar untuk satu username.'); return; }
   window.__UPKK_ADD_STUDENT_FORM = true;
+  window.__UPKK_EDIT_STUDENT_FORM = false;
   window.__UPKK_NEW_STUDENT = { name:'', avatar:'', mode: profile.mode || 'rumi' };
   page='settings';
   render();
@@ -2038,10 +2039,21 @@ async function saveStudentProfileDetails(){
   try{ await updateCurrentStudentFirebase(); }
   catch(err){ console.warn('Firebase profile update failed:', err); alert('Profil disimpan di device, tetapi gagal sync ke Firebase. Semak internet atau Firebase Rules.'); return; }
   alert('Profil pelajar berjaya disimpan.');
+  window.__UPKK_EDIT_STUDENT_FORM = false;
   page = (page==='settings') ? 'settings' : 'home';
   render();
 }
 
+
+function startEditStudentProfile(){
+  window.__UPKK_EDIT_STUDENT_FORM = true;
+  window.__UPKK_ADD_STUDENT_FORM = false;
+  render();
+}
+function cancelEditStudentProfile(){
+  window.__UPKK_EDIT_STUDENT_FORM = false;
+  render();
+}
 
 function renderSettings(){
   if(!isLoggedInSession() || !profile.studentId){ page='profile'; renderProfile(); return; }
@@ -2052,6 +2064,15 @@ function renderSettings(){
   }, 250);
   const savedList = renderProfileSwitcher('Pelajar', true);
   const draftChild = window.__UPKK_NEW_STUDENT || {name:'', avatar:'', mode: profile.mode || 'rumi'};
+  const editOpen = !!window.__UPKK_EDIT_STUDENT_FORM;
+  const editLauncherCard = !editOpen ? `<section class="card simple-login-card settings-clean-form-card settings-action-card">
+    <div class="settings-form-head">
+      <span class="badge">👤 PROFIL PELAJAR</span>
+      <h2 class="settings-form-title">Profil Pelajar Aktif</h2>
+      <p class="small">Profil aktif: <b>${escapeHtml(profile.name||'NAMA BELUM DIISI')}</b>. Tekan butang di bawah hanya jika mahu kemaskini nama, avatar atau mode tulisan.</p>
+    </div>
+    <button type="button" class="btn secondary" onclick="startEditStudentProfile()">Edit Pelajar</button>
+  </section>` : '';
   const addChildCard = window.__UPKK_ADD_STUDENT_FORM ? `<section class="card simple-login-card add-child-card settings-clean-form-card">
     <div class="settings-form-head">
       <span class="badge">➕ TAMBAH PROFIL PELAJAR</span>
@@ -2078,10 +2099,11 @@ function renderSettings(){
   $app.innerHTML = `${profileSummary()}
   ${savedList}
   ${addChildCard}
-  <section class="card simple-login-card settings-clean-form-card">
+  ${editLauncherCard}
+  ${editOpen ? `<section class="card simple-login-card settings-clean-form-card settings-edit-student-card">
     <div class="settings-form-head">
       <span class="badge">👤 EDIT PROFIL PELAJAR</span>
-      <h2 class="settings-form-title">Profil Pelajar Aktif</h2>
+      <h2 class="settings-form-title">Edit Pelajar</h2>
       <p class="small">Kemaskini nama, avatar dan mode tulisan pelajar yang sedang dipilih.</p>
     </div>
     <p class="small">Username login: <b>${escapeHtml(profile.username||'-')}</b></p>
@@ -2096,7 +2118,9 @@ function renderSettings(){
     <div class="grid2"><button class="choice ${profile.mode==='rumi'?'active':''}" onclick="selectMode('rumi')"><div class="mode mode-rumi">Aa</div><b>RUMI</b></button><button class="choice ${profile.mode==='jawi'?'active':''}" onclick="selectMode('jawi')"><div class="mode mode-jawi">ا ب</div><b>JAWI</b></button></div>
     <div style="height:14px"></div>
     <button class="btn" onclick="saveStudentProfileDetails()">Simpan Profil Pelajar</button>
-  </section>
+    <div style="height:10px"></div>
+    <button type="button" class="btn secondary" onclick="cancelEditStudentProfile()">Tutup Edit</button>
+  </section>` : ''}
   <section class="card">
     <span class="badge">🎟️ ACCESS / LESEN</span>
     <p class="small">Status akses: <b>${escapeHtml(planLabel())}</b></p>
