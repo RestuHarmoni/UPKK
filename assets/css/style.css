@@ -2646,3 +2646,19 @@ body.settings-touch-fix {}
     font-size:19px;
   }
 }
+
+
+/* v3.31 Achievement page */
+.achievements-page .achievement-hero-card{
+  position:relative;
+  overflow:hidden;
+}
+.achievements-page .achievements-card{
+  margin-top:14px;
+}
+.achievements-page .achievements-card .stat{
+  margin-bottom:10px;
+}
+.home-achievement-mini .mini-btn{
+  touch-action:manipulation;
+}

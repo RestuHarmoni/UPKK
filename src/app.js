@@ -1,4 +1,4 @@
-const APP_VERSION = '8.29-SETTINGS-SECURE-ACTIONS';
+const APP_VERSION = '8.30-ACHIEVEMENT-PAGE';
 const PIN_LENGTH = 6;
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCK_MINUTES = 10;
@@ -528,6 +528,23 @@ function achievementsHtml(limit=8){
     return `<div class="stat" style="text-align:left;opacity:${got?'1':'0.48'}"><b>${def.icon} ${escapeHtml(def.title)}</b><span>${got?'Unlocked':'Locked'} • ${escapeHtml(def.desc)}</span></div>`;
   }).join('');
   return `<section class="card achievements-card"><span class="badge">🏅 ACHIEVEMENT</span><h2 class="title">Pencapaian Pelajar</h2><p class="small">${unlocked}/${ACHIEVEMENT_DEFINITIONS.length} badge sudah dibuka.</p><div style="height:8px"></div>${cards}</section>`;
+}
+
+
+function renderAchievementsPage(){
+  const switcher = renderDashboardStudentSwitcher ? renderDashboardStudentSwitcher() : '';
+  $app.innerHTML = `<div class="settings-page-clean achievements-page">
+    ${profileSummary()}
+    ${switcher}
+    <section class="card achievement-hero-card">
+      <span class="badge">🏅 PENCAPAIAN</span>
+      <h2 class="title">Achievement ${escapeHtml(profile.name || 'Pelajar')}</h2>
+      <p class="small">Lihat semua badge yang sudah dibuka dan sasaran seterusnya untuk pelajar aktif.</p>
+      <div style="height:10px"></div>
+      <button class="btn secondary" onclick="page='home';render()">← Kembali ke Home</button>
+    </section>
+    ${achievementsHtml(ACHIEVEMENT_DEFINITIONS.length)}
+  </div>`;
 }
 
 
@@ -1824,6 +1841,7 @@ function render(){
   if(page==='result') return renderResult();
   if(page==='profile') return renderProfile();
   if(page==='settings') return renderSettings();
+  if(page==='achievements') return renderAchievementsPage();
   return renderHome();
 }
 
@@ -2020,7 +2038,7 @@ function achievementsMiniHtml(limit=3){
         <span class="badge">🏅 ACHIEVEMENT TERKINI</span>
         <p class="small">${unlocked}/${ACHIEVEMENT_DEFINITIONS.length} badge sudah dibuka.</p>
       </div>
-      <button class="mini-btn" onclick="page='settings';render()">Lihat</button>
+      <button class="mini-btn" onclick="page='achievements';render()">Lihat Semua</button>
     </div>
     <div class="home-badge-row">${cards}</div>
   </section>`;
