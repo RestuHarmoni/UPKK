@@ -1,4 +1,4 @@
-const APP_VERSION = '8.24-LOGOUT-CLEANUP-STABLE';
+const APP_VERSION = '8.23-ADMIN-SOUND-VOLUME-STABLE';
 const PIN_LENGTH = 6;
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCK_MINUTES = 10;
@@ -98,61 +98,15 @@ function bindSafeTextInput(id, handler){
 function isLoggedInSession(){
   return localStorage.getItem(LOGGED_IN_KEY) === '1';
 }
-function clearActiveStudentLocalCache(){
-  // Clear data sementara untuk murid aktif sahaja.
-  // Data master Firebase dan senarai profil device dikekalkan.
-  try{
-    const activeId = (typeof activeStudentId === 'function') ? activeStudentId() : '';
-    const exactKeys = [
-      PROFILE_KEY,
-      DRAFT_PROFILE_KEY,
-      LOGGED_IN_KEY,
-      CURRENT_PROFILE_ID_KEY,
-      'upkkSmartKidsLoginToken_v700',
-      'upkkSmartKidsActiveSession_v700',
-      'upkkSmartKidsLastResult',
-      'upkkSmartKidsSelectedSubject',
-      'upkkSmartKidsExamDraft',
-      'upkkSmartKidsTimerState'
-    ];
-
-    exactKeys.forEach(key => localStorage.removeItem(key));
-
-    if(activeId){
-      [
-        `${HISTORY_KEY}_${activeId}`,
-        `${USED_KEY}_${activeId}`,
-        `${EXAM_SESSION_KEY}_${activeId}`
-      ].forEach(key => localStorage.removeItem(key));
-
-      Object.keys(localStorage).forEach(key=>{
-        const isActiveStudentCache = key.includes(activeId) && (
-          key.includes('Exam') ||
-          key.includes('exam') ||
-          key.includes('Session') ||
-          key.includes('session') ||
-          key.includes('Draft') ||
-          key.includes('draft') ||
-          key.includes('Timer') ||
-          key.includes('timer') ||
-          key.includes('Result') ||
-          key.includes('result')
-        );
-        if(isActiveStudentCache) localStorage.removeItem(key);
-      });
-    }
-
-    sessionStorage.clear();
-  }catch(err){
-    console.warn('Logout cleanup skipped:', err);
-  }
-}
-
 function clearLoginSessionOnly(){
   // Production flow: jangan suruh user clear browser history.
-  // Buang session/cache murid aktif supaya User B tidak terbawa data User A.
-  // Kekalkan deviceId, reset marker dan PROFILES_KEY untuk login semula pada device sama.
-  clearActiveStudentLocalCache();
+  // Buang session aktif sahaja, kekalkan deviceId dan profil cache untuk login seterusnya.
+  localStorage.removeItem(LOGGED_IN_KEY);
+  localStorage.removeItem(CURRENT_PROFILE_ID_KEY);
+  localStorage.removeItem(PROFILE_KEY);
+  localStorage.removeItem(DRAFT_PROFILE_KEY);
+  localStorage.removeItem('upkkSmartKidsLoginToken_v700');
+  localStorage.removeItem('upkkSmartKidsActiveSession_v700');
 }
 
 /* v6.92 Custom Web Note System: buang popup browser/GitHub origin */
@@ -481,7 +435,7 @@ function syncResultToFirebase(rec){
     db.ref(fbPath('results', resultStudentKey())).push(examHistoryPayload).catch(err=>console.warn('Firebase exam result sync failed:', err));
     db.ref(fbPath('examHistory', `${safeFirebaseKey(profile.accountId || profile.username)}/${safeFirebaseKey(profile.studentId || 'student_1')}/${year}/${month}`)).push(examHistoryPayload).catch(err=>console.warn('Firebase exam history sync failed:', err));
   }
-  db.ref(fbPath('leaderboard', `global/${leaderboardKey}`)).update({
+  db.ref(fbPath('leaderboard', `byParent/${accountId}/${leaderboardKey}`)).update({
     key: leaderboardKey,
     accountId: profile.accountId || '',
     accountUsername: profile.username || '',
@@ -1286,7 +1240,7 @@ async function updateCurrentStudentFirebase(){
   };
 
   db.ref(fbPath('results', resultKey)).update(publicProfilePayload).catch(err=>console.warn('Optional Firebase results profile sync skipped:', err));
-  db.ref(fbPath('leaderboard', `global/${resultKey}`)).update({
+  db.ref(fbPath('leaderboard', `byParent/${accId}/${resultKey}`)).update({
     studentName: profile.name || '',
     avatar: profile.avatar || '',
     mode: profile.mode || 'rumi',
@@ -1310,7 +1264,7 @@ async function deleteCurrentProfileFromFirebase(accountId, studentId){
 
   // Optional public nodes: jangan gagalkan delete jika Rules tidak benarkan.
   db.ref(fbPath('results', resultKey)).remove().catch(err=>console.warn('Optional Firebase results delete skipped:', err));
-  db.ref(fbPath('leaderboard', `global/${resultKey}`)).remove().catch(err=>console.warn('Optional Firebase leaderboard delete skipped:', err));
+  db.ref(fbPath('leaderboard', `byParent/${accId}/${resultKey}`)).remove().catch(err=>console.warn('Optional Firebase leaderboard delete skipped:', err));
 }
 async function deleteCurrentProfile(){
   if(!profile.studentId){ alert('Tiada profil pelajar untuk dipadam.'); return; }
@@ -1678,23 +1632,30 @@ function calculateLearningStreak(rows){
 }
 function leaderboardHtml(limit=5){
   const rows=[];
-  Object.values(loadProfiles()).map(normalizeProfile).filter(p=>p.studentId).forEach(p=>{
-    const h=historyForProfile(p);
-    const stats=calculateStudentStats(h);
-    rows.push({
-      name:p.name||'NAMA BELUM DIISI',
-      avatar:p.avatar,
-      studentId:p.studentId,
-      accountId:p.accountId,
-      best:stats.bestPercent,
-      average:stats.averageScore,
-      xp:stats.xp,
-      total:stats.totalRecords,
-      active:accountLocalKey(p)===accountLocalKey(profile)
+  const currentParentId = safeFirebaseKey(profile.accountId || profile.username || '');
+  Object.values(loadProfiles()).map(normalizeProfile)
+    .filter(p=>{
+      if(!p.studentId) return false;
+      const parentId = safeFirebaseKey(p.accountId || p.username || '');
+      return currentParentId ? parentId === currentParentId : accountLocalKey(p) === accountLocalKey(profile);
+    })
+    .forEach(p=>{
+      const h=historyForProfile(p);
+      const stats=calculateStudentStats(h);
+      rows.push({
+        name:p.name||'NAMA BELUM DIISI',
+        avatar:p.avatar,
+        studentId:p.studentId,
+        accountId:p.accountId,
+        best:stats.bestPercent,
+        average:stats.averageScore,
+        xp:stats.xp,
+        total:stats.totalRecords,
+        active:accountLocalKey(p)===accountLocalKey(profile)
+      });
     });
-  });
   rows.sort((a,b)=> b.xp-a.xp || b.best-a.best || b.average-a.average || b.total-a.total || a.name.localeCompare(b.name));
-  if(!rows.length) return `<div class="empty">Belum ada leaderboard.</div>`;
+  if(!rows.length) return `<div class="empty">Belum ada leaderboard untuk parent ini.</div>`;
   return rows.slice(0,limit).map((r,i)=>`<div class="exam-row ${r.active?'active':''}"><div><b>${i+1}. ${escapeHtml(r.name)}</b><br><span>Pelajar ${escapeHtml(String(r.studentId||'student_1').replace('student_',''))} • ${r.total} rekod • Avg ${r.average}%</span></div><div class="pill">${r.xp} XP</div></div>`).join('');
 }
 function renderHome(){
@@ -1711,7 +1672,7 @@ function renderHome(){
     ${last?`<p class="small dashboard-last-result" style="margin-top:10px">Keputusan terakhir: ${escapeHtml(last.type)} • ${escapeHtml(last.subject)} — ${last.score}/${last.total}</p>`:''}
   </section>
   <section class="card">
-    <span class="badge">🏆 LEADERBOARD</span>
+    <span class="badge">🏆 LEADERBOARD ANAK-ANAK SAYA</span>
     ${leaderboardHtml(5)}
   </section>
   <section class="card">
