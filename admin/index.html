@@ -17,6 +17,10 @@
     table{width:100%;border-collapse:collapse;margin-top:12px;font-size:14px;overflow:hidden}th,td{border-bottom:1px solid var(--line);padding:10px;text-align:left;vertical-align:top}th{background:#f8fafc}
     code{background:#f1f5f9;border-radius:8px;padding:2px 6px}.log{white-space:pre-wrap;background:var(--dark);color:#e2e8f0;border-radius:12px;padding:12px;min-height:72px}.status-ok{color:#15803d;font-weight:900}.status-bad{color:#dc2626;font-weight:900}
     .actions{display:flex;gap:8px;flex-wrap:wrap}.mini{padding:8px 10px;border-radius:10px;font-size:12px}
+
+    .sound-url-box{margin-top:10px;padding:10px;border:1px dashed #bbf7d0;border-radius:14px;background:#f8fffb}
+    .sound-url-box input{margin-bottom:8px}
+    .sound-url-hint{font-size:12px;color:#64748b;margin:4px 0 0}
   
 /* RESPONSIVE ADMIN PACK v2.10 */
 html,body{max-width:100%;overflow-x:hidden}
@@ -290,12 +294,12 @@ header{position:sticky;top:0;z-index:50;box-shadow:0 14px 34px rgba(15,23,42,.12
         <button class="warning" onclick="resetSoundSettingsDefault()">Reset Default</button>
       </div>
       <div id="soundMsg" class="log" style="margin-top:12px">Sedia.</div>
-      <div class="sound-note" style="margin-top:12px">Nota: sound ini dijana oleh Web Audio API, tidak memerlukan fail MP3/WAV dan tiada isu lesen audio pihak ketiga. Untuk volume lebih kuat, guna Master Volume 90%-100% dan Boost 150%-200%.</div>
+      <div class="sound-note" style="margin-top:12px">Nota: Web Audio digunakan sebagai fallback. Jika admin masukkan URL MP3/OGG/WAV pada event tertentu, app akan guna audio custom tersebut. Pastikan URL boleh diakses secara public.</div>
     </section>
 
     <section class="card" style="margin-top:16px">
       <h2>Standby Function Sound</h2>
-      <p class="hint">Pilih tone Web Audio dan volume untuk setiap event utama dalam aplikasi.</p>
+      <p class="hint">Pilih tone fallback atau masukkan URL audio custom untuk setiap event. URL custom akan digunakan oleh app pelajar secara global.</p>
       <div class="sound-grid" id="soundEventGrid"></div>
     </section>
   </section>
@@ -1326,11 +1330,21 @@ function renderSoundEventGrid(settings=defaultSoundSettings()){
   grid.innerHTML = SOUND_EVENT_META.map(meta=>{
     const item = events[meta.key] || defaultSoundSettings().events[meta.key];
     const tone = normalizeToneValue(item, meta.fallback);
+    const audioUrl = item.audioUrl || item.url || '';
     return `<div class="sound-card">
       <h3>${esc(meta.label)}</h3><p>${esc(meta.desc)}</p>
       <div class="sound-toggle-row"><label><input type="checkbox" id="snd_${esc(meta.key)}_enabled" ${item.enabled!==false?'checked':''}> Aktif</label></div>
       <div style="margin:8px 0"><label>Event Volume: <b id="snd_${esc(meta.key)}_volume_label">${Math.round(Number(item.volume ?? 0.85)*100)}%</b></label><input type="range" id="snd_${esc(meta.key)}_volume" min="0" max="100" step="5" value="${Math.round(Number(item.volume ?? 0.85)*100)}" oninput="updateSoundVolumeLabels()"></div>
-      <div class="sound-preview-row"><div><label>Web Audio Tone</label><select id="snd_${esc(meta.key)}_tone">${soundToneOptions(tone)}</select></div><button class="secondary" onclick="previewAdminSound($('snd_${esc(meta.key)}_tone').value, Number($('snd_${esc(meta.key)}_volume')?.value || 85)/100)">Preview</button></div>
+      <div class="sound-preview-row"><div><label>Web Audio Tone Fallback</label><select id="snd_${esc(meta.key)}_tone">${soundToneOptions(tone)}</select></div><button class="secondary" onclick="previewAdminSound($('snd_${esc(meta.key)}_tone').value, Number($('snd_${esc(meta.key)}_volume')?.value || 85)/100)">Preview Tone</button></div>
+      <div class="sound-url-box">
+        <label>Custom Audio URL ${meta.key==='voiceReward'?'(Voice Popup)':''}</label>
+        <input id="snd_${esc(meta.key)}_url" value="${esc(audioUrl)}" placeholder="https://.../audio.mp3">
+        <div class="actions">
+          <button class="secondary mini" onclick="previewAdminAudioUrl($('snd_${esc(meta.key)}_url')?.value, Number($('snd_${esc(meta.key)}_volume')?.value || 85)/100)">Preview URL</button>
+          <button class="secondary mini" onclick="$('snd_${esc(meta.key)}_url').value=''">Kosongkan URL</button>
+        </div>
+        <p class="sound-url-hint">Jika URL diisi, app akan guna audio ini. Jika kosong, app guna tone fallback.</p>
+      </div>
     </div>`;
   }).join('');
 }
@@ -1343,10 +1357,12 @@ function collectSoundSettingsFromForm(){
   data.volumeBoost = Number($('soundBoost')?.value || 150) / 100;
   data.events = {};
   SOUND_EVENT_META.forEach(meta=>{
+    const audioUrl = String($('snd_' + meta.key + '_url')?.value || '').trim();
     data.events[meta.key] = {
       enabled: !!$('snd_' + meta.key + '_enabled')?.checked,
       tone: $('snd_' + meta.key + '_tone')?.value || defaultSoundSettings().events[meta.key].tone,
-      volume: Number($('snd_' + meta.key + '_volume')?.value || 85) / 100
+      volume: Number($('snd_' + meta.key + '_volume')?.value || 85) / 100,
+      audioUrl
     };
     if(meta.key === 'voiceReward') data.events[meta.key].voiceEnabled = true;
   });
@@ -1423,6 +1439,17 @@ function previewAdminSound(tone,eventVolume=1){
   const master = Number($('soundVolume')?.value || 90) / 100;
   const boost = Number($('soundBoost')?.value || 150) / 100;
   playAdminTone(tone, Math.max(0, Math.min(1, master * eventVolume * boost)));
+}
+function previewAdminAudioUrl(url,eventVolume=1){
+  try{
+    const clean = String(url||'').trim();
+    if(!clean){ soundMsg('Masukkan URL audio dahulu.'); return; }
+    const master = Number($('soundVolume')?.value || 90) / 100;
+    const boost = Number($('soundBoost')?.value || 150) / 100;
+    const audio = new Audio(clean);
+    audio.volume = Math.max(0, Math.min(1, master * eventVolume * boost));
+    audio.play().then(()=>soundMsg('Preview custom audio dimainkan.')).catch(err=>soundMsg('Gagal preview URL audio: ' + err.message));
+  }catch(err){ soundMsg('Gagal preview URL audio: ' + err.message); }
 }
 async function loadSoundSettings(){
   try{
