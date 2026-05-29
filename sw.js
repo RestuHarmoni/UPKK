@@ -1,4 +1,4 @@
-const CACHE_NAME = 'upkk-smartkids-v3-28-settings-edit-hidden';
+const CACHE_NAME = 'upkk-smartkids-v3-29-settings-secure-actions';
 const CORE_ASSETS = [
   './',
   './index.html',

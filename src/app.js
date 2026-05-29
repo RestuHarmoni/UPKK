@@ -1,4 +1,4 @@
-const APP_VERSION = '8.26-ACHIEVEMENTS';
+const APP_VERSION = '8.29-SETTINGS-SECURE-ACTIONS';
 const PIN_LENGTH = 6;
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCK_MINUTES = 10;
@@ -1467,7 +1467,78 @@ async function deleteCurrentProfile(){
     render();
   });
 }
-function resetCurrentStudentProgress(){ appConfirm('Reset sejarah soalan dan keputusan untuk pelajar ini sahaja?', ()=>{ localStorage.removeItem(studentKey(HISTORY_KEY)); localStorage.removeItem(studentKey(USED_KEY)); render(); }); }
+function openChangePinForm(){
+  window.__UPKK_PIN_FORM = true;
+  page='settings';
+  render();
+  setTimeout(()=>document.getElementById('currentPinInput')?.focus(), 60);
+}
+function closeChangePinForm(){
+  window.__UPKK_PIN_FORM = false;
+  page='settings';
+  render();
+}
+async function verifyCurrentAccountPin(actionLabel='teruskan'){
+  const pinRaw = await appPrompt(`Masukkan Password / PIN username untuk ${actionLabel}:`, {
+    title:'Pengesahan Keselamatan',
+    inputType:'password',
+    inputMode:'numeric',
+    placeholder:'6 angka',
+    okText:'Sahkan'
+  });
+  const pin = cleanPin(pinRaw || '');
+  if(!pin) return false;
+  if(pin !== cleanPin(profile.pin || '')){
+    alert('Password / PIN salah. Tindakan dibatalkan.');
+    return false;
+  }
+  return true;
+}
+async function resetCurrentStudentProgressData(){
+  const db=firebaseDb();
+  const resultKey = resultStudentKey(profile);
+  const accId = safeFirebaseKey(profile.accountId || profile.username || 'LOCAL');
+  const slot = safeFirebaseKey(profile.studentId || 'student_1');
+
+  localStorage.removeItem(studentKey(HISTORY_KEY));
+  localStorage.removeItem(studentKey(USED_KEY));
+  localStorage.removeItem(studentKey(EXAM_SESSION_KEY));
+  try{
+    if(db){
+      await Promise.all([
+        db.ref(`${cloudStudentBasePath()}/historyCache`).remove(),
+        db.ref(`${cloudStudentBasePath()}/usedMap`).remove(),
+        db.ref(`${cloudStudentBasePath()}/examSessions`).remove(),
+        db.ref(fbPath('examSessions', `${accId}/${slot}`)).remove().catch(()=>{}),
+        db.ref(fbPath('results', resultKey)).remove().catch(()=>{}),
+        db.ref(fbPath('leaderboard', `global/${resultKey}`)).remove().catch(()=>{})
+      ]);
+    }
+  }catch(err){
+    console.warn('Firebase reset progress failed:', err);
+    alert('Progress local sudah direset, tetapi sebahagian data Firebase gagal direset. Semak internet/Firebase Rules.');
+  }
+  currentQuiz=null;
+  selectedAnswer=null;
+}
+async function secureResetCurrentStudentProgress(){
+  if(!profile.studentId){ alert('Tiada profil pelajar aktif.'); return; }
+  const okPin = await verifyCurrentAccountPin('reset progress pelajar');
+  if(!okPin) return;
+  appConfirm('Reset semua progress, sejarah keputusan dan sesi peperiksaan pelajar ini sahaja?', async ()=>{
+    await resetCurrentStudentProgressData();
+    alert('Progress pelajar berjaya direset.');
+    page='settings';
+    render();
+  });
+}
+async function secureDeleteCurrentProfile(){
+  if(!profile.studentId){ alert('Tiada profil pelajar untuk dipadam.'); return; }
+  const okPin = await verifyCurrentAccountPin('delete profil pelajar');
+  if(!okPin) return;
+  deleteCurrentProfile();
+}
+function resetCurrentStudentProgress(){ secureResetCurrentStudentProgress(); }
 function uppercaseName(v){ return (v||'').toLocaleUpperCase('ms-MY').replace(/\s+/g,' ').trimStart(); }
 function avatarSrc(){ return profile.avatar === 'girl' ? 'assets/images/avatar-girl.webp' : 'assets/images/avatar-boy.webp'; }
 function modeLabel(){ return profile.mode === 'jawi' ? 'JAWI' : 'RUMI'; }
@@ -2130,10 +2201,13 @@ function renderSettings(){
     <div style="height:10px"></div>
     <button class="btn secondary" onclick="openUpkkWhatsApp('support')">📱 Hubungi Admin</button>
   </section>
-  <section class="card">
-    <span class="badge">🗑️ DELETE PROFIL PELAJAR</span>
-    <p class="small">Padam profil pelajar yang sedang dipilih sahaja.</p>
-    <button class="btn danger" onclick="deleteCurrentProfile()">Delete Profil Pelajar Ini</button>
+  <section class="card settings-danger-zone">
+    <span class="badge">🗑️ DELETE / RESET PROFIL PELAJAR</span>
+    <p class="small">Bahagian ini hanya untuk pelajar yang sedang dipilih: <b>${escapeHtml(profile.name||'Pelajar')}</b>.</p>
+    <p class="small">Untuk keselamatan, parent perlu masukkan Password / PIN username sebelum delete profil atau reset progress.</p>
+    <button class="btn secondary" onclick="secureResetCurrentStudentProgress()">Reset Progress Pelajar Ini</button>
+    <div style="height:10px"></div>
+    <button class="btn danger" onclick="secureDeleteCurrentProfile()">Delete Profil Pelajar Ini</button>
   </section>
   <section class="card">
     <span class="badge">📱 DEVICE MANAGEMENT</span>
@@ -2142,15 +2216,17 @@ function renderSettings(){
     <div style="height:10px"></div><button class="btn secondary" onclick="refreshDevicesFromFirebase(false)">Refresh Device</button>
     <div style="height:10px"></div><button class="btn secondary" onclick="resetDevicesToCurrent()">Reset All Devices</button>
   </section>
-  <section class="card">
+  <section class="card settings-password-card">
     <span class="badge">🔐 TUKAR PASSWORD / PIN</span>
-    <div class="field" style="margin-top:12px"><label>Password / PIN Semasa</label><input id="currentPinInput" class="input" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="current-password" placeholder="6 angka" /></div>
-    <div class="field" style="margin-top:12px"><label>Password / PIN Baru</label><input id="newPinInput" class="input" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="new-password" placeholder="6 angka" /></div>
-    <div style="height:12px"></div><button class="btn gold" onclick="changeCurrentPin()">Simpan Password / PIN Baru</button>
+    <p class="small">Form tukar password disembunyikan supaya layout Setting lebih ringkas.</p>
+    ${window.__UPKK_PIN_FORM ? `
+      <div class="field" style="margin-top:12px"><label>Password / PIN Semasa</label><input id="currentPinInput" class="input" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="current-password" placeholder="6 angka" /></div>
+      <div class="field" style="margin-top:12px"><label>Password / PIN Baru</label><input id="newPinInput" class="input" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="new-password" placeholder="6 angka" /></div>
+      <div style="height:12px"></div><button class="btn gold" onclick="changeCurrentPin()">Simpan Password / PIN Baru</button>
+      <div style="height:10px"></div><button type="button" class="btn secondary" onclick="closeChangePinForm()">Batal</button>
+    ` : `<button type="button" class="btn secondary" onclick="openChangePinForm()">Tukar Password / PIN</button>`}
   </section>
   <section class="card">
-    <span class="badge">♻️ RESET PROGRESS</span>
-    <button class="btn secondary" onclick="resetCurrentStudentProgress()">Reset Progress Pelajar Ini</button><div style="height:10px"></div>
     <button class="btn" onclick="page='home';render()">Kembali Dashboard</button><div style="height:10px"></div>
     <button class="btn danger" onclick="logoutStudent()">Logout</button>
   </section></div>`;
@@ -2180,6 +2256,7 @@ async function changeCurrentPin(){
   saveProfile();
   try{ await updateAccountPinFirebase(); }
   catch(err){ console.warn('Firebase PIN update failed:', err); alert('PIN disimpan di device, tetapi gagal sync ke Firebase. Semak internet atau Firebase Rules.'); return; }
+  window.__UPKK_PIN_FORM = false;
   alert('PIN berjaya ditukar.'); page='settings'; render();
 }
 

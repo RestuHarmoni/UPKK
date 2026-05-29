@@ -2518,3 +2518,14 @@ body.settings-touch-fix {}
 .settings-clean-form-card .btn{
   touch-action:manipulation;
 }
+
+/* v3.29 Settings secure actions */
+.settings-password-card,
+.settings-danger-zone{
+  position: relative;
+  z-index: 1;
+}
+.settings-danger-zone .btn,
+.settings-password-card .btn{
+  touch-action: manipulation;
+}
