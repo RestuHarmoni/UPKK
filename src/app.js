@@ -1821,17 +1821,41 @@ function scrollMainToTop(){
   try{
     const appMain = document.querySelector('.app-main');
     const phoneShell = document.getElementById('phoneShell');
-    window.scrollTo({ top: 0, behavior: 'auto' });
-    if(appMain) appMain.scrollTo({ top: 0, behavior: 'auto' });
-    if(phoneShell) phoneShell.scrollTo({ top: 0, behavior: 'auto' });
     const appNode = document.getElementById('app');
-    if(appNode) appNode.scrollIntoView({ block: 'start', behavior: 'auto' });
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    if(appMain){
+      appMain.scrollTop = 0;
+      appMain.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    }
+    if(phoneShell){
+      phoneShell.scrollTop = 0;
+      phoneShell.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    }
+    if(appNode) appNode.scrollIntoView({ block: 'start', inline: 'nearest', behavior: 'auto' });
   }catch(e){}
+}
+function scrollMainToTopAfterRender(){
+  scrollMainToTop();
+  requestAnimationFrame(scrollMainToTop);
+  setTimeout(scrollMainToTop, 80);
 }
 
 function bindNav(){
   document.querySelectorAll('.nav-btn').forEach(btn=>{
-    btn.addEventListener('click',()=>{ upkkPlaySound('tap'); clearTimer(); page=btn.dataset.nav; currentQuiz=null; selectedAnswer=null; setActiveNav(); render(); if(page==='exam') setTimeout(scrollMainToTop, 0); });
+    btn.addEventListener('click',(event)=>{
+      event.preventDefault();
+      upkkPlaySound('tap');
+      clearTimer();
+      page = btn.dataset.nav;
+      currentQuiz = null;
+      selectedAnswer = null;
+      setActiveNav();
+      scrollMainToTop();
+      render();
+      scrollMainToTopAfterRender();
+    });
   });
 }
 function setActiveNav(){ document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active', b.dataset.nav===page)); }

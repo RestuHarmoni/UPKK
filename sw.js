@@ -1,4 +1,4 @@
-const CACHE_NAME = 'upkk-smartkids-v3-34-student-slot-reuse';
+const CACHE_NAME = 'upkk-smartkids-v3-35-nav-scroll-top';
 const CORE_ASSETS = [
   './',
   './index.html',
