@@ -1,4 +1,4 @@
-const APP_VERSION = '8.23-ADMIN-SOUND-VOLUME-STABLE';
+const APP_VERSION = '8.24-LOGOUT-CLEANUP-STABLE';
 const PIN_LENGTH = 6;
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCK_MINUTES = 10;
@@ -98,15 +98,61 @@ function bindSafeTextInput(id, handler){
 function isLoggedInSession(){
   return localStorage.getItem(LOGGED_IN_KEY) === '1';
 }
+function clearActiveStudentLocalCache(){
+  // Clear data sementara untuk murid aktif sahaja.
+  // Data master Firebase dan senarai profil device dikekalkan.
+  try{
+    const activeId = (typeof activeStudentId === 'function') ? activeStudentId() : '';
+    const exactKeys = [
+      PROFILE_KEY,
+      DRAFT_PROFILE_KEY,
+      LOGGED_IN_KEY,
+      CURRENT_PROFILE_ID_KEY,
+      'upkkSmartKidsLoginToken_v700',
+      'upkkSmartKidsActiveSession_v700',
+      'upkkSmartKidsLastResult',
+      'upkkSmartKidsSelectedSubject',
+      'upkkSmartKidsExamDraft',
+      'upkkSmartKidsTimerState'
+    ];
+
+    exactKeys.forEach(key => localStorage.removeItem(key));
+
+    if(activeId){
+      [
+        `${HISTORY_KEY}_${activeId}`,
+        `${USED_KEY}_${activeId}`,
+        `${EXAM_SESSION_KEY}_${activeId}`
+      ].forEach(key => localStorage.removeItem(key));
+
+      Object.keys(localStorage).forEach(key=>{
+        const isActiveStudentCache = key.includes(activeId) && (
+          key.includes('Exam') ||
+          key.includes('exam') ||
+          key.includes('Session') ||
+          key.includes('session') ||
+          key.includes('Draft') ||
+          key.includes('draft') ||
+          key.includes('Timer') ||
+          key.includes('timer') ||
+          key.includes('Result') ||
+          key.includes('result')
+        );
+        if(isActiveStudentCache) localStorage.removeItem(key);
+      });
+    }
+
+    sessionStorage.clear();
+  }catch(err){
+    console.warn('Logout cleanup skipped:', err);
+  }
+}
+
 function clearLoginSessionOnly(){
   // Production flow: jangan suruh user clear browser history.
-  // Buang session aktif sahaja, kekalkan deviceId dan profil cache untuk login seterusnya.
-  localStorage.removeItem(LOGGED_IN_KEY);
-  localStorage.removeItem(CURRENT_PROFILE_ID_KEY);
-  localStorage.removeItem(PROFILE_KEY);
-  localStorage.removeItem(DRAFT_PROFILE_KEY);
-  localStorage.removeItem('upkkSmartKidsLoginToken_v700');
-  localStorage.removeItem('upkkSmartKidsActiveSession_v700');
+  // Buang session/cache murid aktif supaya User B tidak terbawa data User A.
+  // Kekalkan deviceId, reset marker dan PROFILES_KEY untuk login semula pada device sama.
+  clearActiveStudentLocalCache();
 }
 
 /* v6.92 Custom Web Note System: buang popup browser/GitHub origin */
