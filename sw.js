@@ -1,4 +1,4 @@
-const CACHE_NAME = 'upkk-smartkids-v3-31-achievement-page';
+const CACHE_NAME = 'upkk-smartkids-v3-32-responsive-orientation';
 const CORE_ASSETS = [
   './',
   './index.html',

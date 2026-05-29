@@ -6,7 +6,6 @@
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
-  "orientation": "any",
   "background_color": "#f4fff8",
   "theme_color": "#0f8a4b",
   "categories": [

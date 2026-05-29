@@ -2662,3 +2662,218 @@ body.settings-touch-fix {}
 .home-achievement-mini .mini-btn{
   touch-action:manipulation;
 }
+
+
+/* ==========================================================
+   v3.32 Responsive Consistency + Device Orientation Fix
+   - Manifest no longer forces orientation; device/browser setting controls rotate/lock.
+   - Keep app layout predictable across phone, iPhone, iPad, Chromebook, laptop, desktop.
+   ========================================================== */
+html{
+  width:100%;
+  min-height:100%;
+  overflow-x:hidden;
+}
+body{
+  width:100%;
+  min-height:100svh;
+  overflow-x:hidden;
+}
+img, video, canvas, svg{
+  max-width:100%;
+  height:auto;
+}
+.phone-shell{
+  width:100% !important;
+  max-width:480px !important;
+  min-height:100svh !important;
+  margin-inline:auto !important;
+  padding:14px 14px calc(116px + env(safe-area-inset-bottom)) !important;
+}
+.app-header{
+  width:100% !important;
+  max-width:100% !important;
+}
+.app-main{
+  width:100% !important;
+  max-width:100% !important;
+  margin:0 auto !important;
+  display:flex !important;
+  flex-direction:column !important;
+  gap:14px !important;
+  align-items:stretch !important;
+}
+.app-main > *{
+  width:100% !important;
+  max-width:100% !important;
+  grid-column:auto !important;
+}
+.card,
+.hero,
+.profile-card,
+.dashboard-action-card,
+.latihan-hero-modern,
+.exam-hero-modern,
+.exam-paper,
+.exam-official-head,
+.settings-clean-form-card,
+.settings-action-card,
+.settings-danger-zone,
+.achievements-card{
+  width:100% !important;
+  max-width:100% !important;
+}
+.bottom-nav{
+  width:min(480px,100%) !important;
+  left:50% !important;
+  transform:translateX(-50%) !important;
+  grid-template-columns:repeat(5,minmax(0,1fr)) !important;
+}
+.nav-btn{
+  min-width:0 !important;
+  min-height:48px !important;
+  touch-action:manipulation !important;
+}
+.nav-btn span{
+  max-width:100%;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+/* Phone landscape / very short screens: reduce vertical pressure, keep scrolling smooth */
+@media (orientation:landscape) and (max-height:560px){
+  .phone-shell{
+    max-width:900px !important;
+    padding-top:8px !important;
+    padding-bottom:calc(86px + env(safe-area-inset-bottom)) !important;
+  }
+  .app-header{
+    position:relative !important;
+    top:auto !important;
+    padding:8px 10px !important;
+    margin-bottom:8px !important;
+    border-radius:18px !important;
+  }
+  .brand-logo{
+    height:42px !important;
+  }
+  .brand-text h1{
+    font-size:16px !important;
+  }
+  .brand-text p{
+    font-size:10px !important;
+  }
+  .bottom-nav{
+    width:min(900px,100%) !important;
+    padding:6px 10px calc(6px + env(safe-area-inset-bottom)) !important;
+  }
+  .nav-btn{
+    min-height:42px !important;
+    padding:5px 2px !important;
+  }
+}
+
+/* Tablet portrait / iPad */
+@media (min-width:700px){
+  .phone-shell{
+    max-width:760px !important;
+    padding:18px 18px calc(122px + env(safe-area-inset-bottom)) !important;
+  }
+  .bottom-nav{
+    width:min(760px,100%) !important;
+    padding-inline:16px !important;
+  }
+  .card{
+    padding:18px !important;
+  }
+  .subject-grid,
+  .latihan-modern-grid,
+  .exam-modern-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+  }
+  .home-metric-grid,
+  .home-activity-grid,
+  .analysis-grid,
+  .dashboard-stats-row,
+  .latihan-overview-cards,
+  .exam-overview-cards,
+  .stats{
+    grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+  }
+}
+
+/* Tablet landscape, Chromebook, laptop, desktop */
+@media (min-width:1024px){
+  .phone-shell{
+    max-width:980px !important;
+    padding:22px 24px calc(128px + env(safe-area-inset-bottom)) !important;
+  }
+  .bottom-nav{
+    width:min(980px,calc(100% - 40px)) !important;
+    border-radius:28px 28px 0 0 !important;
+    padding-inline:20px !important;
+  }
+  .app-header{
+    border-radius:26px !important;
+    margin-bottom:16px !important;
+  }
+  .app-main{
+    gap:16px !important;
+  }
+  .subject-grid{
+    grid-template-columns:repeat(3,minmax(0,1fr)) !important;
+  }
+  .latihan-modern-grid,
+  .exam-modern-grid,
+  .exam-list{
+    grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+  }
+  .home-metric-grid,
+  .home-activity-grid,
+  .analysis-grid,
+  .dashboard-stats-row,
+  .latihan-overview-cards,
+  .exam-overview-cards,
+  .stats{
+    grid-template-columns:repeat(4,minmax(0,1fr)) !important;
+  }
+  .settings-student-list{
+    grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+  }
+}
+
+/* Large desktop: readable width, not stretched too wide */
+@media (min-width:1366px){
+  .phone-shell{
+    max-width:1080px !important;
+  }
+  .bottom-nav{
+    width:min(1080px,calc(100% - 56px)) !important;
+  }
+}
+
+/* Small iPhone / compact Android */
+@media (max-width:380px){
+  .phone-shell{
+    padding-inline:10px !important;
+    padding-bottom:calc(108px + env(safe-area-inset-bottom)) !important;
+  }
+  .bottom-nav{
+    gap:2px !important;
+    padding-inline:6px !important;
+  }
+  .nav-btn{
+    font-size:17px !important;
+    border-radius:14px !important;
+  }
+  .nav-btn span{
+    font-size:9px !important;
+  }
+  .grid2,
+  .home-metric-grid,
+  .home-activity-grid,
+  .analysis-grid{
+    grid-template-columns:1fr !important;
+  }
+}
