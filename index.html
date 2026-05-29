@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+
+<html lang="ms">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1, viewport-fit=cover" name="viewport"/>
+<title>UPKK SmartKids</title>
+<meta content="#0f8a4b" name="theme-color"/>
+<meta content="yes" name="mobile-web-app-capable"/>
+<meta content="yes" name="apple-mobile-web-app-capable"/>
+<meta content="default" name="apple-mobile-web-app-status-bar-style"/>
+<meta content="UPKK Kids" name="apple-mobile-web-app-title"/>
+<link href="assets/icons/apple-touch-icon.png" rel="apple-touch-icon"/>
+<link href="assets/icons/favicon-32.png" rel="icon" sizes="32x32" type="image/png"/>
+<link href="assets/icons/favicon-16.png" rel="icon" sizes="16x16" type="image/png"/>
+<link href="manifest.json?v=3.14" rel="manifest"/>
+<link href="assets/css/style.css?v=3.14" rel="stylesheet"/>
+</head>
+<body>
+<div class="splash-screen" id="splashScreen">
+<div class="splash-content">
+<img alt="UPKK SmartKids" class="splash-logo app-logo-icon" src="assets/images/logo.webp"/>
+<div class="splash-title">UPKK SmartKids</div>
+<div class="splash-subtitle">Belajar Dengan Bijak, Berjaya Dengan Adab</div><div class="splash-copy">© Copyright by Restu Harmoni</div>
+</div>
+</div>
+<div class="phone-shell app-hidden" id="phoneShell">
+<header class="app-header">
+<img alt="UPKK SmartKids" class="brand-logo app-logo-icon" src="assets/images/logo.webp"/>
+<div class="brand-text">
+<h1>UPKK SmartKids</h1>
+<p>Belajar Dengan Bijak, Berjaya Dengan Adab</p>
+</div>
+</header>
+<main class="app-main" id="app"></main>
+<div class="copyright">© Copyright by Restu Harmoni</div>
+<nav aria-label="Navigasi utama" class="bottom-nav">
+<button class="nav-btn active" data-nav="home">🏠<span>Home</span></button>
+<button class="nav-btn" data-nav="subjects">📚<span>Latihan Pintar</span></button>
+<button class="nav-btn" data-nav="exam">📝<span>Peperiksaan</span></button>
+<button class="nav-btn" data-nav="result">🏆<span>Rank</span></button>
+<button class="nav-btn" data-nav="settings">⚙️<span>Setting</span></button>
+</nav>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="src/firebase-config.js?v=3.14"></script>
+<script src="src/app.js?v=3.14"></script>
+<script src="src/pwa-register.js?v=3.14"></script>
+</body>
+</html>
