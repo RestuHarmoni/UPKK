@@ -2529,3 +2529,120 @@ body.settings-touch-fix {}
 .settings-password-card .btn{
   touch-action: manipulation;
 }
+
+
+/* Home dashboard v3.30 */
+.home-dashboard-clean{
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+}
+.home-section-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+}
+.home-section-head.compact{
+  align-items:center;
+}
+.home-summary-score{
+  min-width:62px;
+  height:62px;
+  border-radius:20px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:22px;
+  font-weight:900;
+  background:rgba(255,255,255,.62);
+  box-shadow:0 8px 22px rgba(18,38,63,.08);
+}
+.home-progress-bar{
+  margin:12px 0 14px;
+}
+.home-metric-grid,
+.home-activity-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:10px;
+}
+.home-metric,
+.home-activity-item{
+  border:1px solid rgba(15,23,42,.08);
+  border-radius:18px;
+  padding:12px;
+  background:rgba(255,255,255,.66);
+}
+.home-metric b,
+.home-activity-item b{
+  display:block;
+  font-size:22px;
+  line-height:1.1;
+  letter-spacing:-.02em;
+}
+.home-metric span,
+.home-activity-item span{
+  display:block;
+  margin-top:4px;
+  font-size:12px;
+  color:rgba(15,23,42,.64);
+  font-weight:700;
+}
+.home-resume-section{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+.home-resume-card{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  border:1px solid rgba(15,23,42,.08);
+  border-radius:18px;
+  padding:12px;
+  background:rgba(255,255,255,.7);
+}
+.home-resume-card b{
+  display:block;
+  font-size:14px;
+}
+.home-resume-card span{
+  display:block;
+  margin-top:4px;
+  font-size:12px;
+  color:rgba(15,23,42,.64);
+}
+.home-badge-row{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  margin-top:10px;
+}
+.home-badge-chip{
+  display:flex;
+  align-items:center;
+  gap:7px;
+  border:1px solid rgba(15,23,42,.08);
+  border-radius:999px;
+  padding:9px 11px;
+  background:rgba(255,255,255,.72);
+  font-size:13px;
+  font-weight:800;
+}
+.home-primary-actions,
+.home-account-actions{
+  margin-top:0;
+}
+@media (max-width:380px){
+  .home-metric-grid,
+  .home-activity-grid{
+    grid-template-columns:1fr;
+  }
+  .home-summary-score{
+    min-width:54px;
+    height:54px;
+    font-size:19px;
+  }
+}

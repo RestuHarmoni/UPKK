@@ -1921,6 +1921,111 @@ function learningAnalysisHtml(){
     </div>
   </section>`;
 }
+
+function familyLeaderboardRowsForHome(){
+  const rows=[];
+  const activeAccountId = profile.accountId || '';
+  Object.values(loadProfiles()).map(normalizeProfile)
+    .filter(p=>p.studentId && (!activeAccountId || p.accountId === activeAccountId))
+    .forEach(p=>{
+      const h=historyForProfile(p);
+      const stats=calculateStudentStats(h);
+      rows.push({key:accountLocalKey(p), xp:stats.xp, best:stats.bestPercent, average:stats.averageScore, total:stats.totalRecords, name:p.name||'NAMA BELUM DIISI'});
+    });
+  rows.sort((a,b)=> b.xp-a.xp || b.best-a.best || b.average-a.average || b.total-a.total || a.name.localeCompare(b.name));
+  return rows;
+}
+function activeFamilyRank(){
+  const rows = familyLeaderboardRowsForHome();
+  const key = accountLocalKey(profile);
+  const idx = rows.findIndex(r=>r.key===key);
+  return idx >= 0 ? idx + 1 : '-';
+}
+function homeSummaryHtml(){
+  const h = history();
+  const stats = calculateStudentStats(h);
+  const subjectKeys = Object.keys(DB);
+  const totalSubject = subjectKeys.length || 1;
+  const doneSubjects = new Set(h.map(x=>x.subject)).size;
+  const progress = Math.min(100, Math.round((doneSubjects / totalSubject) * 100));
+  const streak = calculateLearningStreak(h);
+  const rank = activeFamilyRank();
+  return `<section class="card home-summary-card">
+    <div class="home-section-head">
+      <div>
+        <span class="badge">📊 RINGKASAN PEMBELAJARAN</span>
+        <h2 class="title">Prestasi semasa pelajar</h2>
+      </div>
+      <div class="home-summary-score">${progress}%</div>
+    </div>
+    <div class="analysis-progress home-progress-bar"><span style="width:${progress}%"></span></div>
+    <div class="home-metric-grid">
+      <div class="home-metric"><b>${progress}%</b><span>Kemajuan</span></div>
+      <div class="home-metric"><b>${stats.averageScore}%</b><span>Purata Markah</span></div>
+      <div class="home-metric"><b>${rank==='-'?'-':'#'+rank}</b><span>Ranking Keluarga</span></div>
+      <div class="home-metric"><b>${streak}</b><span>Hari Streak 🔥</span></div>
+    </div>
+  </section>`;
+}
+function homeActivityHtml(){
+  const h = history();
+  const stats = calculateStudentStats(h);
+  const last = h.length ? h[h.length-1] : null;
+  return `<section class="card home-activity-card">
+    <span class="badge">📚 AKTIVITI PEMBELAJARAN</span>
+    <div class="home-activity-grid">
+      <div class="home-activity-item"><b>${stats.totalPractice}</b><span>Latihan Selesai</span></div>
+      <div class="home-activity-item"><b>${stats.totalExam}</b><span>Peperiksaan Selesai</span></div>
+      <div class="home-activity-item"><b>${stats.bestPercent}%</b><span>Markah Terbaik</span></div>
+      <div class="home-activity-item"><b>${stats.totalRecords}</b><span>Jumlah Rekod</span></div>
+    </div>
+    ${last?`<p class="small dashboard-last-result">Terakhir: ${escapeHtml(last.type)} • ${escapeHtml(last.subject)} — ${last.score}/${last.total}</p>`:`<p class="small dashboard-last-result">Belum ada aktiviti. Mulakan latihan pertama hari ini.</p>`}
+  </section>`;
+}
+function homeResumeHtml(){
+  let cards = '';
+  try{
+    const rows = typeof examSubjectRows === 'function' ? examSubjectRows().filter(r=>r.saved) : [];
+    if(rows.length){
+      const r = rows[0];
+      cards += `<div class="home-resume-card">
+        <div><b>📝 Sambung Peperiksaan ${escapeHtml(r.title)}</b><span>Soalan ${r.current}/${r.total} • ${r.answered} dijawab • baki ${escapeHtml(r.remaining)}</span></div>
+        <button class="mini-btn" onclick="resumeExam('${r.key}')">Sambung</button>
+      </div>`;
+    }
+  }catch(e){}
+  const h = history();
+  const lastPractice = [...h].reverse().find(x=>String(x.type||'').toLowerCase().includes('practice'));
+  if(lastPractice){
+    cards += `<div class="home-resume-card">
+      <div><b>📚 Ulang Latihan ${escapeHtml(lastPractice.subject||'')}</b><span>Markah terakhir ${lastPractice.score}/${lastPractice.total}</span></div>
+      <button class="mini-btn" onclick="page='subjects';render()">Buka Latihan</button>
+    </div>`;
+  }
+  if(!cards) cards = `<p class="small">Tiada sesi belum selesai. Pilih Latihan atau Peperiksaan untuk mula belajar.</p>`;
+  return `<section class="card home-resume-section">
+    <span class="badge">▶ SAMBUNG PEMBELAJARAN</span>
+    ${cards}
+  </section>`;
+}
+function achievementsMiniHtml(limit=3){
+  const achievements = loadAchievements();
+  const defs = ACHIEVEMENT_DEFINITIONS.filter(def=>achievements && achievements[def.id]);
+  const show = defs.slice(0, limit);
+  const unlocked = Object.keys(achievements || {}).length;
+  const cards = show.length ? show.map(def=>`<div class="home-badge-chip"><b>${def.icon}</b><span>${escapeHtml(def.title)}</span></div>`).join('') : `<p class="small">Belum ada achievement. Lengkapkan latihan pertama untuk buka badge.</p>`;
+  return `<section class="card home-achievement-mini">
+    <div class="home-section-head compact">
+      <div>
+        <span class="badge">🏅 ACHIEVEMENT TERKINI</span>
+        <p class="small">${unlocked}/${ACHIEVEMENT_DEFINITIONS.length} badge sudah dibuka.</p>
+      </div>
+      <button class="mini-btn" onclick="page='settings';render()">Lihat</button>
+    </div>
+    <div class="home-badge-row">${cards}</div>
+  </section>`;
+}
+
 function calculateLearningStreak(rows){
   if(!rows || !rows.length) return 0;
   const daySet = new Set(rows.map(r=>{
@@ -1962,23 +2067,21 @@ function leaderboardHtml(limit=5){
   return rows.slice(0,limit).map((r,i)=>`<div class="exam-row ${r.active?'active':''}"><div><b>${i+1}. ${escapeHtml(r.name)}</b><br><span>Pelajar ${escapeHtml(String(r.studentId||'student_1').replace('student_',''))} • ${r.total} rekod • Avg ${r.average}%</span></div><div class="pill">${r.xp} XP</div></div>`).join('');
 }
 function renderHome(){
-  const h=history(); const best=h.length?Math.max(...h.map(x=>Math.round((x.score/x.total)*100))):0; const last=h.at(-1);
-  const switcher = renderDashboardStudentSwitcher();
-  $app.innerHTML = `<div class="settings-page-clean">${profileSummary()}
-  ${switcher}
-  ${learningAnalysisHtml()}
-  ${achievementsHtml(8)}
-  <section class="card dashboard-action-card">
-    <span class="badge">📚 MASUK SUBJEK</span>
-    <div class="dashboard-stats-row"><div class="stat"><b>${totalQuestions()}</b><span>Total Soalan</span></div><div class="stat"><b>${h.length}</b><span>Rekod</span></div><div class="stat"><b>${best}%</b><span>Best</span></div></div>
-    <button class="btn" onclick="goSubjects()">Mula Practice Mode</button><div style="height:10px"></div>
-    <button class="btn gold" onclick="goExam()">Mula Peperiksaan</button>
-    ${last?`<p class="small dashboard-last-result" style="margin-top:10px">Keputusan terakhir: ${escapeHtml(last.type)} • ${escapeHtml(last.subject)} — ${last.score}/${last.total}</p>`:''}
+  $app.innerHTML = `<div class="settings-page-clean home-dashboard-clean">
+  ${profileSummary()}
+  ${homeSummaryHtml()}
+  ${homeActivityHtml()}
+  ${homeResumeHtml()}
+  ${achievementsMiniHtml(3)}
+  <section class="card dashboard-action-card home-primary-actions">
+    <span class="badge">🚀 TINDAKAN CEPAT</span>
+    <button class="btn" onclick="goSubjects()">📚 Mula Latihan</button><div style="height:10px"></div>
+    <button class="btn gold" onclick="goExam()">📝 Mula Peperiksaan</button>
   </section>
-  <section class="card">
+  <section class="card home-account-actions">
     <button class="btn secondary" onclick="page='settings';render()">⚙️ Setting / Profil Murid</button><div style="height:10px"></div>
     <button class="btn danger" onclick="logoutStudent()">Logout</button>
-  </section>`;
+  </section></div>`;
 }
 function goSubjects(){ if(requireProfile()){ page='subjects'; render(); } }
 function goExam(){ if(requireProfile()){ page='exam'; render(); } }

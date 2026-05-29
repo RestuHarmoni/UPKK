@@ -1,4 +1,4 @@
-const CACHE_NAME = 'upkk-smartkids-v3-29-settings-secure-actions';
+const CACHE_NAME = 'upkk-smartkids-v3-30-home-dashboard';
 const CORE_ASSETS = [
   './',
   './index.html',
