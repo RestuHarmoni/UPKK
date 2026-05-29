@@ -18,9 +18,9 @@
     code{background:#f1f5f9;border-radius:8px;padding:2px 6px}.log{white-space:pre-wrap;background:var(--dark);color:#e2e8f0;border-radius:12px;padding:12px;min-height:72px}.status-ok{color:#15803d;font-weight:900}.status-bad{color:#dc2626;font-weight:900}
     .actions{display:flex;gap:8px;flex-wrap:wrap}.mini{padding:8px 10px;border-radius:10px;font-size:12px}
 
-    .sound-url-box{margin-top:10px;padding:10px;border:1px dashed #bbf7d0;border-radius:14px;background:#f8fffb}
+    .sound-upload-box{margin-top:10px;padding:10px;border:1px dashed #bbf7d0;border-radius:14px;background:#f8fffb}
     .sound-url-box input{margin-bottom:8px}
-    .sound-url-hint{font-size:12px;color:#64748b;margin:4px 0 0}
+    .sound-upload-hint{font-size:12px;color:#64748b;margin:4px 0 0}
   
 /* RESPONSIVE ADMIN PACK v2.10 */
 html,body{max-width:100%;overflow-x:hidden}
@@ -294,12 +294,12 @@ header{position:sticky;top:0;z-index:50;box-shadow:0 14px 34px rgba(15,23,42,.12
         <button class="warning" onclick="resetSoundSettingsDefault()">Reset Default</button>
       </div>
       <div id="soundMsg" class="log" style="margin-top:12px">Sedia.</div>
-      <div class="sound-note" style="margin-top:12px">Nota: Web Audio digunakan sebagai fallback. Jika admin masukkan URL MP3/OGG/WAV pada event tertentu, app akan guna audio custom tersebut. Pastikan URL boleh diakses secara public.</div>
+      <div class="sound-note" style="margin-top:12px">Nota: Web Audio digunakan sebagai fallback. Jika admin upload MP3 pada event tertentu, app pelajar akan guna audio custom tersebut. MP3 disimpan di Firebase Storage.</div>
     </section>
 
     <section class="card" style="margin-top:16px">
       <h2>Standby Function Sound</h2>
-      <p class="hint">Pilih tone fallback atau masukkan URL audio custom untuk setiap event. URL custom akan digunakan oleh app pelajar secara global.</p>
+      <p class="hint">Pilih tone fallback atau upload MP3 custom untuk setiap event. MP3 custom akan digunakan oleh app pelajar secara global.</p>
       <div class="sound-grid" id="soundEventGrid"></div>
     </section>
   </section>
@@ -430,10 +430,12 @@ header{position:sticky;top:0;z-index:50;box-shadow:0 14px 34px rgba(15,23,42,.12
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <script src="../src/firebase-config.js?v=3.14"></script>
 <script>
 firebase.initializeApp(window.UPKK_FIREBASE_CONFIG);
 const db = firebase.database();
+const storage = firebase.storage();
 const APP_ROOT = 'apps/UPKK';
 const codeRoot = APP_ROOT + '/accessCodes';
 const userRoot = APP_ROOT + '/users';
@@ -1336,14 +1338,17 @@ function renderSoundEventGrid(settings=defaultSoundSettings()){
       <div class="sound-toggle-row"><label><input type="checkbox" id="snd_${esc(meta.key)}_enabled" ${item.enabled!==false?'checked':''}> Aktif</label></div>
       <div style="margin:8px 0"><label>Event Volume: <b id="snd_${esc(meta.key)}_volume_label">${Math.round(Number(item.volume ?? 0.85)*100)}%</b></label><input type="range" id="snd_${esc(meta.key)}_volume" min="0" max="100" step="5" value="${Math.round(Number(item.volume ?? 0.85)*100)}" oninput="updateSoundVolumeLabels()"></div>
       <div class="sound-preview-row"><div><label>Web Audio Tone Fallback</label><select id="snd_${esc(meta.key)}_tone">${soundToneOptions(tone)}</select></div><button class="secondary" onclick="previewAdminSound($('snd_${esc(meta.key)}_tone').value, Number($('snd_${esc(meta.key)}_volume')?.value || 85)/100)">Preview Tone</button></div>
-      <div class="sound-url-box">
-        <label>Custom Audio URL ${meta.key==='voiceReward'?'(Voice Popup)':''}</label>
-        <input id="snd_${esc(meta.key)}_url" value="${esc(audioUrl)}" placeholder="https://.../audio.mp3">
+      <div class="sound-upload-box">
+        <label>Upload MP3 ${meta.key==='voiceReward'?'(Voice Popup)':''}</label>
+        <input id="snd_${esc(meta.key)}_file" type="file" accept="audio/mpeg,.mp3">
+        <input id="snd_${esc(meta.key)}_url" type="hidden" value="${esc(audioUrl)}">
+        <input id="snd_${esc(meta.key)}_path" type="hidden" value="${esc(item.storagePath || '')}">
         <div class="actions">
-          <button class="secondary mini" onclick="previewAdminAudioUrl($('snd_${esc(meta.key)}_url')?.value, Number($('snd_${esc(meta.key)}_volume')?.value || 85)/100)">Preview URL</button>
-          <button class="secondary mini" onclick="$('snd_${esc(meta.key)}_url').value=''">Kosongkan URL</button>
+          <button class="secondary mini" onclick="uploadAdminMp3('${esc(meta.key)}')">Upload MP3</button>
+          <button class="secondary mini" onclick="previewAdminAudioUrl($('snd_${esc(meta.key)}_url')?.value, Number($('snd_${esc(meta.key)}_volume')?.value || 85)/100)">Preview MP3</button>
+          <button class="warning mini" onclick="clearAdminMp3('${esc(meta.key)}')">Kosongkan MP3</button>
         </div>
-        <p class="sound-url-hint">Jika URL diisi, app akan guna audio ini. Jika kosong, app guna tone fallback.</p>
+        <p class="sound-upload-hint" id="snd_${esc(meta.key)}_status">${audioUrl ? 'MP3 custom sudah tersedia.' : 'Belum ada MP3 custom. Jika kosong, app guna tone fallback.'}</p>
       </div>
     </div>`;
   }).join('');
@@ -1358,11 +1363,13 @@ function collectSoundSettingsFromForm(){
   data.events = {};
   SOUND_EVENT_META.forEach(meta=>{
     const audioUrl = String($('snd_' + meta.key + '_url')?.value || '').trim();
+    const storagePath = String($('snd_' + meta.key + '_path')?.value || '').trim();
     data.events[meta.key] = {
       enabled: !!$('snd_' + meta.key + '_enabled')?.checked,
       tone: $('snd_' + meta.key + '_tone')?.value || defaultSoundSettings().events[meta.key].tone,
       volume: Number($('snd_' + meta.key + '_volume')?.value || 85) / 100,
-      audioUrl
+      audioUrl,
+      storagePath
     };
     if(meta.key === 'voiceReward') data.events[meta.key].voiceEnabled = true;
   });
@@ -1443,14 +1450,54 @@ function previewAdminSound(tone,eventVolume=1){
 function previewAdminAudioUrl(url,eventVolume=1){
   try{
     const clean = String(url||'').trim();
-    if(!clean){ soundMsg('Masukkan URL audio dahulu.'); return; }
+    if(!clean){ soundMsg('Upload MP3 dahulu.'); return; }
     const master = Number($('soundVolume')?.value || 90) / 100;
     const boost = Number($('soundBoost')?.value || 150) / 100;
     const audio = new Audio(clean);
     audio.volume = Math.max(0, Math.min(1, master * eventVolume * boost));
-    audio.play().then(()=>soundMsg('Preview custom audio dimainkan.')).catch(err=>soundMsg('Gagal preview URL audio: ' + err.message));
-  }catch(err){ soundMsg('Gagal preview URL audio: ' + err.message); }
+    audio.play().then(()=>soundMsg('Preview MP3 custom dimainkan.')).catch(err=>soundMsg('Gagal preview MP3: ' + err.message));
+  }catch(err){ soundMsg('Gagal preview MP3: ' + err.message); }
 }
+
+async function uploadAdminMp3(eventKey){
+  try{
+    const meta = SOUND_EVENT_META.find(x=>x.key===eventKey);
+    const fileInput = $('snd_' + eventKey + '_file');
+    const status = $('snd_' + eventKey + '_status');
+    const file = fileInput?.files?.[0];
+    if(!file){ if(status) status.textContent='Pilih fail MP3 dahulu.'; soundMsg('Pilih fail MP3 dahulu.'); return; }
+    const name = String(file.name||'').toLowerCase();
+    const isMp3 = file.type === 'audio/mpeg' || name.endsWith('.mp3');
+    if(!isMp3){ if(status) status.textContent='Fail mesti format MP3.'; soundMsg('Fail mesti format MP3.'); return; }
+    if(file.size > 2 * 1024 * 1024){ if(status) status.textContent='Saiz maksimum 2MB sahaja.'; soundMsg('Saiz maksimum 2MB sahaja.'); return; }
+    if(status) status.textContent='Sedang upload MP3...';
+    soundMsg('Sedang upload MP3 untuk ' + (meta?.label || eventKey) + '...');
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+    const path = `apps/UPKK/audio/${eventKey}/${Date.now()}_${safeName}`;
+    const ref = storage.ref(path);
+    const snap = await ref.put(file, {contentType:'audio/mpeg', customMetadata:{eventKey, uploadedBy:currentAdminSession?.adminId||'admin-panel'}});
+    const url = await snap.ref.getDownloadURL();
+    if($('snd_' + eventKey + '_url')) $('snd_' + eventKey + '_url').value = url;
+    if($('snd_' + eventKey + '_path')) $('snd_' + eventKey + '_path').value = path;
+    if(status) status.textContent='MP3 berjaya upload. Tekan Simpan Sound Settings.';
+    soundMsg('MP3 berjaya upload untuk ' + (meta?.label || eventKey) + '. Tekan Simpan Sound Settings.');
+  }catch(err){
+    console.error(err);
+    const status = $('snd_' + eventKey + '_status');
+    if(status) status.textContent='Gagal upload MP3: ' + err.message;
+    soundMsg('Gagal upload MP3: ' + err.message);
+  }
+}
+function clearAdminMp3(eventKey){
+  if(!confirm('Kosongkan MP3 custom untuk event ini? App akan guna tone fallback.')) return;
+  if($('snd_' + eventKey + '_url')) $('snd_' + eventKey + '_url').value = '';
+  if($('snd_' + eventKey + '_path')) $('snd_' + eventKey + '_path').value = '';
+  if($('snd_' + eventKey + '_file')) $('snd_' + eventKey + '_file').value = '';
+  const status = $('snd_' + eventKey + '_status');
+  if(status) status.textContent='MP3 dikosongkan. Tekan Simpan Sound Settings.';
+  soundMsg('MP3 custom dikosongkan. Tekan Simpan Sound Settings.');
+}
+
 async function loadSoundSettings(){
   try{
     renderSoundEventGrid(defaultSoundSettings());
