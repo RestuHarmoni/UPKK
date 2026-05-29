@@ -1,4 +1,4 @@
-const APP_VERSION = '8.25-PERFORMANCE-LAZYLOAD-DEBOUNCE';
+const APP_VERSION = '8.26-ACHIEVEMENTS';
 const PIN_LENGTH = 6;
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCK_MINUTES = 10;
@@ -19,6 +19,7 @@ const LEGACY_PROFILE_KEYS = ['upkkSmartKidsProfile_v511','upkkSmartKidsProfile_v
 const HISTORY_KEY = 'upkkSmartKidsHistory_v520';
 const USED_KEY = 'upkkSmartKidsUsedQuestions_v520';
 const EXAM_SESSION_KEY = 'upkkSmartKidsExamSessions_v110';
+const ACHIEVEMENTS_KEY = 'upkkSmartKidsAchievements_v100';
 const EXAM_TARGET_QUESTIONS = 40;
 const EXAM_DURATION_SECONDS = 45 * 60;
 const EXAM_SUBJECT_ORDER = ['aqidah','ibadah','sirah','jawi','arab','adab'];
@@ -371,6 +372,7 @@ async function refreshCurrentStudentCloudCache(){
     if(mergedH.length) localStorage.setItem(studentKey(HISTORY_KEY), JSON.stringify(mergedH.slice(-80)));
     if(data.usedMap && typeof data.usedMap === 'object') localStorage.setItem(studentKey(USED_KEY), JSON.stringify(data.usedMap));
     if(data.examSessions && typeof data.examSessions === 'object') localStorage.setItem(studentKey(EXAM_SESSION_KEY), JSON.stringify(data.examSessions));
+    if(data.achievements && typeof data.achievements === 'object') localStorage.setItem(achievementStorageKey(), JSON.stringify(data.achievements));
     return true;
   }catch(err){ console.warn('Firebase student cloud cache refresh failed:',err); return false; }
 }
@@ -435,6 +437,100 @@ function calculateStudentStats(h){
   const xp = rows.reduce((sum,x)=>sum+(Number(x.score||0)*10),0) + totalExam*25 + totalPractice*10;
   return { totalRecords, totalExam, totalPractice, bestPercent, averageScore, xp };
 }
+
+const ACHIEVEMENT_DEFINITIONS = [
+  {id:'first_practice', icon:'🌟', title:'Mula Hebat', desc:'Selesaikan latihan pertama.'},
+  {id:'first_exam', icon:'📝', title:'Berani Exam', desc:'Selesaikan peperiksaan pertama.'},
+  {id:'perfect_score', icon:'💯', title:'Perfect Score', desc:'Dapat 100% dalam mana-mana latihan atau peperiksaan.'},
+  {id:'aqidah_star', icon:'🛡️', title:'Bijak Aqidah', desc:'Skor 80% atau lebih dalam subjek Aqidah.'},
+  {id:'ibadah_star', icon:'🕌', title:'Bijak Ibadah', desc:'Skor 80% atau lebih dalam subjek Ibadah.'},
+  {id:'sirah_star', icon:'📜', title:'Bijak Sirah', desc:'Skor 80% atau lebih dalam subjek Sirah.'},
+  {id:'jawi_star', icon:'✍️', title:'Bijak Jawi', desc:'Skor 80% atau lebih dalam subjek Jawi.'},
+  {id:'master_upkk', icon:'🏆', title:'Master UPKK', desc:'Skor 80% atau lebih untuk semua subjek utama.'}
+];
+
+function achievementStorageKey(){ return studentKey(ACHIEVEMENTS_KEY); }
+function achievementDefinition(id){ return ACHIEVEMENT_DEFINITIONS.find(x=>x.id===id) || null; }
+function loadAchievements(){
+  try{ return JSON.parse(localStorage.getItem(achievementStorageKey()) || '{}') || {}; }
+  catch(e){ return {}; }
+}
+function saveAchievementsLocal(a){
+  localStorage.setItem(achievementStorageKey(), JSON.stringify(a || {}));
+}
+function unlockAchievement(existing, id, sourceRec=null){
+  const def = achievementDefinition(id);
+  if(!def || existing[id]) return false;
+  existing[id] = {
+    id:def.id,
+    title:def.title,
+    icon:def.icon,
+    desc:def.desc,
+    unlockedAt:new Date().toISOString(),
+    source: sourceRec ? {
+      type: sourceRec.type || '',
+      subject: sourceRec.subject || '',
+      subjectKey: sourceRec.subjectKey || '',
+      score: Number(sourceRec.score || 0),
+      total: Number(sourceRec.total || 0)
+    } : null
+  };
+  return true;
+}
+function syncAchievementsToFirebase(achievements){
+  const db=firebaseDb();
+  if(!db || !profile?.accountId || !profile?.studentId) return;
+  const payload = {
+    achievements: achievements || {},
+    achievementStats: {
+      unlocked: Object.keys(achievements || {}).length,
+      total: ACHIEVEMENT_DEFINITIONS.length,
+      updatedAt: new Date().toISOString()
+    }
+  };
+  db.ref(cloudStudentBasePath()).update(payload).catch(err=>console.warn('Firebase achievements sync failed:', err));
+}
+function evaluateAndSaveAchievements(rec=null){
+  if(!profile?.accountId || !profile?.studentId) return {};
+  const rows = history();
+  const achievements = loadAchievements();
+  const before = Object.keys(achievements).length;
+  const pct = r => Math.round((Number(r.score||0) / Math.max(Number(r.total||1),1)) * 100);
+  const isExamRow = r => isExamQuizType(r.type);
+  const subjectOf = r => String(r.subjectKey || r.subject || '').toLowerCase();
+
+  if(rows.some(r=>!isExamRow(r))) unlockAchievement(achievements, 'first_practice', rec);
+  if(rows.some(r=>isExamRow(r))) unlockAchievement(achievements, 'first_exam', rec);
+  if(rows.some(r=>pct(r) >= 100)) unlockAchievement(achievements, 'perfect_score', rec);
+
+  ['aqidah','ibadah','sirah','jawi'].forEach(key=>{
+    if(rows.some(r=>subjectOf(r).includes(key) && pct(r) >= 80)){
+      unlockAchievement(achievements, `${key}_star`, rec);
+    }
+  });
+
+  const required = ['aqidah','ibadah','sirah','jawi'];
+  const masteredAll = required.every(key => rows.some(r=>subjectOf(r).includes(key) && pct(r) >= 80));
+  if(masteredAll) unlockAchievement(achievements, 'master_upkk', rec);
+
+  if(Object.keys(achievements).length !== before){
+    saveAchievementsLocal(achievements);
+    syncAchievementsToFirebase(achievements);
+    window.__UPKK_LAST_UNLOCKED_BADGE = true;
+  }
+  return achievements;
+}
+function achievementsHtml(limit=8){
+  const achievements = loadAchievements();
+  const unlocked = Object.keys(achievements || {}).length;
+  const cards = ACHIEVEMENT_DEFINITIONS.slice(0, limit).map(def=>{
+    const got = achievements[def.id];
+    return `<div class="stat" style="text-align:left;opacity:${got?'1':'0.48'}"><b>${def.icon} ${escapeHtml(def.title)}</b><span>${got?'Unlocked':'Locked'} • ${escapeHtml(def.desc)}</span></div>`;
+  }).join('');
+  return `<section class="card achievements-card"><span class="badge">🏅 ACHIEVEMENT</span><h2 class="title">Pencapaian Pelajar</h2><p class="small">${unlocked}/${ACHIEVEMENT_DEFINITIONS.length} badge sudah dibuka.</p><div style="height:8px"></div>${cards}</section>`;
+}
+
+
 function syncResultToFirebase(rec){
   const db=firebaseDb();
   if(!db || !profile?.studentId || !rec) return;
@@ -1760,6 +1856,7 @@ function renderHome(){
   $app.innerHTML = `${profileSummary()}
   ${switcher}
   ${learningAnalysisHtml()}
+  ${achievementsHtml(8)}
   <section class="card dashboard-action-card">
     <span class="badge">📚 MASUK SUBJEK</span>
     <div class="dashboard-stats-row"><div class="stat"><b>${totalQuestions()}</b><span>Total Soalan</span></div><div class="stat"><b>${h.length}</b><span>Rekod</span></div><div class="stat"><b>${best}%</b><span>Best</span></div></div>
@@ -2729,7 +2826,7 @@ function finishQuiz(autoSubmit=false){
     qz.autoSubmit=!!autoSubmit;
   }
   const rec={ date:new Date().toLocaleString('ms-MY'), name:profile.name, studentId:profile.studentId, type:qz.type, subject:qz.title, subjectKey:qz.subjectKey, score:qz.score, total:qz.questions.length, answered:(qz.answers||[]).length, mode:modeLabel(), autoSubmit:!!autoSubmit, durationSec };
-  const h=history(); h.push(rec); saveHistory(h); syncResultToFirebase(rec); if(isExamQuizType(qz.type)) clearExamSession(qz.subjectKey); currentQuiz=null; selectedAnswer=null; renderFinish(qz);
+  const h=history(); h.push(rec); saveHistory(h); syncResultToFirebase(rec); evaluateAndSaveAchievements(rec); if(isExamQuizType(qz.type)) clearExamSession(qz.subjectKey); currentQuiz=null; selectedAnswer=null; renderFinish(qz);
 }
 function examDurationText(seconds){
   const total=Math.max(0, Number(seconds)||0);
