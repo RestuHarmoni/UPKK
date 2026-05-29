@@ -2418,3 +2418,44 @@ img,svg,canvas,video{
   .settings-clean-form-card .choice{min-height:78px;border-radius:16px;}
   .settings-add-student-card{min-height:88px;padding:14px;}
 }
+
+
+/* v3.23 - Stable Setting/Profile choices: prevent flicker/text ghosting */
+.settings-choice-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+}
+.settings-choice-grid .choice{
+  position:relative;
+  overflow:hidden;
+  appearance:none;
+  -webkit-appearance:none;
+  user-select:none;
+  -webkit-tap-highlight-color:transparent;
+  backface-visibility:hidden;
+  contain:layout paint;
+}
+.settings-choice-grid .choice::before,
+.settings-choice-grid .choice::after{
+  display:none !important;
+  content:none !important;
+}
+.settings-choice-grid .choice:focus{
+  outline:0;
+}
+.settings-choice-grid .choice:focus-visible{
+  outline:3px solid rgba(15,138,75,.22);
+  outline-offset:2px;
+}
+.settings-choice-grid .choice.active{
+  border-color:#0f8a4b;
+  background:#eafff1;
+}
+.add-child-card{
+  overflow:hidden;
+}
+.add-child-card .input,
+.settings-clean-form-card .input{
+  transform:none !important;
+}

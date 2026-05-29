@@ -1,4 +1,4 @@
-const CACHE_NAME = 'upkk-smartkids-v3-22-settings-clean';
+const CACHE_NAME = 'upkk-smartkids-v3-23-settings-stable';
 const CORE_ASSETS = [
   './',
   './index.html',

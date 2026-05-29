@@ -1294,16 +1294,29 @@ function cancelAddStudentProfile(){
   page='settings';
   render();
 }
+function syncNewStudentDraftFromForm(){
+  window.__UPKK_NEW_STUDENT = window.__UPKK_NEW_STUDENT || {name:'', avatar:'', mode:'rumi'};
+  const nameInput = document.getElementById('newStudentFullNameInput');
+  if(nameInput) window.__UPKK_NEW_STUDENT.name = uppercaseName(nameInput.value || '');
+  return window.__UPKK_NEW_STUDENT;
+}
+function updateChoiceGroup(selector, activeValue, dataName){
+  document.querySelectorAll(selector).forEach(btn=>{
+    const isActive = btn.dataset && btn.dataset[dataName] === activeValue;
+    btn.classList.toggle('active', !!isActive);
+    btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+  });
+}
 function selectNewStudentAvatar(a){
   upkkPlaySound('selectAvatar');
-  window.__UPKK_NEW_STUDENT = window.__UPKK_NEW_STUDENT || {name:'', avatar:'', mode:'rumi'};
-  window.__UPKK_NEW_STUDENT.avatar = a;
-  render();
+  const draft = syncNewStudentDraftFromForm();
+  draft.avatar = a;
+  updateChoiceGroup('.new-student-avatar-choice', a, 'avatar');
 }
 function selectNewStudentMode(m){
-  window.__UPKK_NEW_STUDENT = window.__UPKK_NEW_STUDENT || {name:'', avatar:'', mode:'rumi'};
-  window.__UPKK_NEW_STUDENT.mode = (m==='jawi') ? 'jawi' : 'rumi';
-  render();
+  const draft = syncNewStudentDraftFromForm();
+  draft.mode = (m==='jawi') ? 'jawi' : 'rumi';
+  updateChoiceGroup('.new-student-mode-choice', draft.mode, 'mode');
 }
 async function saveNewStudentProfile(){
   if(!profile.studentId){ alert('Sila login dahulu.'); return; }
@@ -1916,11 +1929,11 @@ function renderProfile(){
     <div style="height:12px"></div>
     <label class="small"><b>Avatar Pelajar</b></label>
     <div style="height:8px"></div>
-    <div class="grid2"><button class="choice ${profile.avatar==='boy'?'active':''}" onclick="selectAvatar('boy')"><img class="avatar" src="assets/images/avatar-boy.webp">Lelaki</button><button class="choice ${profile.avatar==='girl'?'active':''}" onclick="selectAvatar('girl')"><img class="avatar" src="assets/images/avatar-girl.webp">Perempuan</button></div>
+    <div class="grid2 settings-choice-grid"><button type="button" class="choice edit-student-avatar-choice ${profile.avatar==='boy'?'active':''}" data-avatar="boy" aria-pressed="${profile.avatar==='boy'?'true':'false'}" onclick="selectAvatar('boy')"><img class="avatar" src="assets/images/avatar-boy.webp" alt="">Lelaki</button><button type="button" class="choice edit-student-avatar-choice ${profile.avatar==='girl'?'active':''}" data-avatar="girl" aria-pressed="${profile.avatar==='girl'?'true':'false'}" onclick="selectAvatar('girl')"><img class="avatar" src="assets/images/avatar-girl.webp" alt="">Perempuan</button></div>
     <div style="height:12px"></div>
     <label class="small"><b>Mode Tulisan</b></label>
     <div style="height:8px"></div>
-    <div class="grid2"><button class="choice ${profile.mode==='rumi'?'active':''}" onclick="selectMode('rumi')"><div class="mode mode-rumi">Aa</div><b>RUMI</b></button><button class="choice ${profile.mode==='jawi'?'active':''}" onclick="selectMode('jawi')"><div class="mode mode-jawi">ا ب</div><b>JAWI</b></button></div>
+    <div class="grid2 settings-choice-grid"><button type="button" class="choice edit-student-mode-choice ${profile.mode==='rumi'?'active':''}" data-mode="rumi" aria-pressed="${profile.mode==='rumi'?'true':'false'}" onclick="selectMode('rumi')"><div class="mode mode-rumi">Aa</div><b>RUMI</b></button><button type="button" class="choice edit-student-mode-choice ${profile.mode==='jawi'?'active':''}" data-mode="jawi" aria-pressed="${profile.mode==='jawi'?'true':'false'}" onclick="selectMode('jawi')"><div class="mode mode-jawi">ا ب</div><b>JAWI</b></button></div>
     <div style="height:14px"></div>
     <button class="btn" onclick="saveStudentProfileDetails()">Simpan Profil</button>
   </section>` : '';
@@ -1972,8 +1985,17 @@ function renderProfileSwitcher(title='Senarai Pilihan Pelajar', showAdd=false){
     </button>` : ''}</div>
   </section>`;
 }
-function selectAvatar(a){ upkkPlaySound('selectAvatar'); profile.avatar=a; if(profile.studentId) saveProfile(); else saveDraftProfile(); render(); }
-function selectMode(m){ profile.mode=(m==='jawi')?'jawi':'rumi'; if(profile.studentId) saveProfile(); else saveDraftProfile(); render(); }
+function selectAvatar(a){
+  upkkPlaySound('selectAvatar');
+  profile.avatar=a;
+  if(profile.studentId) saveProfile(); else saveDraftProfile();
+  updateChoiceGroup('.edit-student-avatar-choice', a, 'avatar');
+}
+function selectMode(m){
+  profile.mode=(m==='jawi')?'jawi':'rumi';
+  if(profile.studentId) saveProfile(); else saveDraftProfile();
+  updateChoiceGroup('.edit-student-mode-choice', profile.mode, 'mode');
+}
 
 async function saveStudentProfileDetails(){
   if(!profile.studentId){ alert('Sila daftar atau login dahulu.'); return; }
@@ -2008,11 +2030,11 @@ function renderSettings(){
     <div style="height:12px"></div>
     <label class="small"><b>Avatar Pelajar</b></label>
     <div style="height:8px"></div>
-    <div class="grid2"><button class="choice ${draftChild.avatar==='boy'?'active':''}" onclick="selectNewStudentAvatar('boy')"><img class="avatar" src="assets/images/avatar-boy.webp">Lelaki</button><button class="choice ${draftChild.avatar==='girl'?'active':''}" onclick="selectNewStudentAvatar('girl')"><img class="avatar" src="assets/images/avatar-girl.webp">Perempuan</button></div>
+    <div class="grid2 settings-choice-grid"><button type="button" class="choice new-student-avatar-choice ${draftChild.avatar==='boy'?'active':''}" data-avatar="boy" aria-pressed="${draftChild.avatar==='boy'?'true':'false'}" onclick="selectNewStudentAvatar('boy')"><img class="avatar" src="assets/images/avatar-boy.webp" alt="">Lelaki</button><button type="button" class="choice new-student-avatar-choice ${draftChild.avatar==='girl'?'active':''}" data-avatar="girl" aria-pressed="${draftChild.avatar==='girl'?'true':'false'}" onclick="selectNewStudentAvatar('girl')"><img class="avatar" src="assets/images/avatar-girl.webp" alt="">Perempuan</button></div>
     <div style="height:12px"></div>
     <label class="small"><b>Mode Tulisan</b></label>
     <div style="height:8px"></div>
-    <div class="grid2"><button class="choice ${draftChild.mode!=='jawi'?'active':''}" onclick="selectNewStudentMode('rumi')"><div class="mode mode-rumi">Aa</div><b>RUMI</b></button><button class="choice ${draftChild.mode==='jawi'?'active':''}" onclick="selectNewStudentMode('jawi')"><div class="mode mode-jawi">ا ب</div><b>JAWI</b></button></div>
+    <div class="grid2 settings-choice-grid"><button type="button" class="choice new-student-mode-choice ${draftChild.mode!=='jawi'?'active':''}" data-mode="rumi" aria-pressed="${draftChild.mode!=='jawi'?'true':'false'}" onclick="selectNewStudentMode('rumi')"><div class="mode mode-rumi">Aa</div><b>RUMI</b></button><button type="button" class="choice new-student-mode-choice ${draftChild.mode==='jawi'?'active':''}" data-mode="jawi" aria-pressed="${draftChild.mode==='jawi'?'true':'false'}" onclick="selectNewStudentMode('jawi')"><div class="mode mode-jawi">ا ب</div><b>JAWI</b></button></div>
     <div style="height:14px"></div>
     <button class="btn" onclick="saveNewStudentProfile()">Simpan Profil Pelajar</button>
     <div style="height:10px"></div>
@@ -2023,6 +2045,7 @@ function renderSettings(){
   const settingNotice = window.__UPKK_SETTING_NOTICE ? `<section class="card hero"><span class="badge">Nota</span><h2 class="title">${escapeHtml(window.__UPKK_SETTING_NOTICE)}</h2></section>` : '';
   window.__UPKK_SETTING_NOTICE = '';
   $app.innerHTML = `${profileSummary()}
+  <div class="settings-page-clean">
   ${settingNotice}
   ${savedList}
   ${addChildCard}
@@ -2037,11 +2060,11 @@ function renderSettings(){
     <div style="height:12px"></div>
     <label class="small"><b>Tukar Avatar</b></label>
     <div style="height:8px"></div>
-    <div class="grid2"><button class="choice ${profile.avatar==='boy'?'active':''}" onclick="selectAvatar('boy')"><img class="avatar" src="assets/images/avatar-boy.webp">Lelaki</button><button class="choice ${profile.avatar==='girl'?'active':''}" onclick="selectAvatar('girl')"><img class="avatar" src="assets/images/avatar-girl.webp">Perempuan</button></div>
+    <div class="grid2 settings-choice-grid"><button type="button" class="choice edit-student-avatar-choice ${profile.avatar==='boy'?'active':''}" data-avatar="boy" aria-pressed="${profile.avatar==='boy'?'true':'false'}" onclick="selectAvatar('boy')"><img class="avatar" src="assets/images/avatar-boy.webp" alt="">Lelaki</button><button type="button" class="choice edit-student-avatar-choice ${profile.avatar==='girl'?'active':''}" data-avatar="girl" aria-pressed="${profile.avatar==='girl'?'true':'false'}" onclick="selectAvatar('girl')"><img class="avatar" src="assets/images/avatar-girl.webp" alt="">Perempuan</button></div>
     <div style="height:12px"></div>
     <label class="small"><b>Mode Tulisan</b></label>
     <div style="height:8px"></div>
-    <div class="grid2"><button class="choice ${profile.mode==='rumi'?'active':''}" onclick="selectMode('rumi')"><div class="mode mode-rumi">Aa</div><b>RUMI</b></button><button class="choice ${profile.mode==='jawi'?'active':''}" onclick="selectMode('jawi')"><div class="mode mode-jawi">ا ب</div><b>JAWI</b></button></div>
+    <div class="grid2 settings-choice-grid"><button type="button" class="choice edit-student-mode-choice ${profile.mode==='rumi'?'active':''}" data-mode="rumi" aria-pressed="${profile.mode==='rumi'?'true':'false'}" onclick="selectMode('rumi')"><div class="mode mode-rumi">Aa</div><b>RUMI</b></button><button type="button" class="choice edit-student-mode-choice ${profile.mode==='jawi'?'active':''}" data-mode="jawi" aria-pressed="${profile.mode==='jawi'?'true':'false'}" onclick="selectMode('jawi')"><div class="mode mode-jawi">ا ب</div><b>JAWI</b></button></div>
     <div style="height:14px"></div>
     <button class="btn" onclick="saveStudentProfileDetails()">Simpan Profil Pelajar</button>
   </section>
