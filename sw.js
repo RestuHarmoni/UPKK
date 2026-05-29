@@ -1,4 +1,4 @@
-const CACHE_NAME = 'upkk-smartkids-v3-41-audio-slot-system';
+const CACHE_NAME = 'upkk-smartkids-v3-42-audio-folders-ready';
 const CORE_ASSETS = [
   './',
   './index.html',
