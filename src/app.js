@@ -360,6 +360,7 @@ async function refreshAllAccountProfilesFromFirebase(accountId=profile.accountId
       });
     });
     saveProfiles(profiles);
+    purgeProfilesOutsideParent(account.accountId || accountId);
     return true;
   }catch(err){ console.warn('Firebase account profiles refresh failed:',err); return false; }
 }
@@ -752,6 +753,21 @@ async function nextMainAccountIdFirebaseFirst(){
   }
 }
 function accountLocalKey(p=profile){ return `${safeFirebaseKey(p.accountId || p.mainId || p.username || 'LOCAL')}_${safeFirebaseKey(p.studentId || 'student_1')}`; }
+function parentAccountId(p=profile){
+  // Leaderboard parent-only mesti guna accountId sebenar, bukan fallback username/nama.
+  // Ini elak cache pelajar dari username/parent lain muncul bila device dikongsi.
+  return safeFirebaseKey(String((p && (p.accountId || p.mainId)) || '').trim().toUpperCase());
+}
+function purgeProfilesOutsideParent(accountId=parentAccountId(profile)){
+  if(!accountId) return;
+  const profiles = loadProfiles();
+  const kept = {};
+  Object.values(profiles).map(normalizeProfile).forEach(p=>{
+    if(parentAccountId(p) === accountId) kept[accountLocalKey(p)] = p;
+  });
+  saveProfiles(kept);
+}
+
 function displayStudentId(){ return profile.accountId || profile.mainId || `${ID_PREFIX}-${APP_YEAR_SHORT}-AUTO`; }
 function deviceId(){ const k='upkkSmartKidsDeviceId_v600'; let id=localStorage.getItem(k); if(!id){ id='DEV-' + Math.random().toString(36).slice(2,8).toUpperCase() + '-' + Date.now().toString(36).slice(-4).toUpperCase(); localStorage.setItem(k,id); } return id; }
 function simpleHash(str){
@@ -1632,13 +1648,11 @@ function calculateLearningStreak(rows){
 }
 function leaderboardHtml(limit=5){
   const rows=[];
-  const currentParentId = safeFirebaseKey(profile.accountId || profile.username || '');
+  const currentParentId = parentAccountId(profile);
+  if(!currentParentId) return `<div class="empty">Sila login untuk lihat leaderboard anak-anak.</div>`;
+
   Object.values(loadProfiles()).map(normalizeProfile)
-    .filter(p=>{
-      if(!p.studentId) return false;
-      const parentId = safeFirebaseKey(p.accountId || p.username || '');
-      return currentParentId ? parentId === currentParentId : accountLocalKey(p) === accountLocalKey(profile);
-    })
+    .filter(p=>p.studentId && parentAccountId(p) === currentParentId)
     .forEach(p=>{
       const h=historyForProfile(p);
       const stats=calculateStudentStats(h);
@@ -1654,6 +1668,7 @@ function leaderboardHtml(limit=5){
         active:accountLocalKey(p)===accountLocalKey(profile)
       });
     });
+
   rows.sort((a,b)=> b.xp-a.xp || b.best-a.best || b.average-a.average || b.total-a.total || a.name.localeCompare(b.name));
   if(!rows.length) return `<div class="empty">Belum ada leaderboard untuk parent ini.</div>`;
   return rows.slice(0,limit).map((r,i)=>`<div class="exam-row ${r.active?'active':''}"><div><b>${i+1}. ${escapeHtml(r.name)}</b><br><span>Pelajar ${escapeHtml(String(r.studentId||'student_1').replace('student_',''))} • ${r.total} rekod • Avg ${r.average}%</span></div><div class="pill">${r.xp} XP</div></div>`).join('');
@@ -2043,6 +2058,7 @@ async function loginExistingStudentByUsername(username, pin){
         });
       });
       saveProfiles(profiles);
+      purgeProfilesOutsideParent(accountData.accountId);
       const activeSlot = account.activeStudent || slots[0];
       const activeKey = accountLocalKey({accountId:accountData.accountId, studentId:activeSlot});
       profile = normalizeProfile({...profiles[activeKey], pin, loginAttempts:0, temporaryLock:false, lockedUntil:'', allowedDevices:accountData.allowedDevices, devices:accountData.devices, subscription:accountData.subscription || {}});
@@ -2051,6 +2067,7 @@ async function loginExistingStudentByUsername(username, pin){
       startDeviceRealtimeListener();
       await refreshDevicesFromFirebase(true);
       await refreshAllAccountProfilesFromFirebase(profile.accountId);
+      purgeProfilesOutsideParent(profile.accountId);
       await refreshCurrentStudentCloudCache();
       page=isProfileComplete()?'home':'settings'; render();
       return;
@@ -2080,7 +2097,7 @@ async function loginExistingStudent(profileKey, pin){
     if(!deviceAccess.ok){ alert(deviceAccess.reason || 'Akaun ini sudah digunakan pada 2 device. Buang device lama di Setting atau minta reset device.'); return; }
     profile.devices = deviceAccess.devices;
     profile.allowedDevices = Object.values(profile.devices).filter(d=>d.active!==false).map(d=>d.deviceId);
-    saveProfile(); startDeviceRealtimeListener(); await refreshDevicesFromFirebase(true); await refreshAllAccountProfilesFromFirebase(profile.accountId); await refreshCurrentStudentCloudCache(); page=isProfileComplete()?'home':'settings'; render(); return;
+    saveProfile(); startDeviceRealtimeListener(); await refreshDevicesFromFirebase(true); await refreshAllAccountProfilesFromFirebase(profile.accountId); purgeProfilesOutsideParent(profile.accountId); await refreshCurrentStudentCloudCache(); page=isProfileComplete()?'home':'settings'; render(); return;
   }
   alert('Profil pelajar tidak dijumpai pada device ini. Sila login guna username utama.');
 }
