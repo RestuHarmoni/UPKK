@@ -1,4 +1,4 @@
-const CACHE_NAME = 'upkk-smartkids-v3-26-student-switch-cycle';
+const CACHE_NAME = 'upkk-smartkids-v3-27-settings-touch-fix';
 const CORE_ASSETS = [
   './',
   './index.html',

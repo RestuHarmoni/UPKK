@@ -1259,20 +1259,31 @@ async function switchProfile(profileKey){
   const previousPage = page;
   const stablePages = ['home','subjects','exam','result','settings'];
   profile=normalizeProfile(profiles[profileKey]);
-  localStorage.setItem(CURRENT_PROFILE_ID_KEY, accountLocalKey(profile));
+  const switchedKey = accountLocalKey(profile);
+  localStorage.setItem(CURRENT_PROFILE_ID_KEY, switchedKey);
   localStorage.setItem(LOGGED_IN_KEY, '1');
   saveProfile();
   currentQuiz=null;
   selectedAnswer=null;
-  await refreshCurrentStudentCloudCache();
   if(previousPage === 'settings'){
-    // Keep the Settings screen stable when switching student.
-    // Do not inject the old "Nota" hero card because it can overlap on small screens/PWA cached layouts.
+    // Keep the Settings screen responsive: no old notice/helper layers
+    // and no add-student panel while cycling students.
     window.__UPKK_SETTING_NOTICE = '';
+    window.__UPKK_ADD_STUDENT_FORM = false;
   }
   page = stablePages.includes(previousPage) ? previousPage : 'home';
   render();
   if(page==='exam') setTimeout(scrollMainToTop, 0);
+
+  // Refresh Firebase/progress in background after UI changed.
+  // Waiting here made Settings feel less responsive on slower devices.
+  refreshCurrentStudentCloudCache()
+    .then(()=>{
+      if(accountLocalKey(profile) === switchedKey && page === previousPage){
+        render();
+      }
+    })
+    .catch(err=>console.warn('Student cloud refresh after switch failed:', err));
 }
 function startAddStudentProfile(){
   if(!profile.studentId){ alert('Sila login dahulu.'); return; }
@@ -1778,7 +1789,7 @@ function profileSummary(){
         <span><b>ID</b>${escapeHtml(profile.accountId||'-')}</span>
         <span><b>Username</b>${escapeHtml(profile.username||'-')}</span>
         <span><b>Status</b>Pelajar ${studentNo}</span>
-        <span><b>Mode</b>${modeLabel()}</span>
+        <span><b>Mode</b><em data-profile-mode-live>${modeLabel()}</em></span>
         <span><b>Plan</b>${planLabel()}</span>
       </div>
     </div>
@@ -1944,11 +1955,11 @@ function renderProfile(){
     <div style="height:12px"></div>
     <label class="small"><b>Avatar Pelajar</b></label>
     <div style="height:8px"></div>
-    <div class="grid2"><button class="choice ${profile.avatar==='boy'?'active':''}" onclick="selectAvatar('boy')"><img class="avatar" src="assets/images/avatar-boy.webp">Lelaki</button><button class="choice ${profile.avatar==='girl'?'active':''}" onclick="selectAvatar('girl')"><img class="avatar" src="assets/images/avatar-girl.webp">Perempuan</button></div>
+    <div class="grid2"><button type="button" class="choice ${profile.avatar==='boy'?'active':''}" data-edit-student-avatar="boy" onclick="selectAvatar('boy')"><img class="avatar" src="assets/images/avatar-boy.webp">Lelaki</button><button type="button" class="choice ${profile.avatar==='girl'?'active':''}" data-edit-student-avatar="girl" onclick="selectAvatar('girl')"><img class="avatar" src="assets/images/avatar-girl.webp">Perempuan</button></div>
     <div style="height:12px"></div>
     <label class="small"><b>Mode Tulisan</b></label>
     <div style="height:8px"></div>
-    <div class="grid2"><button class="choice ${profile.mode==='rumi'?'active':''}" onclick="selectMode('rumi')"><div class="mode mode-rumi">Aa</div><b>RUMI</b></button><button class="choice ${profile.mode==='jawi'?'active':''}" onclick="selectMode('jawi')"><div class="mode mode-jawi">ا ب</div><b>JAWI</b></button></div>
+    <div class="grid2"><button type="button" class="choice ${profile.mode==='rumi'?'active':''}" data-edit-student-mode="rumi" onclick="selectMode('rumi')"><div class="mode mode-rumi">Aa</div><b>RUMI</b></button><button type="button" class="choice ${profile.mode==='jawi'?'active':''}" data-edit-student-mode="jawi" onclick="selectMode('jawi')"><div class="mode mode-jawi">ا ب</div><b>JAWI</b></button></div>
     <div style="height:14px"></div>
     <button class="btn" onclick="saveStudentProfileDetails()">Simpan Profil</button>
   </section>` : '';
@@ -1988,8 +1999,32 @@ function renderProfileSwitcher(title='Pengurusan Pelajar', showAdd=false){
     </div>
   </section>`;
 }
-function selectAvatar(a){ upkkPlaySound('selectAvatar'); profile.avatar=a; if(profile.studentId) saveProfile(); else saveDraftProfile(); render(); }
-function selectMode(m){ profile.mode=(m==='jawi')?'jawi':'rumi'; if(profile.studentId) saveProfile(); else saveDraftProfile(); render(); }
+function updateEditProfilePickerUI(){
+  document.querySelectorAll('[data-edit-student-avatar]').forEach(btn=>{
+    btn.classList.toggle('active', btn.getAttribute('data-edit-student-avatar') === profile.avatar);
+  });
+  document.querySelectorAll('[data-edit-student-mode]').forEach(btn=>{
+    const mode = btn.getAttribute('data-edit-student-mode');
+    btn.classList.toggle('active', mode === (profile.mode === 'jawi' ? 'jawi' : 'rumi'));
+  });
+  const liveAvatar = document.querySelector('.profile-avatar-live');
+  if(liveAvatar) liveAvatar.src = avatarSrc();
+  const modeDetail = document.querySelector('[data-profile-mode-live]');
+  if(modeDetail) modeDetail.textContent = modeLabel();
+}
+function selectAvatar(a){
+  upkkPlaySound('selectAvatar');
+  profile.avatar=a;
+  if(profile.studentId) saveProfile(); else saveDraftProfile();
+  if(page === 'settings'){ updateEditProfilePickerUI(); return; }
+  render();
+}
+function selectMode(m){
+  profile.mode=(m==='jawi')?'jawi':'rumi';
+  if(profile.studentId) saveProfile(); else saveDraftProfile();
+  if(page === 'settings'){ updateEditProfilePickerUI(); return; }
+  render();
+}
 
 async function saveStudentProfileDetails(){
   if(!profile.studentId){ alert('Sila daftar atau login dahulu.'); return; }
@@ -2010,8 +2045,11 @@ async function saveStudentProfileDetails(){
 
 function renderSettings(){
   if(!isLoggedInSession() || !profile.studentId){ page='profile'; renderProfile(); return; }
-  refreshDevicesFromFirebase(true);
-  startDeviceRealtimeListener();
+  // Defer Firebase/device management refresh so Settings buttons stay responsive.
+  setTimeout(()=>{
+    try{ refreshDevicesFromFirebase(true); startDeviceRealtimeListener(); }
+    catch(err){ console.warn('Deferred settings device refresh failed:', err); }
+  }, 250);
   const savedList = renderProfileSwitcher('Pelajar', true);
   const draftChild = window.__UPKK_NEW_STUDENT || {name:'', avatar:'', mode: profile.mode || 'rumi'};
   const addChildCard = window.__UPKK_ADD_STUDENT_FORM ? `<section class="card simple-login-card add-child-card settings-clean-form-card">

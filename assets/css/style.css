@@ -2468,3 +2468,39 @@ img,svg,canvas,video{
 .settings-student-card-compact .settings-add-student-card{
   margin-top:4px;
 }
+
+
+/* v3.27 Settings touch responsiveness fix */
+body.settings-touch-fix {}
+.settings-page-clean,
+.settings-student-card,
+.settings-clean-form-card {
+  position: relative;
+  z-index: 1;
+  isolation: isolate;
+}
+.settings-student-card *,
+.settings-clean-form-card *,
+.dashboard-profile-card * {
+  -webkit-tap-highlight-color: transparent;
+}
+.settings-student-card button,
+.settings-clean-form-card button,
+.profile-switch-main-btn {
+  touch-action: manipulation;
+  pointer-events: auto;
+  cursor: pointer;
+}
+.settings-clean-form-card .choice,
+.settings-student-card .settings-add-student-card {
+  min-height: 72px;
+  user-select: none;
+}
+.settings-clean-form-card .choice:active,
+.settings-student-card .settings-add-student-card:active,
+.profile-switch-main-btn:active {
+  transform: translateY(0);
+}
+.compact-profile-detail em {
+  font-style: normal;
+}
