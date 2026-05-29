@@ -1257,8 +1257,7 @@ async function switchProfile(profileKey){
   const profiles=loadProfiles();
   if(!profiles[profileKey]) return;
   const previousPage = page;
-  const stayInSettings = previousPage === 'settings';
-  const stayInExam = previousPage === 'exam';
+  const stablePages = ['home','subjects','exam','result','settings'];
   profile=normalizeProfile(profiles[profileKey]);
   localStorage.setItem(CURRENT_PROFILE_ID_KEY, accountLocalKey(profile));
   localStorage.setItem(LOGGED_IN_KEY, '1');
@@ -1266,16 +1265,12 @@ async function switchProfile(profileKey){
   currentQuiz=null;
   selectedAnswer=null;
   await refreshCurrentStudentCloudCache();
-  if(stayInSettings){
+  if(previousPage === 'settings'){
     // Keep the Settings screen stable when switching student.
     // Do not inject the old "Nota" hero card because it can overlap on small screens/PWA cached layouts.
     window.__UPKK_SETTING_NOTICE = '';
-    page='settings';
-  } else if(stayInExam){
-    page='exam';
-  } else {
-    page='home';
   }
+  page = stablePages.includes(previousPage) ? previousPage : 'home';
   render();
   if(page==='exam') setTimeout(scrollMainToTop, 0);
 }
@@ -1749,9 +1744,26 @@ function render(){
   return renderHome();
 }
 
+function familyProfiles(){
+  const currentAccountId = profile.accountId || '';
+  return Object.values(loadProfiles())
+    .map(normalizeProfile)
+    .filter(p=>p.studentId && (!currentAccountId || p.accountId===currentAccountId))
+    .sort((a,b)=>String(a.studentId||'').localeCompare(String(b.studentId||''), undefined, {numeric:true}));
+}
+function nextStudentProfileKey(){
+  const profiles = familyProfiles();
+  if(profiles.length <= 1) return '';
+  const activeKey = accountLocalKey(profile);
+  const idx = profiles.findIndex(p=>accountLocalKey(p)===activeKey);
+  const next = profiles[(idx >= 0 ? idx + 1 : 0) % profiles.length];
+  return next ? accountLocalKey(next) : '';
+}
 function profileSummary(){
   const has = profile.name && profile.avatar;
   const studentNo = escapeHtml(String(profile.studentId||'student_1').replace('student_',''));
+  const totalStudents = familyProfiles().length;
+  const switchDisabled = totalStudents <= 1 ? ' disabled' : '';
   return `<div class="card profile-card dashboard-profile-card">
     <div class="profile-avatar-box">
       <img class="profile-avatar-live" src="${has?avatarSrc():'assets/images/avatar-boy.webp'}" alt="Avatar" />
@@ -1759,9 +1771,9 @@ function profileSummary(){
     <div class="profile-info">
       <div class="profile-name-row">
         <h3>${has?escapeHtml(profile.name):'SILA KEMASKINI NAMA PELAJAR'}</h3>
-        <small class="profile-student-label">Pelajar ${studentNo}</small>
+        <small class="profile-student-label">Pelajar ${studentNo}${totalStudents>1?` / ${totalStudents}`:''}</small>
       </div>
-      <button class="mini-btn switch-student-btn profile-switch-main-btn" onclick="toggleStudentSwitcherPanel()">🔄 Tukar Pelajar</button>
+      <button class="mini-btn switch-student-btn profile-switch-main-btn" onclick="switchToNextStudent()"${switchDisabled}>🔄 Tukar Pelajar</button>
       <div class="profile-detail-grid compact-profile-detail">
         <span><b>ID</b>${escapeHtml(profile.accountId||'-')}</span>
         <span><b>Username</b>${escapeHtml(profile.username||'-')}</span>
@@ -1772,16 +1784,14 @@ function profileSummary(){
     </div>
   </div>`;
 }
-function toggleStudentSwitcherPanel(){ window.__UPKK_SHOW_STUDENT_SWITCHER = !window.__UPKK_SHOW_STUDENT_SWITCHER; render(); }
-function closeStudentSwitcherPanel(){ window.__UPKK_SHOW_STUDENT_SWITCHER = false; render(); }
-function renderDashboardStudentSwitcher(){
-  if(!window.__UPKK_SHOW_STUDENT_SWITCHER) return '';
-  const currentAccountId = profile.accountId || '';
-  const profiles = Object.values(loadProfiles()).map(normalizeProfile).filter(p=>p.studentId && (!currentAccountId || p.accountId===currentAccountId));
-  if(!profiles.length) return '';
-  const rows = profiles.map(p=>{ const key=accountLocalKey(p); const active=key===accountLocalKey(profile); return `<button class="student-switch-row ${active?'active':''}" onclick="switchProfile('${escapeHtml(key)}')"><img class="avatar avatar-live-soft" src="${p.avatar==='girl'?'assets/images/avatar-girl.webp':'assets/images/avatar-boy.webp'}"><span><b>${escapeHtml(p.name||'NAMA BELUM DIISI')}</b><small>Pelajar ${escapeHtml(String(p.studentId||'student_1').replace('student_',''))}</small></span><em>${active?'Aktif':'Pilih'}</em></button>`; }).join('');
-  return `<section class="card student-switch-panel"><div class="profile-switch-head"><label class="small"><b>Tukar Pilihan Pelajar</b></label><button class="mini-btn" onclick="closeStudentSwitcherPanel()">Tutup</button></div><div class="student-switch-list">${rows}</div></section>`;
+async function switchToNextStudent(){
+  const nextKey = nextStudentProfileKey();
+  if(!nextKey){ alert('Tiada pelajar lain untuk ditukar.'); return; }
+  await switchProfile(nextKey);
 }
+function toggleStudentSwitcherPanel(){ switchToNextStudent(); }
+function closeStudentSwitcherPanel(){ window.__UPKK_SHOW_STUDENT_SWITCHER = false; }
+function renderDashboardStudentSwitcher(){ return ''; }
 function progressCards(){
   const h=history();
   const subjectKeys=Object.keys(DB);
@@ -1956,38 +1966,26 @@ function renderProfile(){
 function showRegisterForm(){ window.__UPKK_LOGIN_STEP='register'; if(profile.studentId) profile=blankProfile(); renderProfile(); }
 function showLoginForm(){ window.__UPKK_LOGIN_STEP='login'; renderProfile(); }
 function showLoginStart(){ window.__UPKK_LOGIN_STEP='start'; renderProfile(); }
-function renderProfileSwitcher(title='Senarai Pilihan Pelajar', showAdd=false){
-  const currentAccountId = profile.accountId || '';
-  const profiles = Object.values(loadProfiles()).map(normalizeProfile).filter(p=>p.studentId && (!currentAccountId || p.accountId===currentAccountId));
-  if(!profiles.length) return '';
-  const activeKey = accountLocalKey(profile);
-  const rows = profiles.map(p=>{
-    const key = accountLocalKey(p);
-    const active = key === activeKey;
-    const studentNo = escapeHtml(String(p.studentId||'student_1').replace('student_',''));
-    const avatar = p.avatar === 'girl' ? 'assets/images/avatar-girl.webp' : 'assets/images/avatar-boy.webp';
-    return `<button class="settings-student-row ${active?'active':''}" onclick="switchProfile('${escapeHtml(key)}')">
-      <img class="settings-student-avatar" src="${avatar}" alt="Avatar Pelajar">
-      <span class="settings-student-info">
-        <b>${escapeHtml(p.name||'NAMA BELUM DIISI')}</b>
-        <small>Pelajar ${studentNo} • ${escapeHtml((p.mode||'rumi').toUpperCase())}</small>
-      </span>
-      <em>${active?'Aktif':'Pilih'}</em>
-    </button>`;
-  }).join('');
-  return `<section class="card settings-student-card">
+function renderProfileSwitcher(title='Pengurusan Pelajar', showAdd=false){
+  if(!showAdd) return '';
+  const profiles = familyProfiles();
+  const total = profiles.length;
+  const studentNo = escapeHtml(String(profile.studentId||'student_1').replace('student_',''));
+  return `<section class="card settings-student-card settings-student-card-compact">
     <div class="settings-student-head">
       <div>
         <span class="badge">👨‍🎓 PROFIL PELAJAR</span>
         <h2 class="settings-student-title">${escapeHtml(title)}</h2>
-        <p class="small settings-student-subtitle">Tekan profil untuk tukar pelajar aktif.</p>
+        <p class="small settings-student-subtitle">Pelajar aktif sekarang: <b>${escapeHtml(profile.name||'NAMA BELUM DIISI')}</b> • Pelajar ${studentNo}${total?` daripada ${total}`:''}. Gunakan butang <b>Tukar Pelajar</b> pada kad profil di atas untuk bergerak ke pelajar seterusnya.</p>
       </div>
     </div>
-    <div class="settings-student-list">${rows}${showAdd ? `<button class="settings-add-student-card" onclick="startAddStudentProfile()" title="Tambah Profil Pelajar">
-      <span class="settings-add-student-icon">+</span>
-      <strong>Tambah Pelajar</strong>
-      <small>Daftar profil anak / pelajar baru</small>
-    </button>` : ''}</div>
+    <div class="settings-student-list single-action">
+      <button class="settings-add-student-card" onclick="startAddStudentProfile()" title="Tambah Profil Pelajar">
+        <span class="settings-add-student-icon">+</span>
+        <strong>Tambah Pelajar</strong>
+        <small>Daftar profil anak / pelajar baru</small>
+      </button>
+    </div>
   </section>`;
 }
 function selectAvatar(a){ upkkPlaySound('selectAvatar'); profile.avatar=a; if(profile.studentId) saveProfile(); else saveDraftProfile(); render(); }

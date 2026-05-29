@@ -1,4 +1,4 @@
-const CACHE_NAME = 'upkk-smartkids-v3-25-settings-overlap-fix';
+const CACHE_NAME = 'upkk-smartkids-v3-26-student-switch-cycle';
 const CORE_ASSETS = [
   './',
   './index.html',

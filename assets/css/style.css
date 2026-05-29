@@ -2453,3 +2453,18 @@ img,svg,canvas,video{
 .settings-clean-form-card .choice .mode{
   pointer-events:none;
 }
+
+
+/* v3.26 - Student switch cycle button; no dropdown/list under profile */
+.profile-switch-main-btn:disabled,
+.profile-switch-main-btn[disabled]{
+  opacity:.55;
+  cursor:not-allowed;
+  box-shadow:none;
+}
+.settings-student-card-compact .settings-student-list.single-action{
+  display:block;
+}
+.settings-student-card-compact .settings-add-student-card{
+  margin-top:4px;
+}
