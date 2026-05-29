@@ -3361,6 +3361,32 @@ function enablePremiumForTesting(){ profile.plan=PREMIUM_STATUS.PREMIUM; profile
    Frontend only: no Firebase/database structure change.
 ========================================================= */
 
+const UPKK_AUDIO_SLOTS = {
+  UI_CLICK: 'assets/audio/ui/click.mp3',
+  UI_TAB_SWITCH: 'assets/audio/ui/tab-switch.mp3',
+  UI_PAGE_OPEN: 'assets/audio/ui/open-page.mp3',
+  UI_NOTIFICATION: 'assets/audio/ui/notification.mp3',
+  QUIZ_CORRECT: 'assets/audio/quiz/correct.mp3',
+  QUIZ_WRONG: 'assets/audio/quiz/wrong.mp3',
+  QUIZ_FINISH: 'assets/audio/quiz/quiz-finish.mp3',
+  EXAM_START: 'assets/audio/exam/exam-start.mp3',
+  EXAM_WARNING: 'assets/audio/exam/time-warning.mp3',
+  EXAM_FINISH: 'assets/audio/exam/exam-finish.mp3',
+  EXAM_SUBMIT: 'assets/audio/exam/submit.mp3',
+  ACHIEVEMENT_UNLOCK: 'assets/audio/achievement/unlock.mp3',
+  STREAK_REWARD: 'assets/audio/achievement/streak.mp3',
+  REWARD: 'assets/audio/achievement/reward.mp3',
+  VOICE_WELCOME: 'assets/audio/voice/selamat-datang.mp3',
+  VOICE_CORRECT: 'assets/audio/voice/betul.mp3',
+  VOICE_WRONG: 'assets/audio/voice/cuba-lagi.mp3',
+  VOICE_CONGRATS: 'assets/audio/voice/tahniah.mp3',
+  VOICE_EXAM_FINISH: 'assets/audio/voice/tamat-peperiksaan.mp3'
+};
+function upkkAudioSlotPath(slot){
+  const key = String(slot || '').trim();
+  return UPKK_AUDIO_SLOTS[key] || '';
+}
+
 const UPKK_UI_SOUND = {
   enabled: true,
   engine: 'web_audio',
@@ -3399,6 +3425,8 @@ function normalizeUpkkSoundSettings(raw){
   merged.volumeBoost = Math.max(1, Math.min(2, Number(merged.volumeBoost ?? 1.5)));
   Object.keys(merged.events || {}).forEach(k=>{
     merged.events[k] = {...(UPKK_UI_SOUND.events[k]||{}), ...(merged.events[k]||{})};
+    merged.events[k].audioSlot = String(merged.events[k].audioSlot || '').trim();
+    merged.events[k].localPath = String(merged.events[k].localPath || upkkAudioSlotPath(merged.events[k].audioSlot) || '').trim();
     if(!merged.events[k].tone && merged.events[k].file){
       const f = String(merged.events[k].file).toLowerCase();
       if(f.includes('correct')) merged.events[k].tone = 'tone:correct';
@@ -3477,6 +3505,8 @@ function upkkPlaySound(name){
     const event = upkkSoundEvent(name) || {};
     if(event.enabled === false) return;
     const finalVolume = Math.max(0, Math.min(1, Number(UPKK_UI_SOUND.volume ?? 0.9) * Number(event.volume ?? 0.85) * Number(UPKK_UI_SOUND.volumeBoost ?? 1.5)));
+    const slotPath = event.localPath || upkkAudioSlotPath(event.audioSlot);
+    if(slotPath && upkkPlayCustomAudio(slotPath, finalVolume)) return;
     if(event.audioUrl && upkkPlayCustomAudio(event.audioUrl, finalVolume)) return;
     upkkPlayTone(event.tone || 'tone:click', finalVolume);
   }catch(e){}
@@ -3486,9 +3516,11 @@ function upkkVoiceReward(pct){
     const event = upkkSoundEvent('voiceReward');
     if(!UPKK_UI_SOUND.enabled || !event || event.enabled === false || event.voiceEnabled === false) return;
     const finalVolume = Math.max(0, Math.min(1, Number(UPKK_UI_SOUND.volume ?? 0.85) * Number(event.volume ?? 0.9)));
+    const slotPath = event.localPath || upkkAudioSlotPath(event.audioSlot);
+    if(slotPath && upkkPlayCustomAudio(slotPath, finalVolume)) return;
     if(event.audioUrl && upkkPlayCustomAudio(event.audioUrl, finalVolume)) return;
-    // Voice popup kini hanya guna MP3 custom dari Admin Panel.
-    // Jika tiada MP3 diupload, app tidak akan guna suara robot / browser TTS.
+    // Voice popup kini hanya guna MP3 local dari assets/audio.
+    // Jika tiada fail MP3 pada slot yang dipilih, app tidak akan guna suara robot / browser TTS.
   }catch(e){}
 }
 function upkkMotivationMessage(pct){
