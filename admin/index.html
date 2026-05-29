@@ -294,12 +294,12 @@ header{position:sticky;top:0;z-index:50;box-shadow:0 14px 34px rgba(15,23,42,.12
         <button class="warning" onclick="resetSoundSettingsDefault()">Reset Default</button>
       </div>
       <div id="soundMsg" class="log" style="margin-top:12px">Sedia.</div>
-      <div class="sound-note" style="margin-top:12px">Nota: Web Audio digunakan sebagai fallback. Jika admin upload MP3 pada event tertentu, app pelajar akan guna audio custom tersebut. MP3 disimpan di Firebase Storage.</div>
+      <div class="sound-note" style="margin-top:12px">Nota: Web Audio digunakan sebagai fallback. Untuk suara/audio custom tanpa audio tempatan, masukkan fail MP3 ke folder assets/audio mengikut slot yang dipilih.</div>
     </section>
 
     <section class="card" style="margin-top:16px">
       <h2>Standby Function Sound</h2>
-      <p class="hint">Pilih tone fallback atau upload MP3 custom untuk setiap event. MP3 custom akan digunakan oleh app pelajar secara global.</p>
+      <p class="hint">Pilih tone fallback atau slot MP3 tempatan untuk setiap event. Tiada audio tempatan digunakan.</p>
       <div class="sound-grid" id="soundEventGrid"></div>
     </section>
   </section>
@@ -1280,6 +1280,54 @@ const SOUND_TONE_OPTIONS = {
   examStart: 'tone:examStart',
   examFinish: 'tone:examFinish'
 };
+const LOCAL_AUDIO_SLOTS = {
+  '': 'Tiada MP3 / guna tone fallback',
+  UI_CLICK: 'UI - Click',
+  UI_TAB_SWITCH: 'UI - Tab Switch',
+  UI_PAGE_OPEN: 'UI - Page Open',
+  UI_NOTIFICATION: 'UI - Notification',
+  QUIZ_CORRECT: 'Quiz - Jawapan Betul',
+  QUIZ_WRONG: 'Quiz - Jawapan Salah',
+  QUIZ_FINISH: 'Quiz - Tamat Latihan',
+  EXAM_START: 'Exam - Mula Peperiksaan',
+  EXAM_WARNING: 'Exam - Amaran Masa',
+  EXAM_FINISH: 'Exam - Tamat Peperiksaan',
+  EXAM_SUBMIT: 'Exam - Submit',
+  ACHIEVEMENT_UNLOCK: 'Achievement - Unlock',
+  STREAK_REWARD: 'Achievement - Streak',
+  REWARD: 'Achievement - Reward',
+  VOICE_WELCOME: 'Voice - Selamat Datang',
+  VOICE_CORRECT: 'Voice - Betul',
+  VOICE_WRONG: 'Voice - Cuba Lagi',
+  VOICE_CONGRATS: 'Voice - Tahniah',
+  VOICE_EXAM_FINISH: 'Voice - Tamat Peperiksaan'
+};
+const LOCAL_AUDIO_PATHS = {
+  UI_CLICK: '../assets/audio/ui/click.mp3',
+  UI_TAB_SWITCH: '../assets/audio/ui/tab-switch.mp3',
+  UI_PAGE_OPEN: '../assets/audio/ui/open-page.mp3',
+  UI_NOTIFICATION: '../assets/audio/ui/notification.mp3',
+  QUIZ_CORRECT: '../assets/audio/quiz/correct.mp3',
+  QUIZ_WRONG: '../assets/audio/quiz/wrong.mp3',
+  QUIZ_FINISH: '../assets/audio/quiz/quiz-finish.mp3',
+  EXAM_START: '../assets/audio/exam/exam-start.mp3',
+  EXAM_WARNING: '../assets/audio/exam/time-warning.mp3',
+  EXAM_FINISH: '../assets/audio/exam/exam-finish.mp3',
+  EXAM_SUBMIT: '../assets/audio/exam/submit.mp3',
+  ACHIEVEMENT_UNLOCK: '../assets/audio/achievement/unlock.mp3',
+  STREAK_REWARD: '../assets/audio/achievement/streak.mp3',
+  REWARD: '../assets/audio/achievement/reward.mp3',
+  VOICE_WELCOME: '../assets/audio/voice/selamat-datang.mp3',
+  VOICE_CORRECT: '../assets/audio/voice/betul.mp3',
+  VOICE_WRONG: '../assets/audio/voice/cuba-lagi.mp3',
+  VOICE_CONGRATS: '../assets/audio/voice/tahniah.mp3',
+  VOICE_EXAM_FINISH: '../assets/audio/voice/tamat-peperiksaan.mp3'
+};
+function localAudioSlotOptions(selected=''){
+  return Object.entries(LOCAL_AUDIO_SLOTS).map(([k,label])=>`<option value="${esc(k)}" ${k===selected?'selected':''}>${esc(label)}</option>`).join('');
+}
+function localAudioPathForSlot(slot){ return LOCAL_AUDIO_PATHS[String(slot||'').trim()] || ''; }
+
 const SOUND_EVENT_META = [
   {key:'buttonClick', label:'Button Click', desc:'Bunyi umum untuk tekan button / navigasi.', fallback:'click'},
   {key:'correctAnswer', label:'Jawapan Betul', desc:'Bunyi apabila latihan dijawab betul.', fallback:'correct'},
@@ -1332,23 +1380,22 @@ function renderSoundEventGrid(settings=defaultSoundSettings()){
   grid.innerHTML = SOUND_EVENT_META.map(meta=>{
     const item = events[meta.key] || defaultSoundSettings().events[meta.key];
     const tone = normalizeToneValue(item, meta.fallback);
-    const audioUrl = item.audioUrl || item.url || '';
+    const audioSlot = item.audioSlot || '';
+    const localPath = item.localPath || localAudioPathForSlot(audioSlot);
     return `<div class="sound-card">
       <h3>${esc(meta.label)}</h3><p>${esc(meta.desc)}</p>
       <div class="sound-toggle-row"><label><input type="checkbox" id="snd_${esc(meta.key)}_enabled" ${item.enabled!==false?'checked':''}> Aktif</label></div>
       <div style="margin:8px 0"><label>Event Volume: <b id="snd_${esc(meta.key)}_volume_label">${Math.round(Number(item.volume ?? 0.85)*100)}%</b></label><input type="range" id="snd_${esc(meta.key)}_volume" min="0" max="100" step="5" value="${Math.round(Number(item.volume ?? 0.85)*100)}" oninput="updateSoundVolumeLabels()"></div>
       <div class="sound-preview-row"><div><label>Web Audio Tone Fallback</label><select id="snd_${esc(meta.key)}_tone">${soundToneOptions(tone)}</select></div><button class="secondary" onclick="previewAdminSound($('snd_${esc(meta.key)}_tone').value, Number($('snd_${esc(meta.key)}_volume')?.value || 85)/100)">Preview Tone</button></div>
       <div class="sound-upload-box">
-        <label>Upload MP3 ${meta.key==='voiceReward'?'(Voice Popup)':''}</label>
-        <input id="snd_${esc(meta.key)}_file" type="file" accept="audio/mpeg,.mp3">
-        <input id="snd_${esc(meta.key)}_url" type="hidden" value="${esc(audioUrl)}">
-        <input id="snd_${esc(meta.key)}_path" type="hidden" value="${esc(item.storagePath || '')}">
+        <label>Slot MP3 Tempatan ${meta.key==='voiceReward'?'(Voice Popup)':''}</label>
+        <select id="snd_${esc(meta.key)}_slot" onchange="updateLocalAudioPath('${esc(meta.key)}')">${localAudioSlotOptions(audioSlot)}</select>
+        <input id="snd_${esc(meta.key)}_local" type="hidden" value="${esc(localPath)}">
         <div class="actions">
-          <button class="secondary mini" onclick="uploadAdminMp3('${esc(meta.key)}')">Upload MP3</button>
-          <button class="secondary mini" onclick="previewAdminAudioUrl($('snd_${esc(meta.key)}_url')?.value, Number($('snd_${esc(meta.key)}_volume')?.value || 85)/100)">Preview MP3</button>
-          <button class="warning mini" onclick="clearAdminMp3('${esc(meta.key)}')">Kosongkan MP3</button>
+          <button class="secondary mini" onclick="previewLocalAudioSlot('${esc(meta.key)}')">Preview MP3 Slot</button>
+          <button class="warning mini" onclick="clearLocalAudioSlot('${esc(meta.key)}')">Kosongkan Slot</button>
         </div>
-        <p class="sound-upload-hint" id="snd_${esc(meta.key)}_status">${audioUrl ? 'MP3 custom sudah tersedia.' : 'Belum ada MP3 custom. Jika kosong, app guna tone fallback.'}</p>
+        <p class="sound-upload-hint" id="snd_${esc(meta.key)}_status">${audioSlot ? 'Slot aktif: ' + esc(audioSlot) + ' → ' + esc(localPath) : 'Belum pilih slot MP3. Jika kosong, app guna tone fallback.'}</p>
       </div>
     </div>`;
   }).join('');
@@ -1362,14 +1409,14 @@ function collectSoundSettingsFromForm(){
   data.volumeBoost = Number($('soundBoost')?.value || 150) / 100;
   data.events = {};
   SOUND_EVENT_META.forEach(meta=>{
-    const audioUrl = String($('snd_' + meta.key + '_url')?.value || '').trim();
-    const storagePath = String($('snd_' + meta.key + '_path')?.value || '').trim();
+    const audioSlot = String($('snd_' + meta.key + '_slot')?.value || '').trim();
+    const localPath = localAudioPathForSlot(audioSlot);
     data.events[meta.key] = {
       enabled: !!$('snd_' + meta.key + '_enabled')?.checked,
       tone: $('snd_' + meta.key + '_tone')?.value || defaultSoundSettings().events[meta.key].tone,
       volume: Number($('snd_' + meta.key + '_volume')?.value || 85) / 100,
-      audioUrl,
-      storagePath
+      audioSlot,
+      localPath
     };
     if(meta.key === 'voiceReward') data.events[meta.key].voiceEnabled = true;
   });
@@ -1450,53 +1497,32 @@ function previewAdminSound(tone,eventVolume=1){
 function previewAdminAudioUrl(url,eventVolume=1){
   try{
     const clean = String(url||'').trim();
-    if(!clean){ soundMsg('Upload MP3 dahulu.'); return; }
+    if(!clean){ soundMsg('Pilih slot MP3 dahulu.'); return; }
     const master = Number($('soundVolume')?.value || 90) / 100;
     const boost = Number($('soundBoost')?.value || 150) / 100;
     const audio = new Audio(clean);
     audio.volume = Math.max(0, Math.min(1, master * eventVolume * boost));
-    audio.play().then(()=>soundMsg('Preview MP3 custom dimainkan.')).catch(err=>soundMsg('Gagal preview MP3: ' + err.message));
+    audio.play().then(()=>soundMsg('Preview MP3 slot dimainkan.')).catch(err=>soundMsg('Gagal preview MP3. Pastikan fail wujud di folder assets/audio. Detail: ' + err.message));
   }catch(err){ soundMsg('Gagal preview MP3: ' + err.message); }
 }
-
-async function uploadAdminMp3(eventKey){
-  try{
-    const meta = SOUND_EVENT_META.find(x=>x.key===eventKey);
-    const fileInput = $('snd_' + eventKey + '_file');
-    const status = $('snd_' + eventKey + '_status');
-    const file = fileInput?.files?.[0];
-    if(!file){ if(status) status.textContent='Pilih fail MP3 dahulu.'; soundMsg('Pilih fail MP3 dahulu.'); return; }
-    const name = String(file.name||'').toLowerCase();
-    const isMp3 = file.type === 'audio/mpeg' || name.endsWith('.mp3');
-    if(!isMp3){ if(status) status.textContent='Fail mesti format MP3.'; soundMsg('Fail mesti format MP3.'); return; }
-    if(file.size > 2 * 1024 * 1024){ if(status) status.textContent='Saiz maksimum 2MB sahaja.'; soundMsg('Saiz maksimum 2MB sahaja.'); return; }
-    if(status) status.textContent='Sedang upload MP3...';
-    soundMsg('Sedang upload MP3 untuk ' + (meta?.label || eventKey) + '...');
-    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
-    const path = `apps/UPKK/audio/${eventKey}/${Date.now()}_${safeName}`;
-    const ref = storage.ref(path);
-    const snap = await ref.put(file, {contentType:'audio/mpeg', customMetadata:{eventKey, uploadedBy:currentAdminSession?.adminId||'admin-panel'}});
-    const url = await snap.ref.getDownloadURL();
-    if($('snd_' + eventKey + '_url')) $('snd_' + eventKey + '_url').value = url;
-    if($('snd_' + eventKey + '_path')) $('snd_' + eventKey + '_path').value = path;
-    if(status) status.textContent='MP3 berjaya upload. Tekan Simpan Sound Settings.';
-    soundMsg('MP3 berjaya upload untuk ' + (meta?.label || eventKey) + '. Tekan Simpan Sound Settings.');
-  }catch(err){
-    console.error(err);
-    const status = $('snd_' + eventKey + '_status');
-    if(status) status.textContent='Gagal upload MP3: ' + err.message;
-    soundMsg('Gagal upload MP3: ' + err.message);
-  }
-}
-function clearAdminMp3(eventKey){
-  if(!confirm('Kosongkan MP3 custom untuk event ini? App akan guna tone fallback.')) return;
-  if($('snd_' + eventKey + '_url')) $('snd_' + eventKey + '_url').value = '';
-  if($('snd_' + eventKey + '_path')) $('snd_' + eventKey + '_path').value = '';
-  if($('snd_' + eventKey + '_file')) $('snd_' + eventKey + '_file').value = '';
+function updateLocalAudioPath(eventKey){
+  const slot = String($('snd_' + eventKey + '_slot')?.value || '').trim();
+  const path = localAudioPathForSlot(slot);
+  if($('snd_' + eventKey + '_local')) $('snd_' + eventKey + '_local').value = path;
   const status = $('snd_' + eventKey + '_status');
-  if(status) status.textContent='MP3 dikosongkan. Tekan Simpan Sound Settings.';
-  soundMsg('MP3 custom dikosongkan. Tekan Simpan Sound Settings.');
+  if(status) status.textContent = slot ? ('Slot aktif: ' + slot + ' → ' + path) : 'Belum pilih slot MP3. Jika kosong, app guna tone fallback.';
 }
+function previewLocalAudioSlot(eventKey){
+  updateLocalAudioPath(eventKey);
+  const path = $('snd_' + eventKey + '_local')?.value || '';
+  previewAdminAudioUrl(path, Number($('snd_' + eventKey + '_volume')?.value || 85)/100);
+}
+function clearLocalAudioSlot(eventKey){
+  if($('snd_' + eventKey + '_slot')) $('snd_' + eventKey + '_slot').value = '';
+  updateLocalAudioPath(eventKey);
+  soundMsg('Slot MP3 dikosongkan. Tekan Simpan Sound Settings.');
+}
+
 
 async function loadSoundSettings(){
   try{
