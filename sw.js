@@ -1,4 +1,4 @@
-const CACHE_NAME = 'upkk-smartkids-v3-18-firebase-progress-cache-cleanup';
+const CACHE_NAME = 'upkk-smartkids-v3-19-performance-lazyload-debounce';
 const CORE_ASSETS = [
   './',
   './index.html',

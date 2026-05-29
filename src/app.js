@@ -1,4 +1,4 @@
-const APP_VERSION = '8.24-FIREBASE-PROGRESS-CACHE-CLEANUP';
+const APP_VERSION = '8.25-PERFORMANCE-LAZYLOAD-DEBOUNCE';
 const PIN_LENGTH = 6;
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCK_MINUTES = 10;
@@ -22,6 +22,18 @@ const EXAM_SESSION_KEY = 'upkkSmartKidsExamSessions_v110';
 const EXAM_TARGET_QUESTIONS = 40;
 const EXAM_DURATION_SECONDS = 45 * 60;
 const EXAM_SUBJECT_ORDER = ['aqidah','ibadah','sirah','jawi','arab','adab'];
+
+const UPKK_SUBJECT_META = {
+  aqidah:{key:'aqidah', title:'Aqidah', titleJawi:'عقيده', icon:'🛡️', exam:{}, questions:[], questionCount:40, lazyLoaded:false},
+  ibadah:{key:'ibadah', title:'Ibadah', titleJawi:'عباده', icon:'🕌', exam:{}, questions:[], questionCount:40, lazyLoaded:false},
+  sirah:{key:'sirah', title:'Sirah', titleJawi:'سيره', icon:'📜', exam:{}, questions:[], questionCount:40, lazyLoaded:false},
+  jawi:{key:'jawi', title:'Jawi & Khat', titleJawi:'جاوي دان خط', icon:'✍️', exam:{}, questions:[], questionCount:40, lazyLoaded:false},
+  arab:{key:'arab', title:'Bahasa Arab', titleJawi:'بهاس عرب', icon:'📘', exam:{}, questions:[], questionCount:40, lazyLoaded:false},
+  adab:{key:'adab', title:'Adab', titleJawi:'ادب', icon:'🤲', exam:{}, questions:[], questionCount:40, lazyLoaded:false}
+};
+function resetQuestionBankShell(){
+  DB = JSON.parse(JSON.stringify(UPKK_SUBJECT_META));
+}
 
 const FIREBASE_USER_RESET_VERSION = '2026-05-28-reset-01';
 const RESET_MARKER_KEY = 'upkkSmartKidsFirebaseResetVersion';
@@ -47,7 +59,7 @@ const RESET_MARKER_KEY = 'upkkSmartKidsFirebaseResetVersion';
 })();
 
 
-let DB = {};
+let DB = JSON.parse(JSON.stringify(UPKK_SUBJECT_META));
 // FIREBASE-FIRST: bank soalan, profil, sejarah, usedMap dan examSessions disimpan di Firebase.
 // localStorage hanya cache/session sementara supaya UI tidak kosong ketika reload.
 let page = 'splash';
@@ -134,6 +146,7 @@ function flushCurrentStudentProgressToFirebase(){
   // Firebase ialah data utama. LocalStorage hanya cache/offline backup.
   try{
     if(currentQuiz && quizType === 'exam') persistExamSession();
+    flushExamSessionSync();
   }catch(err){ console.warn('Exam session flush failed:', err); }
   try{ syncHistoryToFirebase(history()); }catch(err){ console.warn('History flush failed:', err); }
   try{ syncUsedMapToFirebase(usedMap()); }catch(err){ console.warn('Used map flush failed:', err); }
@@ -1368,7 +1381,7 @@ function uniqueQuestions(subjectKey){
   });
   return out;
 }
-function subjectQuestionCount(subjectKey){ return uniqueQuestions(subjectKey).length; }
+function subjectQuestionCount(subjectKey){ const s=DB[subjectKey]; const loaded=uniqueQuestions(subjectKey).length; return loaded || Number(s?.questionCount||0); }
 function totalQuestions(){ return Object.keys(DB).reduce((a,key)=>a+subjectQuestionCount(key),0); }
 function escapeHtml(str=''){ return String(str).replace(/[&<>"]/g, s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[s])); }
 function shuffle(arr){ const a=[...arr]; for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
@@ -1415,6 +1428,60 @@ async function loadFirebaseQuestionBank(){
   return data;
 }
 
+async function loadFirebaseSubjectQuestionBank(subjectKey){
+  const ready = await waitForFirebaseQuestionBank(6500);
+  if(!ready) throw new Error('Firebase SDK belum siap. Semak sambungan internet atau script Firebase.');
+  const snap = await firebaseGetOnce(fbPath('questionBank', subjectKey));
+  const data = snap && snap.exists && snap.exists() ? snap.val() : null;
+  if(!data || !Object.keys(data).length) throw new Error(`Firebase questionBank/${subjectKey} kosong.`);
+  return data;
+}
+
+function normalizeSubject(subjectKey){
+  const s = DB[subjectKey];
+  if(!s || typeof s !== 'object') return;
+  s.key=subjectKey; s.exam=s.exam||{};
+  let rawQuestions = [];
+  if(Array.isArray(s.questions)) rawQuestions = s.questions;
+  else if(Array.isArray(s.items)) rawQuestions = s.items;
+  else {
+    rawQuestions = Object.entries(s)
+      .filter(([k,v]) => v && typeof v === 'object' && /^(q\d+|soalan\d+|question\d+)/i.test(k))
+      .map(([id,v]) => ({ id, ...v }));
+  }
+  s.questions=rawQuestions.map((q,i)=>({
+    section:q.section||'BAHAGIAN A',
+    instruction:q.instruction||'Jawab soalan berikut.',
+    qRumi:q.qRumi||q.question||q.text||'',
+    qJawi:q.qJawi||q.jawi||q.qRumi||q.question||'',
+    optionsRumi:q.optionsRumi||q.options||[],
+    optionsJawi:q.optionsJawi||q.optionsRumi||q.options||[],
+    answer: typeof q.answer==='number'?q.answer: Number(q.answer||0),
+    explain:q.explain||q.explanation||'',
+    sourceNo:q.sourceNo||q.no||i+1,
+    id:q.id||`${subjectKey}-${i+1}`
+  })).filter(q=>q.qRumi && q.optionsRumi && q.optionsRumi.length);
+  s.questionCount = Math.max(Number(s.questionCount||0), s.questions.length);
+  s.lazyLoaded = s.questions.length > 0;
+}
+
+async function ensureSubjectLoaded(subjectKey, options={}){
+  if(!subjectKey) return null;
+  if(!DB || !Object.keys(DB).length) resetQuestionBankShell();
+  if(DB[subjectKey]?.lazyLoaded && Array.isArray(DB[subjectKey]?.questions) && DB[subjectKey].questions.length) return DB[subjectKey];
+  try{
+    const subjectData = await loadFirebaseSubjectQuestionBank(subjectKey);
+    DB[subjectKey] = {...(UPKK_SUBJECT_META[subjectKey]||{}), ...subjectData, key:subjectKey};
+    normalizeSubject(subjectKey);
+    window.__UPKK_QUESTION_SOURCE = 'firebase-lazy';
+    return DB[subjectKey];
+  }catch(err){
+    console.warn('Lazy subject load failed:', subjectKey, err);
+    if(options.alert !== false) alert('Bank soalan subjek ini belum dapat dimuat. Sila semak internet/Firebase dan cuba lagi.');
+    return DB[subjectKey] || null;
+  }
+}
+
 async function boot(){
   // FAST LOGIN MODE:
   // Paparkan login/register dahulu. Bank soalan dan cloud sync dimuat di background
@@ -1431,16 +1498,16 @@ async function boot(){
   setTimeout(async ()=>{
     try{ await loadUpkkSoundSettingsForUser(); }catch(soundErr){ console.warn('Sound settings load skipped:', soundErr); }
     try{
-      DB = await loadFirebaseQuestionBank();
-      window.__UPKK_QUESTION_SOURCE = 'firebase';
+      // Performance v8.25: jangan load semua questionBank semasa boot.
+      // DB dimulakan sebagai shell subjek; soalan sebenar dimuat bila user pilih subjek.
+      resetQuestionBankShell();
+      window.__UPKK_QUESTION_SOURCE = 'lazy-shell';
     }catch(firebaseErr){
-      console.warn('Firebase questionBank unavailable:', firebaseErr);
-      DB = {};
+      console.warn('QuestionBank shell init failed:', firebaseErr);
+      resetQuestionBankShell();
       window.__UPKK_QUESTION_SOURCE = 'firebase-error';
       window.__UPKK_DATA_LOAD_ERROR = firebaseErr.message || String(firebaseErr);
     }
-
-    try{ normalizeDB(); }catch(err){ console.warn('Normalize DB failed:', err); DB = {}; window.__UPKK_DATA_LOAD_ERROR = true; }
 
     try{
       if(isLoggedInSession() && profile?.accountId){
@@ -2312,10 +2379,39 @@ function renderSubjects(){
 }
 function examSubjectOrder(){ return EXAM_SUBJECT_ORDER.filter(k=>DB[k]); }
 function localExamSessions(){ try{return JSON.parse(localStorage.getItem(studentKey(EXAM_SESSION_KEY))||'{}')||{};}catch(e){return{};} }
-function saveLocalExamSessions(map){ localStorage.setItem(studentKey(EXAM_SESSION_KEY), JSON.stringify(map||{})); syncExamSessionsMapToFirebase(map||{}); }
+function saveLocalExamSessions(map){ localStorage.setItem(studentKey(EXAM_SESSION_KEY), JSON.stringify(map||{})); scheduleExamSessionsMapSync(map||{}); }
 function examSessionLocal(subjectKey){ return localExamSessions()[subjectKey] || null; }
 function examSessionPath(subjectKey){ return fbPath('examSessions', `${safeFirebaseKey(profile.accountId || profile.username || 'LOCAL')}/${safeFirebaseKey(profile.studentId || 'student_1')}/${safeFirebaseKey(subjectKey)}`); }
-function syncExamSessionToFirebase(subjectKey, session){ const db=firebaseDb(); if(!db||!subjectKey||!session) return; db.ref(examSessionPath(subjectKey)).set(session).catch(err=>console.warn('Firebase exam session sync failed:',err)); }
+function scheduleExamSessionsMapSync(map){
+  clearTimeout(window.__UPKK_EXAM_MAP_SYNC_TIMER);
+  window.__UPKK_EXAM_MAP_SYNC_TIMER = setTimeout(()=>syncExamSessionsMapToFirebase(map||localExamSessions()), 1200);
+}
+function syncExamSessionToFirebaseNow(subjectKey, session){ const db=firebaseDb(); if(!db||!subjectKey||!session) return; db.ref(examSessionPath(subjectKey)).set(session).catch(err=>console.warn('Firebase exam session sync failed:',err)); }
+function syncExamSessionToFirebase(subjectKey, session){
+  clearTimeout(window.__UPKK_EXAM_SESSION_SYNC_TIMER);
+  window.__UPKK_EXAM_SESSION_SYNC_TIMER = setTimeout(()=>syncExamSessionToFirebaseNow(subjectKey, session), 1200);
+}
+function flushExamSessionSync(){
+  try{
+    clearTimeout(window.__UPKK_EXAM_MAP_SYNC_TIMER);
+    clearTimeout(window.__UPKK_EXAM_SESSION_SYNC_TIMER);
+    const map = localExamSessions();
+    syncExamSessionsMapToFirebase(map);
+    if(currentQuiz && quizType==='exam'){
+      const subjectKey=currentQuiz.subjectKey;
+      const remainingSeconds=Math.max(0, Math.ceil((currentQuiz.endsAt-nowMs())/1000));
+      syncExamSessionToFirebaseNow(subjectKey, {
+        appCode:APP_CODE, version:UPKK_APP_VERSION_NAME, status:'in_progress', subjectKey,
+        title:currentQuiz.title, icon:currentQuiz.icon, accountId:profile.accountId||'', studentId:profile.studentId||'student_1', studentName:profile.name||'',
+        startedAt:currentQuiz.startedAtIso || new Date(currentQuiz.startedAt||nowMs()).toISOString(), updatedAt:new Date().toISOString(),
+        currentIndex:currentQuiz.index, remainingSeconds, durationSeconds:EXAM_DURATION_SECONDS,
+        questionIds:currentQuiz.questions.map(q=>q.id || q.sourceNo), answers:currentQuiz.answers||[]
+      });
+    }
+  }catch(err){ console.warn('Flush exam sync skipped:', err); }
+}
+window.addEventListener('beforeunload', flushExamSessionSync);
+
 function clearExamSession(subjectKey){ const map=localExamSessions(); delete map[subjectKey]; saveLocalExamSessions(map); const db=firebaseDb(); if(db) db.ref(examSessionPath(subjectKey)).remove().catch(err=>console.warn('Firebase exam session clear failed:',err)); }
 function examCompletedSubjectKeys(){
   try{
@@ -2498,9 +2594,9 @@ function prepareQuestion(q, shuffleOptions){
   return {...q, preparedOptions:prepared, preparedAnswer:prepared.findIndex(o=>o.correct)};
 }
 function startPractice(subjectKey){ return startPracticeMode(subjectKey,'Latihan Ringkas',10); }
-function startPracticeMode(subjectKey, modeName='Latihan Ringkas', count=10){
+async function startPracticeMode(subjectKey, modeName='Latihan Ringkas', count=10){
   if(!requireProfile()) return; clearTimer(); quizType='practice';
-  const s=DB[subjectKey]; if(!s) return;
+  const s=await ensureSubjectLoaded(subjectKey); if(!s) return;
   const questions = pickQuestions(subjectKey,count);
   if(!questions.length) return;
   currentQuiz={ type:modeName, subjectKey, title:subjectTitle(s), icon:s.icon, questions, index:0, score:0, answers:[], startedAt:nowMs() };
@@ -2522,20 +2618,20 @@ function applySavedAnswerToQuestion(q, saved){
   if(!saved || typeof saved.selected !== 'number') return q;
   return {...q, savedAnswer:saved.selected};
 }
-function startExam(subjectKey){
+async function startExam(subjectKey){
   upkkPlaySound('examStart');
   if(!requireProfile()) return;
   if(!hasActiveExamAccess()){ alert('Peperiksaan memerlukan lesen aktif 1 tahun.'); return redeemExamLicenseFromSettings(); }
   if(!canStartExamSubject(subjectKey)) return showExamRepeatLocked();
   clearTimer(); quizType='exam';
-  const s=DB[subjectKey]; if(!s) return;
+  const s=await ensureSubjectLoaded(subjectKey); if(!s) return;
   const questions=buildExamQuestions(subjectKey);
   currentQuiz={ type:'Peperiksaan', subjectKey, title:subjectTitle(s), icon:s.icon, exam:{...(s.exam||{}), durationMinutes:45, marks:questions.length}, questions, index:0, score:0, answers:[], startedAt:nowMs(), startedAtIso:new Date().toISOString(), endsAt: nowMs()+(EXAM_DURATION_SECONDS*1000) };
   selectedAnswer=null; persistExamSession(); startTimer(); renderQuiz();
 }
-function resumeExam(subjectKey){
+async function resumeExam(subjectKey){
   if(!requireProfile()) return; clearTimer(); quizType='exam';
-  const s=DB[subjectKey]; const saved=examSessionLocal(subjectKey); if(!s||!saved) return startExam(subjectKey);
+  const s=await ensureSubjectLoaded(subjectKey); const saved=examSessionLocal(subjectKey); if(!s||!saved) return startExam(subjectKey);
   let questions=restoreExamQuestions(subjectKey, saved.questionIds);
   const answerMap=new Map((saved.answers||[]).map(a=>[String(a.id),a]));
   questions=questions.map(q=>applySavedAnswerToQuestion(q, answerMap.get(String(q.id||q.sourceNo))));
