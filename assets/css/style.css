@@ -2420,28 +2420,36 @@ img,svg,canvas,video{
 }
 
 
-/* v3.24 Settings tap stability fix */
-.settings-clean-form-card .choice,
-.add-child-card .choice,
-.settings-student-row,
-.settings-add-student-card{
+/* v3.25 - Settings tap/overlap fix */
+.settings-student-card,
+.settings-clean-form-card,
+.add-child-card{
   position:relative;
   z-index:1;
-  overflow:hidden;
-  touch-action:manipulation;
-  -webkit-tap-highlight-color:transparent;
+  overflow:visible;
 }
-.settings-clean-form-card .choice *,
-.add-child-card .choice *,
-.settings-student-row *,
-.settings-add-student-card *{
-  pointer-events:none;
+.settings-student-list,
+.settings-clean-form-card .grid2{
+  position:relative;
+  z-index:2;
+}
+.settings-student-row,
+.settings-add-student-card,
+.settings-clean-form-card .choice{
+  position:relative;
+  z-index:3;
+  -webkit-tap-highlight-color:transparent;
+  touch-action:manipulation;
 }
 .settings-clean-form-card .choice,
-.add-child-card .choice{
-  min-height:88px;
+.settings-add-student-card,
+.settings-student-row{
+  pointer-events:auto;
 }
-.settings-clean-form-card .choice.active::after,
-.add-child-card .choice.active::after{
+.settings-student-row em{
+  pointer-events:none;
+}
+.settings-clean-form-card .choice img,
+.settings-clean-form-card .choice .mode{
   pointer-events:none;
 }
