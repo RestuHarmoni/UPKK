@@ -1,4 +1,4 @@
-const APP_VERSION = '8.34-STUDENT-REALTIME-SYNC';
+const APP_VERSION = '8.39-ADMIN-AUDIO-URL';
 const PIN_LENGTH = 6;
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCK_MINUTES = 10;
@@ -3461,12 +3461,23 @@ function upkkPlayTone(tone, volume=0.8){
     });
   }catch(e){}
 }
+function upkkPlayCustomAudio(url, volume=1){
+  try{
+    const clean = String(url || '').trim();
+    if(!clean) return false;
+    const audio = new Audio(clean);
+    audio.volume = Math.max(0, Math.min(1, Number(volume || 1)));
+    audio.play().catch(()=>{});
+    return true;
+  }catch(e){ return false; }
+}
 function upkkPlaySound(name){
   try{
     if(!UPKK_UI_SOUND.enabled) return;
     const event = upkkSoundEvent(name) || {};
     if(event.enabled === false) return;
     const finalVolume = Math.max(0, Math.min(1, Number(UPKK_UI_SOUND.volume ?? 0.9) * Number(event.volume ?? 0.85) * Number(UPKK_UI_SOUND.volumeBoost ?? 1.5)));
+    if(event.audioUrl && upkkPlayCustomAudio(event.audioUrl, finalVolume)) return;
     upkkPlayTone(event.tone || 'tone:click', finalVolume);
   }catch(e){}
 }
@@ -3474,13 +3485,15 @@ function upkkVoiceReward(pct){
   try{
     const event = upkkSoundEvent('voiceReward');
     if(!UPKK_UI_SOUND.enabled || !event || event.enabled === false || event.voiceEnabled === false) return;
+    const finalVolume = Math.max(0, Math.min(1, Number(UPKK_UI_SOUND.volume ?? 0.85) * Number(event.volume ?? 0.9)));
+    if(event.audioUrl && upkkPlayCustomAudio(event.audioUrl, finalVolume)) return;
     if(!('speechSynthesis' in window)) return;
     const msg = pct>=90 ? 'Tahniah, hebat sangat!' : pct>=80 ? 'Alhamdulillah, cemerlang!' : pct>=60 ? 'Bagus, teruskan usaha!' : 'Cuba lagi ya, jangan putus asa.';
     const u = new SpeechSynthesisUtterance(msg);
     u.lang = 'ms-MY';
     u.rate = 0.95;
     u.pitch = 1.05;
-    u.volume = Math.max(0, Math.min(1, Number(UPKK_UI_SOUND.volume ?? 0.85) * Number(event.volume ?? 0.9)));
+    u.volume = finalVolume;
     window.speechSynthesis.cancel();
     window.speechSynthesis.speak(u);
   }catch(e){}

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'upkk-smartkids-v3-38-logo-aligned';
+const CACHE_NAME = 'upkk-smartkids-v3-39-admin-audio-url';
 const CORE_ASSETS = [
   './',
   './index.html',
