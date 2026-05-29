@@ -1,4 +1,4 @@
-const CACHE_NAME = 'upkk-smartkids-v3-20-admin-report-a4-fix';
+const CACHE_NAME = 'upkk-smartkids-v3-05-webaudio-stable';
 const CORE_ASSETS = [
   './',
   './index.html',
@@ -21,11 +21,6 @@ const CORE_ASSETS = [
   './assets/icons/favicon-16.png',
   './assets/avatar-boy.webp',
   './assets/avatar-girl.webp',
-  './assets/sounds/tap.wav',
-  './assets/sounds/correct.wav',
-  './assets/sounds/wrong.wav',
-  './assets/sounds/finish.wav',
-  './assets/sounds/popup.wav',
   './dashboard.html',
   './latihan.html',
   './exam.html',

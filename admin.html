@@ -67,6 +67,11 @@ header{position:sticky;top:0;z-index:50;box-shadow:0 14px 34px rgba(15,23,42,.12
 @media(max-width:860px){.tabs{top:0}.admin-clean-toolbar{grid-template-columns:1fr}.report-meta-grid,.report-summary{grid-template-columns:1fr 1fr}.report-cover h2{font-size:24px}}
 @media(max-width:520px){.report-meta-grid,.report-summary{grid-template-columns:1fr}.report-cover{padding:22px}.report-logo{width:60px;height:60px;font-size:28px}}
 
+
+/* v3_05 Stable: Admin Sound Settings */
+.sound-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin-top:12px}
+.sound-card{border:1px solid #dcfce7;background:linear-gradient(180deg,#ffffff,#f8fffb);border-radius:18px;padding:14px;box-shadow:0 8px 20px rgba(15,138,75,.05)}
+.sound-card h3{margin:0 0 6px;color:#166534;font-size:15px}.sound-card p{margin:0 0 10px;color:#64748b;font-size:12px;font-weight:700}.sound-card .actions{gap:8px}.sound-preview-row{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end}.sound-toggle-row{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:8px 0}.sound-toggle-row label{display:flex;align-items:center;gap:7px;margin:0;font-size:13px;font-weight:900;color:#14532d}.sound-note{background:#eff6ff;border:1px solid #bfdbfe;border-radius:14px;padding:11px;color:#1e3a8a;font-weight:750;font-size:12px;line-height:1.45}
 </style>
 </head>
 <body class="admin-responsive-root">
@@ -82,6 +87,7 @@ header{position:sticky;top:0;z-index:50;box-shadow:0 14px 34px rgba(15,23,42,.12
     <button class="tab" onclick="showTab('users', this)">Users</button>
     <button class="tab" onclick="showTab('history', this)">Redeem History</button>
     <button class="tab" onclick="showTab('settings', this)">Settings</button>
+    <button class="tab" onclick="showTab('soundSettings', this)">Sound Settings</button>
     <button class="tab" onclick="showTab('whatsapp', this)">WhatsApp Settings</button>
     <button class="tab" onclick="showTab('questionNotes', this)">Question Note Manager</button>
     <button class="tab" onclick="showTab('licenseManager', this)">Trial / License Manager</button>
@@ -241,6 +247,57 @@ header{position:sticky;top:0;z-index:50;box-shadow:0 14px 34px rgba(15,23,42,.12
         </div>
       </section>
     </div>
+  </section>
+
+
+  <section id="soundSettings" class="panel">
+    <section class="card">
+      <span class="admin-badge">🔊 SOUND FUNCTION</span>
+      <h2 style="margin:10px 0 4px">Sound Settings</h2>
+      <p class="hint">Kawalan global bunyi aplikasi. Admin boleh tukar mood sound, ON/OFF setiap fungsi, preview bunyi, dan simpan ke <code>apps/UPKK/settings/sound</code>.</p>
+      <div class="grid">
+        <div>
+          <label>Sound Global</label>
+          <select id="soundEnabled">
+            <option value="true">ON - Bunyi Aktif</option>
+            <option value="false">OFF - Silent Mode</option>
+          </select>
+        </div>
+        <div>
+          <label>Mood Sound</label>
+          <select id="soundMode" onchange="applySoundMoodPreset(false)">
+            <option value="soft_kids">Soft Kids</option>
+            <option value="fun_cartoon">Fun Cartoon</option>
+            <option value="islamic_calm">Islamic Calm</option>
+            <option value="silent_mode">Silent Mode</option>
+            <option value="custom">Custom</option>
+          </select>
+        </div>
+        <div>
+          <label>Master Volume: <b id="soundVolumeLabel">85%</b></label>
+          <input id="soundVolume" type="range" min="0" max="100" step="5" value="85" oninput="updateSoundVolumeLabels()">
+          <p class="hint" style="margin:6px 0 0">Kawalan umum kekuatan bunyi app.</p>
+        </div>
+        <div>
+          <label>Volume Boost: <b id="soundBoostLabel">140%</b></label>
+          <input id="soundBoost" type="range" min="100" max="200" step="10" value="140" oninput="updateSoundVolumeLabels()">
+          <p class="hint" style="margin:6px 0 0">Boost tambahan untuk Web Audio tone yang perlahan.</p>
+        </div>
+      </div>
+      <div class="actions" style="margin-top:12px">
+        <button onclick="saveSoundSettings()">Simpan Sound Settings</button>
+        <button class="secondary" onclick="loadSoundSettings()">Refresh</button>
+        <button class="warning" onclick="resetSoundSettingsDefault()">Reset Default</button>
+      </div>
+      <div id="soundMsg" class="log" style="margin-top:12px">Sedia.</div>
+      <div class="sound-note" style="margin-top:12px">Nota: sound ini dijana oleh Web Audio API, tidak memerlukan fail MP3/WAV dan tiada isu lesen audio pihak ketiga. Untuk volume lebih kuat, guna Master Volume 90%-100% dan Boost 150%-200%.</div>
+    </section>
+
+    <section class="card" style="margin-top:16px">
+      <h2>Standby Function Sound</h2>
+      <p class="hint">Pilih tone Web Audio dan volume untuk setiap event utama dalam aplikasi.</p>
+      <div class="sound-grid" id="soundEventGrid"></div>
+    </section>
   </section>
 
   <section id="whatsapp" class="panel">
@@ -466,6 +523,7 @@ function showTab(id, btn){
   if(id === 'questions') loadQuestionSubjects();
   if(id === 'users') loadUsers();
   if(id === 'history') loadHistory();
+  if(id === 'soundSettings') loadSoundSettings();
   if(id === 'whatsapp') loadWhatsAppSettings();
   if(id === 'questionNotes') loadQuestionNoteSubjects();
   if(id === 'licenseManager') loadLicenseManager(true);
@@ -1177,7 +1235,12 @@ function printExamReportPDF(){
   if(!node) return alert('Report belum dijana.');
   const css = document.querySelector('style').textContent;
   const w = window.open('', '_blank');
-  w.document.write(`<!doctype html><html><head><title>UPKK SmartKids A4 Report</title><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>${css}\n@page{size:A4;margin:12mm}body{background:white;margin:0}.print-area{width:210mm;min-height:297mm;margin:0 auto;background:white}</style></head><body><main class="print-area">${node.outerHTML}</main><script>window.onload=()=>setTimeout(()=>{window.print()},450)<\/script></body></html>`);
+  w.document.write(`<!doctype html><html><head><title>UPKK SmartKids A4 Report</title><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>${css}\n@page{size:A4;margin:12mm}body{background:white;margin:0}.print-area{width:210mm;min-height:297mm;margin:0 auto;background:white}
+/* v3_05 Stable: Admin Sound Settings */
+.sound-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin-top:12px}
+.sound-card{border:1px solid #dcfce7;background:linear-gradient(180deg,#ffffff,#f8fffb);border-radius:18px;padding:14px;box-shadow:0 8px 20px rgba(15,138,75,.05)}
+.sound-card h3{margin:0 0 6px;color:#166534;font-size:15px}.sound-card p{margin:0 0 10px;color:#64748b;font-size:12px;font-weight:700}.sound-card .actions{gap:8px}.sound-preview-row{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end}.sound-toggle-row{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:8px 0}.sound-toggle-row label{display:flex;align-items:center;gap:7px;margin:0;font-size:13px;font-weight:900;color:#14532d}.sound-note{background:#eff6ff;border:1px solid #bfdbfe;border-radius:14px;padding:11px;color:#1e3a8a;font-weight:750;font-size:12px;line-height:1.45}
+</style></head><body><main class="print-area">${node.outerHTML}</main><script>window.onload=()=>setTimeout(()=>{window.print()},450)<\/script></body></html>`);
   w.document.close();
 }
 async function migrateExistingExamResultsToHistory(){
@@ -1200,8 +1263,194 @@ async function migrateExistingExamResultsToHistory(){
 }
 
 
+
+const soundSettingsRoot = APP_ROOT + '/settings/sound';
+const SOUND_TONE_OPTIONS = {
+  click: 'tone:click',
+  correct: 'tone:correct',
+  wrong: 'tone:wrong',
+  switch: 'tone:switch',
+  avatar: 'tone:avatar',
+  examStart: 'tone:examStart',
+  examFinish: 'tone:examFinish'
+};
+const SOUND_EVENT_META = [
+  {key:'buttonClick', label:'Button Click', desc:'Bunyi umum untuk tekan button / navigasi.', fallback:'click'},
+  {key:'correctAnswer', label:'Jawapan Betul', desc:'Bunyi apabila latihan dijawab betul.', fallback:'correct'},
+  {key:'wrongAnswer', label:'Jawapan Salah', desc:'Bunyi apabila latihan dijawab salah.', fallback:'wrong'},
+  {key:'switchStudent', label:'Tukar Pelajar', desc:'Bunyi apabila parent tukar profil pelajar.', fallback:'switch'},
+  {key:'selectAvatar', label:'Pilih Avatar', desc:'Bunyi semasa pilih avatar pelajar.', fallback:'avatar'},
+  {key:'examStart', label:'Exam Start', desc:'Bunyi permulaan peperiksaan.', fallback:'examStart'},
+  {key:'examFinish', label:'Exam Finish', desc:'Bunyi selesai latihan / peperiksaan.', fallback:'examFinish'},
+  {key:'voiceReward', label:'Voice Reward', desc:'Suara motivasi ringkas selepas keputusan / markah tinggi.', fallback:'correct'}
+];
+function defaultSoundSettings(){
+  return {
+    enabled:true,
+    engine:'web_audio',
+    mode:'soft_kids',
+    volume:0.9,
+    volumeBoost:1.5,
+    events:{
+      buttonClick:{enabled:true,tone:SOUND_TONE_OPTIONS.click,volume:0.6},
+      correctAnswer:{enabled:true,tone:SOUND_TONE_OPTIONS.correct,volume:1},
+      wrongAnswer:{enabled:true,tone:SOUND_TONE_OPTIONS.wrong,volume:0.8},
+      switchStudent:{enabled:true,tone:SOUND_TONE_OPTIONS.switch,volume:0.75},
+      selectAvatar:{enabled:true,tone:SOUND_TONE_OPTIONS.avatar,volume:0.75},
+      examStart:{enabled:true,tone:SOUND_TONE_OPTIONS.examStart,volume:0.95},
+      examFinish:{enabled:true,tone:SOUND_TONE_OPTIONS.examFinish,volume:1},
+      voiceReward:{enabled:true,tone:SOUND_TONE_OPTIONS.correct,volume:0.9,voiceEnabled:true}
+    }
+  };
+}
+function soundMsg(text){ const box=$('soundMsg'); if(box) box.textContent = new Date().toLocaleString('ms-MY') + ' - ' + text; }
+function updateSoundVolumeLabels(){
+  const vol = Number($('soundVolume')?.value || 90);
+  const boost = Number($('soundBoost')?.value || 150);
+  if($('soundVolumeLabel')) $('soundVolumeLabel').textContent = vol + '%';
+  if($('soundBoostLabel')) $('soundBoostLabel').textContent = boost + '%';
+  SOUND_EVENT_META.forEach(meta=>{
+    const el = $('snd_' + meta.key + '_volume');
+    const label = $('snd_' + meta.key + '_volume_label');
+    if(el && label) label.textContent = el.value + '%';
+  });
+}
+function soundToneOptions(selected){
+  const labels = {click:'Click',correct:'Correct Chime',wrong:'Wrong Soft',switch:'Switch Whoosh',avatar:'Avatar Pop',examStart:'Exam Start',examFinish:'Finish Success'};
+  return Object.entries(SOUND_TONE_OPTIONS).map(([k,v])=>`<option value="${esc(v)}" ${v===selected?'selected':''}>${esc(labels[k] || k)}</option>`).join('');
+}
+function normalizeToneValue(item, fallback){ return item?.tone || item?.file || SOUND_TONE_OPTIONS[fallback] || SOUND_TONE_OPTIONS.click; }
+function renderSoundEventGrid(settings=defaultSoundSettings()){
+  const grid=$('soundEventGrid'); if(!grid) return;
+  const events = settings.events || {};
+  grid.innerHTML = SOUND_EVENT_META.map(meta=>{
+    const item = events[meta.key] || defaultSoundSettings().events[meta.key];
+    const tone = normalizeToneValue(item, meta.fallback);
+    return `<div class="sound-card">
+      <h3>${esc(meta.label)}</h3><p>${esc(meta.desc)}</p>
+      <div class="sound-toggle-row"><label><input type="checkbox" id="snd_${esc(meta.key)}_enabled" ${item.enabled!==false?'checked':''}> Aktif</label></div>
+      <div style="margin:8px 0"><label>Event Volume: <b id="snd_${esc(meta.key)}_volume_label">${Math.round(Number(item.volume ?? 0.85)*100)}%</b></label><input type="range" id="snd_${esc(meta.key)}_volume" min="0" max="100" step="5" value="${Math.round(Number(item.volume ?? 0.85)*100)}" oninput="updateSoundVolumeLabels()"></div>
+      <div class="sound-preview-row"><div><label>Web Audio Tone</label><select id="snd_${esc(meta.key)}_tone">${soundToneOptions(tone)}</select></div><button class="secondary" onclick="previewAdminSound($('snd_${esc(meta.key)}_tone').value, Number($('snd_${esc(meta.key)}_volume')?.value || 85)/100)">Preview</button></div>
+    </div>`;
+  }).join('');
+}
+function collectSoundSettingsFromForm(){
+  const data = defaultSoundSettings();
+  data.enabled = $('soundEnabled').value === 'true';
+  data.engine = 'web_audio';
+  data.mode = $('soundMode').value || 'soft_kids';
+  data.volume = Number($('soundVolume').value || 90) / 100;
+  data.volumeBoost = Number($('soundBoost')?.value || 150) / 100;
+  data.events = {};
+  SOUND_EVENT_META.forEach(meta=>{
+    data.events[meta.key] = {
+      enabled: !!$('snd_' + meta.key + '_enabled')?.checked,
+      tone: $('snd_' + meta.key + '_tone')?.value || defaultSoundSettings().events[meta.key].tone,
+      volume: Number($('snd_' + meta.key + '_volume')?.value || 85) / 100
+    };
+    if(meta.key === 'voiceReward') data.events[meta.key].voiceEnabled = true;
+  });
+  data.updatedAt = new Date().toISOString();
+  data.updatedBy = currentAdminSession?.adminId || 'admin-panel';
+  return data;
+}
+function applySoundForm(settings){
+  const data = {...defaultSoundSettings(), ...(settings||{})};
+  data.events = {...defaultSoundSettings().events, ...(settings?.events||{})};
+  $('soundEnabled').value = String(data.enabled !== false);
+  $('soundMode').value = data.mode || 'soft_kids';
+  $('soundVolume').value = String(Math.round(Number(data.volume ?? 0.9)*100));
+  if($('soundBoost')) $('soundBoost').value = String(Math.round(Number(data.volumeBoost ?? 1.5)*100));
+  renderSoundEventGrid(data);
+  updateSoundVolumeLabels();
+}
+function applySoundMoodPreset(force=true){
+  const mode = $('soundMode')?.value || 'soft_kids';
+  const current = collectSoundSettingsFromForm();
+  if(mode === 'silent_mode'){
+    current.enabled = false;
+    Object.keys(current.events).forEach(k=>current.events[k].enabled=false);
+  }else if(mode === 'islamic_calm'){
+    current.enabled = true; current.volume = 0.6; current.volumeBoost = 1.15;
+    current.events.correctAnswer.tone = SOUND_TONE_OPTIONS.examFinish;
+    current.events.wrongAnswer.tone = SOUND_TONE_OPTIONS.click;
+    current.events.examStart.tone = SOUND_TONE_OPTIONS.examStart;
+    current.events.examFinish.tone = SOUND_TONE_OPTIONS.examFinish;
+  }else if(mode === 'fun_cartoon'){
+    current.enabled = true; current.volume = 1; current.volumeBoost = 1.8;
+    current.events.correctAnswer.tone = SOUND_TONE_OPTIONS.correct;
+    current.events.wrongAnswer.tone = SOUND_TONE_OPTIONS.wrong;
+    current.events.selectAvatar.tone = SOUND_TONE_OPTIONS.avatar;
+  }else if(mode === 'soft_kids'){
+    current.enabled = true; current.volume = 0.9; current.volumeBoost = 1.5;
+  }
+  current.engine = 'web_audio';
+  current.mode = mode;
+  applySoundForm(current);
+  if(force) soundMsg('Preset mood sound digunakan: ' + mode);
+}
+let ADMIN_AUDIO_CTX = null;
+function adminAudioCtx(){ ADMIN_AUDIO_CTX = ADMIN_AUDIO_CTX || new (window.AudioContext || window.webkitAudioContext)(); return ADMIN_AUDIO_CTX; }
+function playAdminTone(tone, volume=0.8){
+  try{
+    const ctx = adminAudioCtx();
+    const now = ctx.currentTime;
+    const master = ctx.createGain();
+    master.gain.setValueAtTime(Math.max(0, Math.min(1, volume)), now);
+    master.connect(ctx.destination);
+    const sequence = {
+      'tone:click': [[640,0,0.055,'square']],
+      'tone:correct': [[660,0,0.11,'sine'],[880,0.09,0.14,'sine'],[1170,0.19,0.16,'triangle']],
+      'tone:wrong': [[220,0,0.12,'sine'],[165,0.11,0.16,'sine']],
+      'tone:switch': [[380,0,0.08,'triangle'],[520,0.06,0.10,'triangle']],
+      'tone:avatar': [[740,0,0.08,'sine'],[980,0.06,0.10,'sine']],
+      'tone:examStart': [[523,0,0.12,'triangle'],[659,0.12,0.12,'triangle'],[784,0.24,0.18,'triangle']],
+      'tone:examFinish': [[523,0,0.12,'sine'],[659,0.10,0.14,'sine'],[784,0.22,0.16,'sine'],[1046,0.36,0.22,'triangle']]
+    }[tone] || [[600,0,0.08,'sine']];
+    sequence.forEach(([freq,delay,duration,type])=>{
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = type; osc.frequency.setValueAtTime(freq, now + delay);
+      gain.gain.setValueAtTime(0.0001, now + delay);
+      gain.gain.exponentialRampToValueAtTime(0.25, now + delay + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + delay + duration);
+      osc.connect(gain); gain.connect(master);
+      osc.start(now + delay); osc.stop(now + delay + duration + 0.03);
+    });
+  }catch(e){}
+}
+function previewAdminSound(tone,eventVolume=1){
+  const master = Number($('soundVolume')?.value || 90) / 100;
+  const boost = Number($('soundBoost')?.value || 150) / 100;
+  playAdminTone(tone, Math.max(0, Math.min(1, master * eventVolume * boost)));
+}
+async function loadSoundSettings(){
+  try{
+    renderSoundEventGrid(defaultSoundSettings());
+    const snap = await db.ref(soundSettingsRoot).get();
+    applySoundForm(snap.exists()?snap.val():defaultSoundSettings());
+    soundMsg(snap.exists()?'Sound settings dimuatkan.':'Default sound settings digunakan.');
+  }catch(err){ console.error(err); soundMsg('Gagal load sound settings: ' + err.message); }
+}
+async function saveSoundSettings(){
+  try{
+    const data = collectSoundSettingsFromForm();
+    await db.ref(soundSettingsRoot).set(data);
+    await db.ref(adminLogRoot).push({action:'save_sound_settings', adminId:currentAdminSession?.adminId||'', at:new Date().toISOString()});
+    soundMsg('Sound settings berjaya disimpan.');
+  }catch(err){ console.error(err); soundMsg('Gagal simpan sound settings: ' + err.message); }
+}
+async function resetSoundSettingsDefault(){
+  if(!confirm('Reset Sound Settings kepada default?')) return;
+  applySoundForm(defaultSoundSettings());
+  await saveSoundSettings();
+}
+
+
 async function writeDefaultSettings(){
   await db.ref(APP_ROOT + '/settings/accessControl').update({registrationRequiresCode:true, defaultTrialDays:30, defaultExamDays:365, updatedAt:new Date().toISOString()});
+  const soundSnap = await db.ref(soundSettingsRoot).get();
+  if(!soundSnap.exists()) await db.ref(soundSettingsRoot).set(defaultSoundSettings());
   alert('Default settings disimpan.');
 }
 async function loadAll(){ await Promise.all([loadSummary(), loadCodes(), loadUsers(), loadHistory()]); }

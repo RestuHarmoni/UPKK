@@ -1,4 +1,4 @@
-const APP_VERSION = '8.21-ADMIN-REPORT-A4-WHATSAPP-FIX';
+const APP_VERSION = '8.23-ADMIN-SOUND-VOLUME-STABLE';
 const PIN_LENGTH = 6;
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCK_MINUTES = 10;
@@ -1113,6 +1113,7 @@ function saveHistory(h){ const rows=normalizeCloudHistory(h).slice(-80); localSt
 function usedMap(){ try{return JSON.parse(localStorage.getItem(studentKey(USED_KEY))||'{}')}catch(e){return{}} }
 function saveUsed(u){ localStorage.setItem(studentKey(USED_KEY), JSON.stringify(u||{})); syncUsedMapToFirebase(u||{}); }
 async function switchProfile(profileKey){
+  upkkPlaySound('switchStudent');
   const profiles=loadProfiles();
   if(!profiles[profileKey]) return;
   const previousPage = page;
@@ -1154,6 +1155,7 @@ function cancelAddStudentProfile(){
   render();
 }
 function selectNewStudentAvatar(a){
+  upkkPlaySound('selectAvatar');
   window.__UPKK_NEW_STUDENT = window.__UPKK_NEW_STUDENT || {name:'', avatar:'', mode:'rumi'};
   window.__UPKK_NEW_STUDENT.avatar = a;
   render();
@@ -1394,6 +1396,7 @@ async function boot(){
 
   // Firebase/questionBank sync berjalan selepas first paint.
   setTimeout(async ()=>{
+    try{ await loadUpkkSoundSettingsForUser(); }catch(soundErr){ console.warn('Sound settings load skipped:', soundErr); }
     try{
       DB = await loadFirebaseQuestionBank();
       window.__UPKK_QUESTION_SOURCE = 'firebase';
@@ -1773,7 +1776,7 @@ function renderProfileSwitcher(title='Senarai Pilihan Pelajar', showAdd=false){
     </button>` : ''}</div>
   </section>`;
 }
-function selectAvatar(a){ profile.avatar=a; if(profile.studentId) saveProfile(); else saveDraftProfile(); render(); }
+function selectAvatar(a){ upkkPlaySound('selectAvatar'); profile.avatar=a; if(profile.studentId) saveProfile(); else saveDraftProfile(); render(); }
 function selectMode(m){ profile.mode=(m==='jawi')?'jawi':'rumi'; if(profile.studentId) saveProfile(); else saveDraftProfile(); render(); }
 
 async function saveStudentProfileDetails(){
@@ -2484,6 +2487,7 @@ function applySavedAnswerToQuestion(q, saved){
   return {...q, savedAnswer:saved.selected};
 }
 function startExam(subjectKey){
+  upkkPlaySound('examStart');
   if(!requireProfile()) return;
   if(!hasActiveExamAccess()){ alert('Peperiksaan memerlukan lesen aktif 1 tahun.'); return redeemExamLicenseFromSettings(); }
   if(!canStartExamSubject(subjectKey)) return showExamRepeatLocked();
@@ -2659,26 +2663,129 @@ function enablePremiumForTesting(){ profile.plan=PREMIUM_STATUS.PREMIUM; profile
    UPKK SmartKids v3.18 - Exam History + PDF Report Ready
    Frontend only: no Firebase/database structure change.
 ========================================================= */
+
 const UPKK_UI_SOUND = {
   enabled: true,
-  volume: 0.32,
-  files: {
-    tap: 'assets/sounds/tap.wav',
-    correct: 'assets/sounds/correct.wav',
-    wrong: 'assets/sounds/wrong.wav',
-    finish: 'assets/sounds/finish.wav',
-    popup: 'assets/sounds/popup.wav'
+  engine: 'web_audio',
+  mode: 'soft_kids',
+  volume: 0.9,
+  volumeBoost: 1.5,
+  events: {
+    buttonClick:{enabled:true,tone:'tone:click',volume:0.6},
+    correctAnswer:{enabled:true,tone:'tone:correct',volume:1},
+    wrongAnswer:{enabled:true,tone:'tone:wrong',volume:0.8},
+    switchStudent:{enabled:true,tone:'tone:switch',volume:0.75},
+    selectAvatar:{enabled:true,tone:'tone:avatar',volume:0.75},
+    examStart:{enabled:true,tone:'tone:examStart',volume:0.95},
+    examFinish:{enabled:true,tone:'tone:examFinish',volume:1},
+    voiceReward:{enabled:true,tone:'tone:correct',volume:0.9,voiceEnabled:true}
   }
 };
+const UPKK_SOUND_ALIAS = {
+  tap:'buttonClick',
+  correct:'correctAnswer',
+  wrong:'wrongAnswer',
+  finish:'examFinish',
+  popup:'buttonClick'
+};
+let UPKK_SOUND_SETTINGS_LOADED = false;
+let UPKK_AUDIO_CTX = null;
+function normalizeUpkkSoundSettings(raw){
+  const merged = {
+    ...UPKK_UI_SOUND,
+    ...(raw || {}),
+    events: {...UPKK_UI_SOUND.events, ...((raw||{}).events||{})}
+  };
+  merged.enabled = merged.enabled !== false;
+  merged.engine = 'web_audio';
+  merged.volume = Math.max(0, Math.min(1, Number(merged.volume ?? 0.9)));
+  merged.volumeBoost = Math.max(1, Math.min(2, Number(merged.volumeBoost ?? 1.5)));
+  Object.keys(merged.events || {}).forEach(k=>{
+    merged.events[k] = {...(UPKK_UI_SOUND.events[k]||{}), ...(merged.events[k]||{})};
+    if(!merged.events[k].tone && merged.events[k].file){
+      const f = String(merged.events[k].file).toLowerCase();
+      if(f.includes('correct')) merged.events[k].tone = 'tone:correct';
+      else if(f.includes('wrong')) merged.events[k].tone = 'tone:wrong';
+      else if(f.includes('finish')) merged.events[k].tone = 'tone:examFinish';
+      else if(f.includes('popup')) merged.events[k].tone = 'tone:switch';
+      else merged.events[k].tone = 'tone:click';
+    }
+    merged.events[k].volume = Math.max(0, Math.min(1, Number(merged.events[k].volume ?? 0.85)));
+  });
+  return merged;
+}
+async function loadUpkkSoundSettingsForUser(force=false){
+  if(UPKK_SOUND_SETTINGS_LOADED && !force) return UPKK_UI_SOUND;
+  const db = firebaseDb();
+  if(!db) return UPKK_UI_SOUND;
+  try{
+    const snap = await firebaseGetOnce(fbPath('settings','sound'));
+    if(snap.exists()) Object.assign(UPKK_UI_SOUND, normalizeUpkkSoundSettings(snap.val()));
+    UPKK_SOUND_SETTINGS_LOADED = true;
+  }catch(err){ console.warn('Sound settings unavailable:', err); }
+  return UPKK_UI_SOUND;
+}
+function upkkSoundEvent(name){
+  const eventKey = UPKK_SOUND_ALIAS[name] || name;
+  return (UPKK_UI_SOUND.events && UPKK_UI_SOUND.events[eventKey]) || null;
+}
+function upkkAudioCtx(){
+  UPKK_AUDIO_CTX = UPKK_AUDIO_CTX || new (window.AudioContext || window.webkitAudioContext)();
+  return UPKK_AUDIO_CTX;
+}
+function upkkPlayTone(tone, volume=0.8){
+  try{
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if(!Ctx) return;
+    const ctx = upkkAudioCtx();
+    if(ctx.state === 'suspended') ctx.resume().catch(()=>{});
+    const now = ctx.currentTime;
+    const master = ctx.createGain();
+    master.gain.setValueAtTime(Math.max(0, Math.min(1, volume)), now);
+    master.connect(ctx.destination);
+    const sequence = {
+      'tone:click': [[640,0,0.055,'square']],
+      'tone:correct': [[660,0,0.11,'sine'],[880,0.09,0.14,'sine'],[1170,0.19,0.16,'triangle']],
+      'tone:wrong': [[220,0,0.12,'sine'],[165,0.11,0.16,'sine']],
+      'tone:switch': [[380,0,0.08,'triangle'],[520,0.06,0.10,'triangle']],
+      'tone:avatar': [[740,0,0.08,'sine'],[980,0.06,0.10,'sine']],
+      'tone:examStart': [[523,0,0.12,'triangle'],[659,0.12,0.12,'triangle'],[784,0.24,0.18,'triangle']],
+      'tone:examFinish': [[523,0,0.12,'sine'],[659,0.10,0.14,'sine'],[784,0.22,0.16,'sine'],[1046,0.36,0.22,'triangle']]
+    }[tone] || [[600,0,0.08,'sine']];
+    sequence.forEach(([freq,delay,duration,type])=>{
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = type; osc.frequency.setValueAtTime(freq, now + delay);
+      gain.gain.setValueAtTime(0.0001, now + delay);
+      gain.gain.exponentialRampToValueAtTime(0.25, now + delay + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + delay + duration);
+      osc.connect(gain); gain.connect(master);
+      osc.start(now + delay); osc.stop(now + delay + duration + 0.03);
+    });
+  }catch(e){}
+}
 function upkkPlaySound(name){
   try{
     if(!UPKK_UI_SOUND.enabled) return;
-    const src = UPKK_UI_SOUND.files[name];
-    if(!src) return;
-    const audio = new Audio(src);
-    audio.volume = UPKK_UI_SOUND.volume;
-    const p = audio.play();
-    if(p && typeof p.catch === 'function') p.catch(()=>{});
+    const event = upkkSoundEvent(name) || {};
+    if(event.enabled === false) return;
+    const finalVolume = Math.max(0, Math.min(1, Number(UPKK_UI_SOUND.volume ?? 0.9) * Number(event.volume ?? 0.85) * Number(UPKK_UI_SOUND.volumeBoost ?? 1.5)));
+    upkkPlayTone(event.tone || 'tone:click', finalVolume);
+  }catch(e){}
+}
+function upkkVoiceReward(pct){
+  try{
+    const event = upkkSoundEvent('voiceReward');
+    if(!UPKK_UI_SOUND.enabled || !event || event.enabled === false || event.voiceEnabled === false) return;
+    if(!('speechSynthesis' in window)) return;
+    const msg = pct>=90 ? 'Tahniah, hebat sangat!' : pct>=80 ? 'Alhamdulillah, cemerlang!' : pct>=60 ? 'Bagus, teruskan usaha!' : 'Cuba lagi ya, jangan putus asa.';
+    const u = new SpeechSynthesisUtterance(msg);
+    u.lang = 'ms-MY';
+    u.rate = 0.95;
+    u.pitch = 1.05;
+    u.volume = Math.max(0, Math.min(1, Number(UPKK_UI_SOUND.volume ?? 0.85) * Number(event.volume ?? 0.9)));
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(u);
   }catch(e){}
 }
 function upkkMotivationMessage(pct){
@@ -2729,9 +2836,10 @@ function upkkEnhanceResultNumbers(){
 function upkkCelebrateFinish(qz){
   try{
     const pct = upkkResultPercent(qz);
-    upkkPlaySound(pct>=40 ? 'finish' : 'popup');
+    upkkPlaySound('examFinish');
     if(navigator.vibrate) navigator.vibrate([40,30,40]);
     setTimeout(upkkEnhanceResultNumbers, 60);
+    setTimeout(()=>upkkVoiceReward(pct), 420);
   }catch(e){}
 }
 
