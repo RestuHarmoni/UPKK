@@ -1,4 +1,4 @@
-const CACHE_NAME = 'upkk-smartkids-v3-36-device-orientation';
+const CACHE_NAME = 'upkk-smartkids-v3-37-student-realtime-sync';
 const CORE_ASSETS = [
   './',
   './index.html',

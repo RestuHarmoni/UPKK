@@ -1,4 +1,4 @@
-const APP_VERSION = '8.33-EXAM-LAZY-COUNT-FIX';
+const APP_VERSION = '8.34-STUDENT-REALTIME-SYNC';
 const PIN_LENGTH = 6;
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCK_MINUTES = 10;
@@ -75,6 +75,9 @@ let deviceListenerRef = null;
 let deviceListenerAccountId = '';
 let lastDeviceSignature = '';
 let deviceRenderLock = false;
+let studentsListenerRef = null;
+let studentsListenerAccountId = '';
+let lastStudentsSignature = '';
 
 
 /* v8.02 Keyboard/Input Focus Guard
@@ -423,6 +426,117 @@ async function refreshAllAccountProfilesFromFirebase(accountId=profile.accountId
     saveProfiles(profiles);
     return true;
   }catch(err){ console.warn('Firebase account profiles refresh failed:',err); return false; }
+}
+
+function localStorageRemoveStudentCaches(accountId, studentId){
+  const id = accountLocalKey({accountId, studentId});
+  try{
+    localStorage.removeItem(`${HISTORY_KEY}_${id}`);
+    localStorage.removeItem(`${USED_KEY}_${id}`);
+    localStorage.removeItem(`${EXAM_SESSION_KEY}_${id}`);
+    localStorage.removeItem(`${ACHIEVEMENTS_KEY}_${id}`);
+    Object.keys(localStorage).forEach(k=>{
+      if(k.includes(id)) localStorage.removeItem(k);
+    });
+  }catch(err){ console.warn('Student local cache cleanup skipped:', err); }
+}
+function stopAccountStudentsRealtimeListener(){
+  try{
+    if(studentsListenerRef) studentsListenerRef.off('value');
+  }catch(err){ console.warn('Stop students realtime listener skipped:', err); }
+  studentsListenerRef = null;
+  studentsListenerAccountId = '';
+  lastStudentsSignature = '';
+}
+function ensureAccountStudentsRealtimeListener(accountId=profile.accountId){
+  const db=firebaseDb();
+  const accId = safeFirebaseKey(accountId || '');
+  if(!db || !accId || !isLoggedInSession()) return;
+  if(studentsListenerRef && studentsListenerAccountId === accId) return;
+  stopAccountStudentsRealtimeListener();
+  studentsListenerAccountId = accId;
+  studentsListenerRef = db.ref(`${accountPath(accId)}/students`);
+  studentsListenerRef.on('value', snapshot=>{
+    try{
+      const remoteStudents = (snapshot.exists() && snapshot.val()) ? snapshot.val() : {};
+      const signature = JSON.stringify(remoteStudents || {});
+      if(signature === lastStudentsSignature) return;
+      lastStudentsSignature = signature;
+
+      const previousActiveKey = accountLocalKey(profile);
+      const profiles = loadProfiles();
+      let changed = false;
+
+      // Remove pelajar yang sudah dipadam dari device lain.
+      Object.keys(profiles).forEach(key=>{
+        const p = normalizeProfile(profiles[key]);
+        if(p.accountId === accId && p.studentId && !remoteStudents[p.studentId]){
+          delete profiles[key];
+          localStorageRemoveStudentCaches(accId, p.studentId);
+          changed = true;
+        }
+      });
+
+      // Add/update pelajar yang wujud di Firebase.
+      Object.keys(remoteStudents).forEach(slot=>{
+        const st = remoteStudents[slot] || {};
+        const key = accountLocalKey({accountId:accId, studentId:slot});
+        const prev = profiles[key] ? normalizeProfile(profiles[key]) : normalizeProfile({...profile, accountId:accId, studentId:slot});
+        const next = normalizeProfile({
+          ...prev,
+          accountId: accId,
+          username: profile.username || prev.username || '',
+          pin: profile.pin || prev.pin || '',
+          plan: profile.plan || prev.plan || PREMIUM_STATUS.FREE,
+          premiumCode: profile.premiumCode || prev.premiumCode || '',
+          entitlements: profile.entitlements || prev.entitlements || {},
+          subscription: profile.subscription || prev.subscription || {},
+          devices: profile.devices || prev.devices || {},
+          allowedDevices: profile.allowedDevices || prev.allowedDevices || [],
+          studentId: slot,
+          name: st.name || '',
+          avatar: st.avatar || '',
+          mode: st.mode || 'rumi',
+          createdAt: st.createdAt || prev.createdAt || new Date().toISOString()
+        });
+        const oldJson = JSON.stringify(profiles[key] ? normalizeProfile(profiles[key]) : {});
+        const newJson = JSON.stringify(next);
+        if(oldJson !== newJson){
+          profiles[key] = next;
+          changed = true;
+        }
+      });
+
+      if(changed) saveProfiles(profiles);
+
+      const activeStillExists = !!profiles[previousActiveKey] && !!remoteStudents[profile.studentId];
+      if(!activeStillExists){
+        const firstSlot = Object.keys(remoteStudents).sort((a,b)=>a.localeCompare(b, undefined, {numeric:true}))[0] || '';
+        if(firstSlot){
+          const firstKey = accountLocalKey({accountId:accId, studentId:firstSlot});
+          profile = normalizeProfile(profiles[firstKey] || {...profile, accountId:accId, studentId:firstSlot});
+          localStorage.setItem(CURRENT_PROFILE_ID_KEY, accountLocalKey(profile));
+          localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+          currentQuiz = null;
+          selectedAnswer = null;
+        }else{
+          profile = normalizeProfile({...profile, studentId:'', name:'', avatar:''});
+          localStorage.removeItem(CURRENT_PROFILE_ID_KEY);
+          localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+          currentQuiz = null;
+          selectedAnswer = null;
+        }
+      }else if(profiles[previousActiveKey]){
+        profile = normalizeProfile(profiles[previousActiveKey]);
+        localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+      }
+
+      if(['home','subjects','exam','result','settings','achievements'].includes(page)){
+        if(guardRenderWhileTyping()) return;
+        render();
+      }
+    }catch(err){ console.warn('Students realtime sync failed:', err); }
+  }, err=>console.warn('Students realtime listener error:', err));
 }
 function syncExamSessionsMapToFirebase(map){
   const db=firebaseDb();
@@ -1274,7 +1388,7 @@ function loadProfile(){
 function saveProfile(){
   profile=normalizeProfile(profile);
   if(!profile.studentId){ saveDraftProfile(); return; }
-  const profiles=loadProfiles(); profiles[accountLocalKey(profile)]=profile; saveProfiles(profiles); localStorage.setItem(CURRENT_PROFILE_ID_KEY, accountLocalKey(profile)); localStorage.setItem(PROFILE_KEY, JSON.stringify(profile)); localStorage.setItem(LOGGED_IN_KEY, '1'); localStorage.removeItem(DRAFT_PROFILE_KEY); syncProfileToFirebase();
+  const profiles=loadProfiles(); profiles[accountLocalKey(profile)]=profile; saveProfiles(profiles); localStorage.setItem(CURRENT_PROFILE_ID_KEY, accountLocalKey(profile)); localStorage.setItem(PROFILE_KEY, JSON.stringify(profile)); localStorage.setItem(LOGGED_IN_KEY, '1'); localStorage.removeItem(DRAFT_PROFILE_KEY); syncProfileToFirebase(); ensureAccountStudentsRealtimeListener(profile.accountId);
 }
 function activeStudentId(){ return accountLocalKey(profile); }
 function historyForProfile(p){ try{return JSON.parse(localStorage.getItem(`${HISTORY_KEY}_${accountLocalKey(p)}`)||'[]')}catch(e){return[]} }
@@ -1407,6 +1521,7 @@ const saveNewChildProfile = saveNewStudentProfile;
 
 async function logoutStudent(){
   stopDeviceRealtimeListener();
+  stopAccountStudentsRealtimeListener();
   flushCurrentStudentProgressToFirebase();
   clearTimer();
   await clearAppRuntimeCaches();
@@ -1737,6 +1852,7 @@ async function boot(){
     try{
       if(isLoggedInSession() && profile?.accountId){
         await refreshAllAccountProfilesFromFirebase(profile.accountId);
+        ensureAccountStudentsRealtimeListener(profile.accountId);
         await refreshCurrentStudentCloudCache();
       }
     }catch(err){ console.warn('Boot cloud sync skipped:', err); }
