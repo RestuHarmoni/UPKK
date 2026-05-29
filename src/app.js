@@ -1865,10 +1865,6 @@ function renderHome(){
     ${last?`<p class="small dashboard-last-result" style="margin-top:10px">Keputusan terakhir: ${escapeHtml(last.type)} • ${escapeHtml(last.subject)} — ${last.score}/${last.total}</p>`:''}
   </section>
   <section class="card">
-    <span class="badge">🏆 LEADERBOARD</span>
-    ${leaderboardHtml(5)}
-  </section>
-  <section class="card">
     <button class="btn secondary" onclick="page='settings';render()">⚙️ Setting / Profil Murid</button><div style="height:10px"></div>
     <button class="btn danger" onclick="logoutStudent()">Logout</button>
   </section>`;
@@ -2881,7 +2877,22 @@ function renderFinish(qz){ const pct=Math.round(qz.score/qz.questions.length*100
   $app.innerHTML = `${examModal}${celebration}<section class="card hero upkk-slip-card"><span class="badge">🏆 SLIP KEPUTUSAN</span><h2 class="title">Tahniah, ${escapeHtml(profile.name)}!</h2><p class="subtitle">${escapeHtml(qz.type)} • ${escapeHtml(qz.title)} • Mode ${modeLabel()}</p><div class="stats"><div class="stat"><b data-upkk-count="${qz.score}">0</b><span>Betul</span></div><div class="stat"><b data-upkk-count="${qz.questions.length-qz.score}">0</b><span>Salah</span></div><div class="stat"><b data-upkk-count="${pct}">0</b><span>${grade}</span></div></div><p class="upkk-motivasi">${escapeHtml(upkkMotivationMessage(pct))}</p></section><section class="card upkk-result-actions">${repeatNote}${nextAction}<button class="btn" onclick="upkkPlaySound('tap');${repeatAction}">Ulang ${isExamResult?'Peperiksaan':escapeHtml(qz.title)}</button><div style="height:10px"></div><button class="btn secondary" onclick="upkkPlaySound('tap');page='${isExamResult?'exam':'subjects'}';render()">${isExamResult?'Pilih Subjek Lain':'Pilih Subjek Lain'}</button></section>`;
   upkkCelebrateFinish(qz);
 }
-function renderResult(){ const h=history().reverse(); if(!h.length){ $app.innerHTML=`${profileSummary()}<section class="card empty">Belum ada rekod keputusan.</section>`; return; } $app.innerHTML = `${profileSummary()}<section class="card"><span class="badge">🏆 REKOD KEPUTUSAN</span><h2 class="title">Sejarah latihan & exam murid ini</h2>${h.map(x=>`<div class="stat" style="text-align:left;margin-top:8px"><b>${escapeHtml(x.type)} • ${escapeHtml(x.subject)} — ${x.score}/${x.total}</b><span>${escapeHtml(x.date)} • ${escapeHtml(x.mode)}</span></div>`).join('')}<div style="height:12px"></div><button class="btn danger" onclick="clearResults()">Padam Rekod</button></section>`; }
+function renderResult(){
+  const h=history().reverse();
+  $app.innerHTML = `${profileSummary()}
+  <section class="card">
+    <span class="badge">🏆 LEADERBOARD</span>
+    <h2 class="title">Ranking Pelajar Keluarga</h2>
+    <p class="small">Paparan ini hanya menunjukkan pelajar di bawah akaun parent yang sama.</p>
+    ${leaderboardHtml(50)}
+  </section>
+  <section class="card">
+    <span class="badge">📊 REKOD SAYA</span>
+    <h2 class="title">Sejarah latihan & exam murid ini</h2>
+    ${h.length ? h.slice(0,8).map(x=>`<div class="stat" style="text-align:left;margin-top:8px"><b>${escapeHtml(x.type)} • ${escapeHtml(x.subject)} — ${x.score}/${x.total}</b><span>${escapeHtml(x.date)} • ${escapeHtml(x.mode)}</span></div>`).join('') : '<div class="empty">Belum ada rekod keputusan.</div>'}
+    ${h.length ? '<div style="height:12px"></div><button class="btn danger" onclick="clearResults()">Padam Rekod</button>' : ''}
+  </section>`;
+}
 function clearResults(){ appConfirm('Padam semua rekod keputusan?', ()=>{ localStorage.removeItem(studentKey(HISTORY_KEY)); syncHistoryToFirebase([]); renderResult(); }); }
 
 // Development helper only: enablePremiumForTesting() can be run from browser console by developer.
