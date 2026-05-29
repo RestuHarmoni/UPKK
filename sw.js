@@ -1,4 +1,4 @@
-const CACHE_NAME = 'upkk-smartkids-v3-35-nav-scroll-top';
+const CACHE_NAME = 'upkk-smartkids-v3-36-device-orientation';
 const CORE_ASSETS = [
   './',
   './index.html',
