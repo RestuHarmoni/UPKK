@@ -1,4 +1,4 @@
-const CACHE_NAME = 'upkk-smartkids-v3-21-leaderboard-tab';
+const CACHE_NAME = 'upkk-smartkids-v3-22-settings-clean';
 const CORE_ASSETS = [
   './',
   './index.html',

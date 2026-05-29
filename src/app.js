@@ -1853,7 +1853,7 @@ function leaderboardHtml(limit=5){
 function renderHome(){
   const h=history(); const best=h.length?Math.max(...h.map(x=>Math.round((x.score/x.total)*100))):0; const last=h.at(-1);
   const switcher = renderDashboardStudentSwitcher();
-  $app.innerHTML = `${profileSummary()}
+  $app.innerHTML = `<div class="settings-page-clean">${profileSummary()}
   ${switcher}
   ${learningAnalysisHtml()}
   ${achievementsHtml(8)}
@@ -1949,7 +1949,7 @@ function renderProfileSwitcher(title='Senarai Pilihan Pelajar', showAdd=false){
     const studentNo = escapeHtml(String(p.studentId||'student_1').replace('student_',''));
     const avatar = p.avatar === 'girl' ? 'assets/images/avatar-girl.webp' : 'assets/images/avatar-boy.webp';
     return `<button class="settings-student-row ${active?'active':''}" onclick="switchProfile('${escapeHtml(key)}')">
-      <img class="settings-student-avatar avatar-live-soft" src="${avatar}" alt="Avatar Pelajar">
+      <img class="settings-student-avatar" src="${avatar}" alt="Avatar Pelajar">
       <span class="settings-student-info">
         <b>${escapeHtml(p.name||'NAMA BELUM DIISI')}</b>
         <small>Pelajar ${studentNo} • ${escapeHtml((p.mode||'rumi').toUpperCase())}</small>
@@ -1998,9 +1998,12 @@ function renderSettings(){
   startDeviceRealtimeListener();
   const savedList = renderProfileSwitcher('Pelajar', true);
   const draftChild = window.__UPKK_NEW_STUDENT || {name:'', avatar:'', mode: profile.mode || 'rumi'};
-  const addChildCard = window.__UPKK_ADD_STUDENT_FORM ? `<section class="card simple-login-card add-child-card">
-    <span class="badge">➕ TAMBAH PROFIL PELAJAR</span>
-    <p class="small">Isi profil pelajar baru. Username dan PIN kekal sama dengan akaun ibu bapa/pelajar pertama.</p>
+  const addChildCard = window.__UPKK_ADD_STUDENT_FORM ? `<section class="card simple-login-card add-child-card settings-clean-form-card">
+    <div class="settings-form-head">
+      <span class="badge">➕ TAMBAH PROFIL PELAJAR</span>
+      <h2 class="settings-form-title">Tambah Pelajar Baru</h2>
+      <p class="small">Isi profil anak/pelajar baru. Username dan PIN kekal sama dengan akaun utama.</p>
+    </div>
     <div class="field" style="margin-top:12px"><label>Nama Penuh Pelajar</label><input id="newStudentFullNameInput" class="input" type="text" autocomplete="name" value="${escapeHtml(draftChild.name||'')}" placeholder="CONTOH: AISYAH BINTI AHMAD" /></div>
     <div style="height:12px"></div>
     <label class="small"><b>Avatar Pelajar</b></label>
@@ -2023,8 +2026,12 @@ function renderSettings(){
   ${settingNotice}
   ${savedList}
   ${addChildCard}
-  <section class="card simple-login-card">
-    <span class="badge">👤 EDIT PROFIL PELAJAR</span>
+  <section class="card simple-login-card settings-clean-form-card">
+    <div class="settings-form-head">
+      <span class="badge">👤 EDIT PROFIL PELAJAR</span>
+      <h2 class="settings-form-title">Profil Pelajar Aktif</h2>
+      <p class="small">Kemaskini nama, avatar dan mode tulisan pelajar yang sedang dipilih.</p>
+    </div>
     <p class="small">Username login: <b>${escapeHtml(profile.username||'-')}</b></p>
     <div class="field" style="margin-top:12px"><label>Nama Penuh Pelajar</label><input id="studentFullNameInput" class="input" type="text" autocomplete="name" value="${escapeHtml(profile.name||'')}" placeholder="CONTOH: MUHAMMAD ALI BIN AHMAD" /></div>
     <div style="height:12px"></div>
@@ -2070,7 +2077,7 @@ function renderSettings(){
     <button class="btn secondary" onclick="resetCurrentStudentProgress()">Reset Progress Pelajar Ini</button><div style="height:10px"></div>
     <button class="btn" onclick="page='home';render()">Kembali Dashboard</button><div style="height:10px"></div>
     <button class="btn danger" onclick="logoutStudent()">Logout</button>
-  </section>`;
+  </section></div>`;
   bindSafeTextInput('studentFullNameInput', e=>{ e.target.value = uppercaseName(e.target.value); profile.name=e.target.value; });
   bindSafeTextInput('newStudentFullNameInput', e=>{ e.target.value = uppercaseName(e.target.value); window.__UPKK_NEW_STUDENT = window.__UPKK_NEW_STUDENT || {name:'', avatar:'', mode:'rumi'}; window.__UPKK_NEW_STUDENT.name=e.target.value; });
   bindSafeTextInput('currentPinInput', e=>{ e.target.value=cleanPin(e.target.value); });

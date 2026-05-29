@@ -2309,3 +2309,112 @@ img,svg,canvas,video{
 @media (prefers-reduced-motion: reduce){
   .upkk-result-card,.upkk-result-orbit,.upkk-stars span,.upkk-confetti i,.upkk-slip-card,.upkk-result-actions{animation:none!important;}
 }
+
+
+/* v3.22 - Settings/Profile clean layout + no add-student animation */
+.settings-page-clean{
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+}
+.settings-page-clean .card{
+  margin-bottom:0;
+}
+.settings-clean-form-card{
+  border:1px solid #dcefe5;
+  background:#ffffff;
+  box-shadow:0 10px 22px rgba(6,60,35,.06);
+}
+.settings-form-head{
+  margin-bottom:14px;
+}
+.settings-form-title{
+  margin:8px 0 4px;
+  font-size:20px;
+  line-height:1.15;
+  color:#083b24;
+  letter-spacing:-.25px;
+}
+.settings-clean-form-card .field{
+  margin-top:10px !important;
+}
+.settings-clean-form-card .grid2{
+  gap:10px;
+}
+.settings-clean-form-card .choice{
+  min-height:82px;
+  border-radius:18px;
+  box-shadow:none;
+}
+.settings-clean-form-card .choice.active{
+  border-color:#0f8a4b;
+  background:#eafff1;
+  box-shadow:inset 0 0 0 2px rgba(15,138,75,.10);
+}
+.settings-add-student-card,
+.settings-add-student-card:hover,
+.settings-student-row,
+.settings-student-row:hover,
+.settings-clean-form-card .choice,
+.settings-clean-form-card .choice:active,
+.settings-clean-form-card .choice.active,
+.settings-clean-form-card .choice.active .avatar,
+.settings-clean-form-card .choice.active .mode,
+.settings-clean-form-card .choice.active::after,
+.add-child-card .choice,
+.add-child-card .choice:active,
+.add-child-card .choice.active,
+.add-child-card .choice.active .avatar,
+.add-child-card .choice.active .mode,
+.add-child-card .choice.active::after{
+  animation:none !important;
+  transition:none !important;
+  transform:none !important;
+}
+.settings-add-student-card{
+  min-height:92px;
+  border:1px solid #cdeedd;
+  border-radius:18px;
+  background:#f8fffb;
+  box-shadow:none;
+  align-items:flex-start;
+  text-align:left;
+  padding:16px;
+}
+.settings-add-student-card:hover{
+  border-color:#0f8a4b;
+  background:#f2fff7;
+  box-shadow:none;
+}
+.settings-add-student-icon{
+  width:34px;
+  height:34px;
+  font-size:25px;
+  box-shadow:none;
+}
+.settings-student-card{
+  box-shadow:0 10px 22px rgba(6,60,35,.06);
+  background:#ffffff;
+}
+.settings-student-row{
+  box-shadow:none;
+  border-radius:18px;
+}
+.settings-student-row:hover{
+  box-shadow:none;
+  border-color:#bfeccd;
+  background:#f8fffb;
+}
+.settings-student-row.active{
+  box-shadow:none;
+  background:#eafff1;
+}
+.settings-student-avatar{
+  border-radius:16px;
+}
+@media(max-width:420px){
+  .settings-page-clean{gap:12px;}
+  .settings-form-title{font-size:18px;}
+  .settings-clean-form-card .choice{min-height:78px;border-radius:16px;}
+  .settings-add-student-card{min-height:88px;padding:14px;}
+}
