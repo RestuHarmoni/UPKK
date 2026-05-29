@@ -1,4 +1,4 @@
-const CACHE_NAME = 'upkk-smartkids-v3-23-settings-stable';
+const CACHE_NAME = 'upkk-smartkids-v3-22-settings-clean';
 const CORE_ASSETS = [
   './',
   './index.html',
@@ -73,3 +73,5 @@ self.addEventListener('fetch', (event) => {
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') self.skipWaiting();
 });
+
+// v3.24 settings tap stability cache refresh

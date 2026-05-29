@@ -2420,42 +2420,28 @@ img,svg,canvas,video{
 }
 
 
-/* v3.23 - Stable Setting/Profile choices: prevent flicker/text ghosting */
-.settings-choice-grid{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:10px;
-}
-.settings-choice-grid .choice{
+/* v3.24 Settings tap stability fix */
+.settings-clean-form-card .choice,
+.add-child-card .choice,
+.settings-student-row,
+.settings-add-student-card{
   position:relative;
+  z-index:1;
   overflow:hidden;
-  appearance:none;
-  -webkit-appearance:none;
-  user-select:none;
+  touch-action:manipulation;
   -webkit-tap-highlight-color:transparent;
-  backface-visibility:hidden;
-  contain:layout paint;
 }
-.settings-choice-grid .choice::before,
-.settings-choice-grid .choice::after{
-  display:none !important;
-  content:none !important;
+.settings-clean-form-card .choice *,
+.add-child-card .choice *,
+.settings-student-row *,
+.settings-add-student-card *{
+  pointer-events:none;
 }
-.settings-choice-grid .choice:focus{
-  outline:0;
+.settings-clean-form-card .choice,
+.add-child-card .choice{
+  min-height:88px;
 }
-.settings-choice-grid .choice:focus-visible{
-  outline:3px solid rgba(15,138,75,.22);
-  outline-offset:2px;
-}
-.settings-choice-grid .choice.active{
-  border-color:#0f8a4b;
-  background:#eafff1;
-}
-.add-child-card{
-  overflow:hidden;
-}
-.add-child-card .input,
-.settings-clean-form-card .input{
-  transform:none !important;
+.settings-clean-form-card .choice.active::after,
+.add-child-card .choice.active::after{
+  pointer-events:none;
 }
