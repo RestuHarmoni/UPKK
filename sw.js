@@ -1,4 +1,4 @@
-const CACHE_NAME = 'upkk-smartkids-v3-32-responsive-orientation';
+const CACHE_NAME = 'upkk-smartkids-v3-33-exam-lazy-count-fix';
 const CORE_ASSETS = [
   './',
   './index.html',

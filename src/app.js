@@ -1,4 +1,4 @@
-const APP_VERSION = '8.30-ACHIEVEMENT-PAGE';
+const APP_VERSION = '8.33-EXAM-LAZY-COUNT-FIX';
 const PIN_LENGTH = 6;
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCK_MINUTES = 10;
@@ -2828,17 +2828,26 @@ function examSubjectRows(){
   const completedSet = examCompletedSubjectKeys();
   const allCompleted = examAllSubjectsCompleted();
   return examSubjectOrder().map(key=>{
-    const s = DB[key];
+    const s = DB[key] || UPKK_SUBJECT_META[key] || {};
     const saved = examSessionLocal(key);
-    const available = uniqueQuestions(key).length;
-    const total = Math.min(EXAM_TARGET_QUESTIONS, available);
+    const loadedCount = uniqueQuestions(key).length;
+    const plannedCount = subjectQuestionCount(key) || EXAM_TARGET_QUESTIONS;
+    const savedCount = Array.isArray(saved?.questionIds) ? saved.questionIds.length : 0;
+
+    // Lazy-load fix:
+    // Semasa menu peperiksaan dipaparkan, soalan sebenar mungkin belum dimuat dari Firebase.
+    // Jangan jadikan count 0 kerana ini akan disable button "Mula Peperiksaan".
+    // Count sebenar akan disahkan semula dalam startExam/resumeExam selepas ensureSubjectLoaded().
+    const available = loadedCount || savedCount || plannedCount;
+    const total = Math.min(EXAM_TARGET_QUESTIONS, available || EXAM_TARGET_QUESTIONS);
+
     const answered = saved?.answers ? saved.answers.filter(a=>typeof a.selected==='number').length : 0;
     const current = saved ? Math.min(Number(saved.currentIndex||0)+1, Math.max(total,1)) : 0;
     const remaining = saved ? `${Math.floor(Number(saved.remainingSeconds||0)/60)}:${String(Number(saved.remainingSeconds||0)%60).padStart(2,'0')}` : '45:00';
     const completed = completedSet.has(key);
     const progress = saved && total ? Math.round((answered/total)*100) : (completed ? 100 : 0);
     const theme = latihanTheme(key);
-    return {key,s,title:subjectTitle(s),saved,available,total,answered,current,remaining,progress,theme,completed,allCompleted};
+    return {key,s,title:subjectTitle(s),saved,available,total,answered,current,remaining,progress,theme,completed,allCompleted,loadedCount};
   });
 }
 function renderExamMenu(){
@@ -2871,7 +2880,7 @@ function renderExamMenu(){
       ? `<button class="btn exam-start-btn" onclick="resumeExam('${r.key}')">Sambung Peperiksaan</button><button class="btn danger exam-reset-btn" onclick="restartExam('${r.key}')">Reset</button>`
       : r.completed
         ? `<button class="btn exam-start-btn ${r.allCompleted?'':'locked'}" onclick="repeatExamOrNotify('${r.key}')">Ulang Peperiksaan</button>`
-        : `<button class="btn exam-start-btn" onclick="startExam('${r.key}')" ${r.total<=0?'disabled':''}>Mula Peperiksaan</button>`;
+        : `<button class="btn exam-start-btn" onclick="startExam('${r.key}')">Mula Peperiksaan</button>`;
     return `<article class="exam-modern-card tone-${r.theme.tone} ${r.saved?'has-session':'no-session'}">
       <div class="exam-card-bg"></div>
       <div class="exam-card-head title-inline">
@@ -3000,6 +3009,12 @@ async function startExam(subjectKey){
   clearTimer(); quizType='exam';
   const s=await ensureSubjectLoaded(subjectKey); if(!s) return;
   const questions=buildExamQuestions(subjectKey);
+  if(!questions.length){
+    appAlert('Bank soalan peperiksaan subjek ini belum tersedia atau gagal dimuat. Sila semak internet/Firebase dan cuba lagi.');
+    page='exam';
+    render();
+    return;
+  }
   currentQuiz={ type:'Peperiksaan', subjectKey, title:subjectTitle(s), icon:s.icon, exam:{...(s.exam||{}), durationMinutes:45, marks:questions.length}, questions, index:0, score:0, answers:[], startedAt:nowMs(), startedAtIso:new Date().toISOString(), endsAt: nowMs()+(EXAM_DURATION_SECONDS*1000) };
   selectedAnswer=null; persistExamSession(); startTimer(); renderQuiz();
 }
@@ -3007,6 +3022,11 @@ async function resumeExam(subjectKey){
   if(!requireProfile()) return; clearTimer(); quizType='exam';
   const s=await ensureSubjectLoaded(subjectKey); const saved=examSessionLocal(subjectKey); if(!s||!saved) return startExam(subjectKey);
   let questions=restoreExamQuestions(subjectKey, saved.questionIds);
+  if(!questions.length){
+    clearExamSession(subjectKey);
+    appAlert('Sesi lama tidak dapat disambung kerana bank soalan belum dimuat. Sila mula semula subjek ini.');
+    return startExam(subjectKey);
+  }
   const answerMap=new Map((saved.answers||[]).map(a=>[String(a.id),a]));
   questions=questions.map(q=>applySavedAnswerToQuestion(q, answerMap.get(String(q.id||q.sourceNo))));
   const remainingSeconds=Math.max(1, Number(saved.remainingSeconds||EXAM_DURATION_SECONDS));
