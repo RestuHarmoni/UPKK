@@ -1,4 +1,4 @@
-const CACHE_NAME = 'upkk-smartkids-v52-50-subscription-access-fix';
+const CACHE_NAME = 'upkk-smartkids-v53-maintenance-ui-final';
 const CORE_ASSETS = [
   './',
   './index.html',
@@ -57,6 +57,21 @@ self.addEventListener('fetch', (event) => {
   }
 
   event.respondWith((async () => {
+    const isFreshAsset = url.pathname.endsWith('.js') || url.pathname.endsWith('.css') || url.pathname.endsWith('/manifest.json');
+    if (isFreshAsset) {
+      try {
+        const response = await fetch(request, { cache: 'no-store' });
+        if (response && response.ok) {
+          const cache = await caches.open(CACHE_NAME);
+          cache.put(request, response.clone()).catch(()=>{});
+        }
+        return response;
+      } catch (err) {
+        const cached = await caches.match(request, { ignoreSearch: true });
+        if (cached) return cached;
+        return caches.match('./offline.html');
+      }
+    }
     const cached = await caches.match(request, { ignoreSearch: true });
     if (cached) return cached;
     try {
