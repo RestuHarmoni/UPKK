@@ -89,6 +89,7 @@ header{position:sticky;top:0;z-index:50;box-shadow:0 14px 34px rgba(15,23,42,.12
     <button class="tab" onclick="showTab('codes', this)">Access / License Code</button>
     <button class="tab" onclick="showTab('questions', this)">Question Bank</button>
     <button class="tab" onclick="showTab('users', this)">Users</button>
+    <button class="tab" onclick="showTab('payments', this)">Pembayaran</button>
     <button class="tab" onclick="showTab('history', this)">Redeem History</button>
     <button class="tab" onclick="showTab('settings', this)">Settings</button>
     <button class="tab" onclick="showTab('soundSettings', this)">Sound Settings</button>
@@ -106,6 +107,21 @@ header{position:sticky;top:0;z-index:50;box-shadow:0 14px 34px rgba(15,23,42,.12
       <div class="card"><h2>Ringkasan</h2><div id="summaryBox">Memuatkan...</div></div>
       <div class="card"><h2>Nota Keselamatan</h2><p class="hint">Panel ini dilindungi dengan login.html dan semakan role admin dalam Firebase. Untuk production penuh, ketatkan Firebase Rules selepas migrasi ke Firebase Auth/Admin SDK.</p><button onclick="loadAll()">Refresh Semua Data</button></div>
     </div>
+  </section>
+
+  <section id="payments" class="panel">
+    <section class="card">
+      <span class="admin-badge">💳 MANUAL PAYMENT</span>
+      <h2 style="margin:10px 0 4px">Pembayaran Menunggu Kelulusan</h2>
+      <p class="hint">Resit disimpan dalam Firebase Database sebagai gambar Base64. Tekan Luluskan untuk aktifkan Premium Tahunan secara automatik.</p>
+      <div class="actions">
+        <button onclick="loadPayments()">Refresh Pembayaran</button>
+        <button class="secondary" onclick="loadPayments('all')">Lihat Semua</button>
+        <button class="secondary" onclick="loadPayments('pending')">Pending Sahaja</button>
+      </div>
+      <div id="paymentMsg" class="log" style="margin-top:12px">Sedia.</div>
+      <div id="paymentsTable"></div>
+    </section>
   </section>
 
   <section id="codes" class="panel">
@@ -440,6 +456,8 @@ const APP_ROOT = 'apps/UPKK';
 const codeRoot = APP_ROOT + '/accessCodes';
 const userRoot = APP_ROOT + '/users';
 const usernameRoot = APP_ROOT + '/usernames';
+const paymentRoot = APP_ROOT + '/payments';
+const subscriptionRoot = APP_ROOT + '/subscriptions';
 const entRoot = APP_ROOT + '/entitlements';
 const historyRoot = APP_ROOT + '/redeemHistory';
 const adminLogRoot = APP_ROOT + '/adminLogs';
@@ -528,6 +546,7 @@ function showTab(id, btn){
   if(id === 'codes') loadCodes();
   if(id === 'questions') loadQuestionSubjects();
   if(id === 'users') loadUsers();
+  if(id === 'payments') loadPayments();
   if(id === 'history') loadHistory();
   if(id === 'soundSettings') loadSoundSettings();
   if(id === 'whatsapp') loadWhatsAppSettings();
@@ -538,6 +557,118 @@ function showTab(id, btn){
   if(id === 'systemControl') loadSystemControl();
   if(id === 'examReport') { loadStudentSearchOptions().then(loadExamReport); }
 }
+
+function paymentStatusPill(status){
+  const s=String(status||'pending').toLowerCase();
+  if(s==='approved') return '<span class="status-ok">Approved</span>';
+  if(s==='rejected') return '<span class="status-bad">Rejected</span>';
+  return '<b style="color:#b45309">Pending</b>';
+}
+function formatAdminDate(iso){
+  try{ return iso ? new Date(iso).toLocaleString('ms-MY') : '-'; }catch(e){ return iso || '-'; }
+}
+async function loadPayments(filter='pending'){
+  const box = $('paymentsTable');
+  const msg = $('paymentMsg');
+  if(!box) return;
+  box.innerHTML = 'Memuatkan pembayaran...';
+  if(msg) msg.textContent = 'Memuatkan...';
+  try{
+    const snap = await db.ref(paymentRoot).orderByChild('submittedAt').limitToLast(80).get();
+    const rows=[];
+    if(snap.exists()) snap.forEach(ch=>rows.push({id:ch.key, ...(ch.val()||{})}));
+    rows.sort((a,b)=> new Date(b.submittedAt||0)-new Date(a.submittedAt||0));
+    const filtered = filter === 'all' ? rows : rows.filter(r=>String(r.status||'pending').toLowerCase()==='pending');
+    if(msg) msg.textContent = `Jumlah: ${filtered.length} rekod (${filter}).`;
+    if(!filtered.length){ box.innerHTML = '<p class="hint">Tiada pembayaran untuk dipaparkan.</p>'; return; }
+    box.innerHTML = `<table>
+      <thead><tr><th>Parent</th><th>Plan</th><th>Status</th><th>Resit</th><th>Tindakan</th></tr></thead>
+      <tbody>${filtered.map(r=>`<tr>
+        <td data-label="Parent"><b>${esc(r.parentName || r.username || '-')}</b><br><span class="hint">${esc(r.username||'')}<br>${esc(r.accountId||'')}</span><br><small>${formatAdminDate(r.submittedAt)}</small></td>
+        <td data-label="Plan"><b>${esc(r.planLabel || r.plan || '-')}</b><br>${esc(r.currency||'MYR')} ${Number(r.amount||0).toFixed(2)}<br><span class="hint">${esc(r.note||'')}</span></td>
+        <td data-label="Status">${paymentStatusPill(r.status)}<br><small>${esc(r.adminRemark||'')}</small></td>
+        <td data-label="Resit">${r.receiptBase64 ? `<button class="secondary mini" onclick="viewPaymentReceipt('${r.id}')">Lihat Resit</button>` : '<span class="hint">Tiada resit</span>'}</td>
+        <td data-label="Tindakan">
+          <div class="actions">
+            <button class="mini" onclick="approveManualPayment('${r.id}')">Luluskan</button>
+            <button class="danger mini" onclick="rejectManualPayment('${r.id}')">Tolak</button>
+          </div>
+        </td>
+      </tr>`).join('')}</tbody>
+    </table>`;
+  }catch(err){
+    console.warn(err);
+    box.innerHTML = '<p class="status-bad">Gagal memuatkan pembayaran. Semak rules Firebase.</p>';
+    if(msg) msg.textContent = err.message || String(err);
+  }
+}
+async function viewPaymentReceipt(paymentId){
+  const snap = await db.ref(paymentRoot + '/' + paymentId).get();
+  if(!snap.exists()) return alert('Rekod pembayaran tidak wujud.');
+  const r=snap.val()||{};
+  if(!r.receiptBase64) return alert('Resit tidak wujud.');
+  const w = window.open('', '_blank');
+  if(!w) return alert('Popup diblock oleh browser.');
+  w.document.write(`<title>Resit ${esc(paymentId)}</title><body style="font-family:Arial;padding:20px;background:#f8fafc"><h2>Resit Pembayaran</h2><p>${esc(r.username||'')} • ${esc(r.planLabel||'')}</p><img src="${r.receiptBase64}" style="max-width:100%;border:1px solid #ddd;border-radius:16px;background:white"/></body>`);
+}
+function addDaysIsoFromNow(days){
+  const d = new Date();
+  d.setDate(d.getDate()+Number(days||365));
+  return d.toISOString();
+}
+async function approveManualPayment(paymentId){
+  const snap = await db.ref(paymentRoot + '/' + paymentId).get();
+  if(!snap.exists()) return alert('Rekod pembayaran tidak wujud.');
+  const p = snap.val() || {};
+  if(!confirm(`Luluskan pembayaran ${p.username || ''} dan aktifkan Premium Tahunan?`)) return;
+  const now = new Date().toISOString();
+  const expiry = addDaysIsoFromNow(365);
+  const usernameKey = safeKey(p.username || '');
+  const sub = {
+    status:'active',
+    plan:p.plan || 'premium_annual',
+    planLabel:p.planLabel || 'Premium Tahunan',
+    trialActive:true,
+    trialUntil:expiry,
+    examActive:true,
+    examUntil:expiry,
+    activatedAt:now,
+    expiryDate:expiry,
+    paymentId,
+    updatedAt:now
+  };
+  const updates = {};
+  updates[paymentRoot + '/' + paymentId + '/status'] = 'approved';
+  updates[paymentRoot + '/' + paymentId + '/approvedAt'] = now;
+  updates[paymentRoot + '/' + paymentId + '/approvedBy'] = currentAdminSession?.adminId || 'admin';
+  updates[paymentRoot + '/' + paymentId + '/updatedAt'] = now;
+  updates[subscriptionRoot + '/' + safeFirebaseKey(p.accountId || p.username || paymentId)] = {...sub, accountId:p.accountId||'', username:p.username||''};
+  if(usernameKey){
+    updates[usernameRoot + '/' + usernameKey + '/subscription'] = sub;
+    updates[usernameRoot + '/' + usernameKey + '/accountId'] = p.accountId || '';
+    updates[usernameRoot + '/' + usernameKey + '/username'] = p.username || '';
+    updates[usernameRoot + '/' + usernameKey + '/updatedAt'] = now;
+  }
+  if(p.accountId){
+    updates[userRoot + '/' + safeFirebaseKey(p.accountId) + '/subscription'] = sub;
+    updates[userRoot + '/' + safeFirebaseKey(p.accountId) + '/plan'] = 'PREMIUM';
+    updates[userRoot + '/' + safeFirebaseKey(p.accountId) + '/updatedAt'] = now;
+  }
+  await db.ref().update(updates);
+  await db.ref(adminLogRoot).push({action:'approve_payment', paymentId, username:p.username||'', accountId:p.accountId||'', at:now, adminId:currentAdminSession?.adminId||''}).catch(()=>{});
+  alert('Pembayaran diluluskan. Premium aktif automatik.');
+  loadPayments();
+}
+async function rejectManualPayment(paymentId){
+  const reason = prompt('Sebab tolak resit? Contoh: Resit tidak jelas / jumlah tidak tepat') || 'Resit ditolak oleh admin.';
+  const now = new Date().toISOString();
+  await db.ref(paymentRoot + '/' + paymentId).update({status:'rejected', adminRemark:reason, rejectedAt:now, rejectedBy:currentAdminSession?.adminId||'admin', updatedAt:now});
+  await db.ref(adminLogRoot).push({action:'reject_payment', paymentId, reason, at:now, adminId:currentAdminSession?.adminId||''}).catch(()=>{});
+  alert('Resit ditolak.');
+  loadPayments();
+}
+
+
 function applyTypeDefaults(){
   const type = $('type').value;
   if(type === 'trial_30_days'){ $('validDays').value = 30; if(!$('maxUse').value || $('maxUse').value === '1') $('maxUse').value = 500; }
@@ -632,15 +763,18 @@ async function loadHistory(){
   $('historyBox').innerHTML = `<table><thead><tr><th>ID</th><th>Kod</th><th>User</th><th>Jenis</th><th>Masa</th></tr></thead><tbody>${rows || '<tr><td colspan="5">Belum ada rekod redeem.</td></tr>'}</tbody></table>`;
 }
 async function loadSummary(){
-  const [codes, users, hist] = await Promise.all([db.ref(codeRoot).get(), db.ref(userRoot).get(), db.ref(historyRoot).get()]);
+  const [codes, users, hist, pays] = await Promise.all([db.ref(codeRoot).get(), db.ref(userRoot).get(), db.ref(historyRoot).get(), db.ref(paymentRoot).get()]);
   const codeVals = codes.exists()?Object.values(codes.val()):[];
+  const payVals = pays.exists()?Object.values(pays.val()):[];
   const activeCodes = codeVals.filter(c=>c.status==='active').length;
   const revokedCodes = codeVals.filter(c=>c.status==='revoked').length;
+  const pendingPays = payVals.filter(p=>String(p.status||'pending').toLowerCase()==='pending').length;
   $('summaryBox').innerHTML = `<table><tbody>
     <tr><th>Total Code</th><td>${codeVals.length}</td></tr>
     <tr><th>Active Code</th><td>${activeCodes}</td></tr>
     <tr><th>Revoked Code</th><td>${revokedCodes}</td></tr>
     <tr><th>Total User</th><td>${users.exists()?Object.keys(users.val()).length:0}</td></tr>
+    <tr><th>Pembayaran Pending</th><td><b style="color:#b45309">${pendingPays}</b></td></tr>
     <tr><th>Redeem History</th><td>${hist.exists()?Object.keys(hist.val()).length:0}</td></tr>
   </tbody></table>`;
 }

@@ -1,4 +1,4 @@
-const APP_VERSION = '8.40-ADMIN-AUDIO-MP3-UPLOAD';
+const APP_VERSION = '8.44-MANUAL-PAYMENT-AUTO-ACTIVATION';
 const PIN_LENGTH = 6;
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCK_MINUTES = 10;
@@ -3006,18 +3006,141 @@ function examSubjectRows(){
     return {key,s,title:subjectTitle(s),saved,available,total,answered,current,remaining,progress,theme,completed,allCompleted,loadedCount};
   });
 }
+
+function annualPlanPrice(){ return 'RM39.90'; }
+function manualPaymentPlan(){ return {id:'premium_annual', label:'Premium Tahunan', amount:39.90, days:365}; }
+function paymentRootPath(){ return fbPath('payments'); }
+function subscriptionRootPath(){ return fbPath('subscriptions'); }
+async function resizeReceiptImageToBase64(file){
+  if(!file) throw new Error('Sila pilih gambar resit.');
+  if(!/^image\/(png|jpe?g|webp)$/i.test(file.type || '')) throw new Error('Format resit mesti JPG, PNG atau WEBP.');
+  if(file.size > 8 * 1024 * 1024) throw new Error('Saiz resit terlalu besar. Sila guna gambar bawah 8MB.');
+  const dataUrl = await new Promise((resolve,reject)=>{
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => reject(new Error('Gagal membaca fail resit.'));
+    reader.readAsDataURL(file);
+  });
+  const img = await new Promise((resolve,reject)=>{
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error('Gagal memproses gambar resit.'));
+    image.src = dataUrl;
+  });
+  const maxSide = 1200;
+  const scale = Math.min(1, maxSide / Math.max(img.width || 1, img.height || 1));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round((img.width || 1) * scale));
+  canvas.height = Math.max(1, Math.round((img.height || 1) * scale));
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL('image/jpeg', 0.76);
+}
+async function loadLatestManualPayment(username=profile.username){
+  const db = firebaseDb();
+  if(!db || !username) return null;
+  try{
+    const snap = await db.ref(paymentRootPath()).orderByChild('username').equalTo(cleanUsername(username)).limitToLast(8).get();
+    if(!snap.exists()) return null;
+    const rows = [];
+    snap.forEach(ch => rows.push({id:ch.key, ...(ch.val() || {})}));
+    rows.sort((a,b)=> new Date(b.submittedAt || 0) - new Date(a.submittedAt || 0));
+    return rows[0] || null;
+  }catch(err){ console.warn('Load latest payment failed:', err); return null; }
+}
+function premiumPaymentCard(){
+  const plan = manualPaymentPlan();
+  const latest = window.__UPKK_LATEST_PAYMENT || null;
+  const latestStatus = latest?.status ? String(latest.status).toLowerCase() : '';
+  const statusHtml = latestStatus === 'pending'
+    ? `<div class="payment-status pending">⏳ Resit anda sedang disemak oleh admin.</div>`
+    : latestStatus === 'approved'
+      ? `<div class="payment-status approved">✅ Pembayaran diluluskan. Sila refresh jika akses belum aktif.</div>`
+      : latestStatus === 'rejected'
+        ? `<div class="payment-status rejected">❌ Resit sebelum ini ditolak. Sila upload resit baharu.</div>`
+        : `<div class="payment-status">Upload resit selepas membuat bayaran.</div>`;
+  return `<section class="card premium-payment-card">
+    <span class="badge">💎 LANGGANAN PREMIUM</span>
+    <h2>Aktifkan Peperiksaan Premium</h2>
+    <p class="small">Mod Peperiksaan memerlukan langganan aktif. Buat bayaran secara manual, kemudian upload resit untuk semakan admin.</p>
+    <div class="payment-plan-box">
+      <b>${plan.label}</b>
+      <strong>${annualPlanPrice()}</strong>
+      <span>Akses peperiksaan selama ${plan.days} hari selepas diluluskan.</span>
+    </div>
+    ${statusHtml}
+    <div class="payment-upload-box">
+      <label style="font-weight:900">Upload Resit Bayaran</label>
+      <input id="manualReceiptFile" type="file" accept="image/png,image/jpeg,image/jpg,image/webp" />
+      <textarea id="manualPaymentNote" placeholder="Nota pilihan. Contoh: Bayaran melalui Maybank, nama akaun..." style="min-height:70px"></textarea>
+      <button class="btn gold" onclick="submitManualPaymentReceipt()">Hantar Resit Untuk Kelulusan</button>
+    </div>
+    <div style="height:10px"></div>
+    <button class="btn secondary" onclick="refreshManualPaymentStatus()">Semak Status Pembayaran</button>
+    <button class="btn secondary" onclick="page='subjects';render()">Pergi ke Latihan</button>
+  </section>`;
+}
+async function refreshManualPaymentStatus(){
+  window.__UPKK_LATEST_PAYMENT = await loadLatestManualPayment();
+  try{
+    if(profile.username){
+      const sub = await loadUsernameSubscriptionFromFirebase(profile.username, profile.accountId);
+      profile.subscription = sub || profile.subscription || {};
+      profile.plan = hasActiveExamAccess() ? PREMIUM_STATUS.PREMIUM : (profile.plan || PREMIUM_STATUS.FREE);
+      saveProfile();
+    }
+  }catch(err){ console.warn('Subscription refresh failed:', err); }
+  render();
+}
+async function submitManualPaymentReceipt(){
+  if(!profile?.accountId || !profile?.username){ alert('Sila login akaun parent dahulu.'); return; }
+  const db = firebaseDb();
+  if(!db){ alert('Firebase belum aktif. Semak internet.'); return; }
+  const input = document.getElementById('manualReceiptFile');
+  const file = input?.files?.[0];
+  if(!file){ alert('Sila pilih gambar resit dahulu.'); return; }
+  try{
+    const btn = (typeof event !== 'undefined' && event?.target) ? event.target : null;
+    if(btn){ btn.disabled = true; btn.textContent = 'Memproses resit...'; }
+    const receiptBase64 = await resizeReceiptImageToBase64(file);
+    const plan = manualPaymentPlan();
+    const ref = db.ref(paymentRootPath()).push();
+    await ref.set({
+      paymentId: ref.key,
+      appCode: APP_CODE,
+      accountId: profile.accountId || '',
+      username: cleanUsername(profile.username || ''),
+      parentName: profile.parentName || profile.name || profile.username || '',
+      activeStudentId: profile.studentId || 'student_1',
+      activeStudentName: profile.name || '',
+      plan: plan.id,
+      planLabel: plan.label,
+      amount: plan.amount,
+      currency: 'MYR',
+      status: 'pending',
+      receiptBase64,
+      note: (document.getElementById('manualPaymentNote')?.value || '').trim(),
+      submittedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    });
+    window.__UPKK_LATEST_PAYMENT = {status:'pending', submittedAt:new Date().toISOString()};
+    alert('Resit berjaya dihantar. Admin akan semak dan luluskan langganan.');
+    render();
+  }catch(err){
+    console.warn(err);
+    alert(err.message || 'Gagal hantar resit. Cuba lagi.');
+  }finally{
+    const btn = (typeof event !== 'undefined' && event?.target) ? event.target : null;
+    if(btn){ btn.disabled = false; btn.textContent = 'Hantar Resit Untuk Kelulusan'; }
+  }
+}
+
+
 function renderExamMenu(){
   if(!requireProfile()) return;
   if(!hasActiveExamAccess()){
-    $app.innerHTML = `${profileSummary()}<section class="card">
-      <span class="badge">🔒 PEPERIKSAAN BERLESEN</span>
-      <h2>Peperiksaan memerlukan lesen 1 tahun</h2>
-      <p class="small">Akaun trial boleh guna modul Latihan. Untuk buka Peperiksaan, redeem kod lesen exam daripada admin/guru selepas subscribe.</p>
-      <button class="btn gold" onclick="redeemExamLicenseFromSettings()">Redeem Kod Lesen Peperiksaan</button>
-      <div style="height:10px"></div><button class="btn secondary" onclick="openUpkkWhatsApp('buy')">💬 Beli Lesen Melalui WhatsApp</button>
-      <div style="height:10px"></div><button class="btn secondary" onclick="openUpkkWhatsApp('support')">📱 Hubungi Admin</button>
-      <div style="height:10px"></div><button class="btn secondary" onclick="page='subjects';render()">Pergi ke Latihan</button>
-    </section>`;
+    $app.innerHTML = `${profileSummary()}${premiumPaymentCard()}`;
+    setTimeout(()=>{ loadLatestManualPayment().then(p=>{ window.__UPKK_LATEST_PAYMENT=p; if(page==='exam' && !hasActiveExamAccess()) render(); }).catch(()=>{}); }, 50);
     return;
   }
   const rowsAll = examSubjectRows();

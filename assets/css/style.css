@@ -2877,3 +2877,16 @@ img, video, canvas, svg{
     grid-template-columns:1fr !important;
   }
 }
+
+
+/* v3.44 Manual Payment UI */
+.premium-payment-card{display:grid;gap:12px}
+.payment-plan-box{display:grid;gap:4px;border:1px solid rgba(22,163,74,.22);background:linear-gradient(135deg,#f0fdf4,#fff7ed);border-radius:18px;padding:14px}
+.payment-plan-box strong{font-size:28px;color:#166534}
+.payment-plan-box span{color:#64748b;font-size:13px;font-weight:700}
+.payment-status{padding:12px;border-radius:14px;background:#f8fafc;border:1px solid #e2e8f0;font-weight:800;color:#334155}
+.payment-status.pending{background:#fffbeb;border-color:#fde68a;color:#92400e}
+.payment-status.approved{background:#ecfdf5;border-color:#bbf7d0;color:#166534}
+.payment-status.rejected{background:#fef2f2;border-color:#fecaca;color:#991b1b}
+.payment-upload-box{display:grid;gap:10px;border:1px dashed #bbf7d0;background:#fbfffd;border-radius:18px;padding:14px}
+.payment-upload-box input[type=file]{width:100%;padding:11px;border:1px solid #cbd5e1;border-radius:14px;background:#fff}
