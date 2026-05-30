@@ -1683,10 +1683,13 @@ async function loadPayments(){
   if(!box) return;
   box.innerHTML = 'Memuatkan pembayaran...';
 
-  // Baca beberapa path untuk serasi dengan versi lama/baru.
-  // Path utama yang digunakan oleh app parent ialah apps/UPKK/payments.
+  // MERGED FIX v3.52:
+  // Baca terus dari path sebenar upload resit parent:
+  // apps/UPKK/payments
+  // dan kekalkan sokongan path lama supaya data lama tidak hilang.
   const candidateRoots = [
     paymentRoot,
+    APP_ROOT + '/payments',
     APP_ROOT + '/payment',
     'payments',
     'payment'
@@ -1695,21 +1698,61 @@ async function loadPayments(){
   const rows = [];
   paymentActionMap = {};
 
-  for(const root of candidateRoots){
-    try{
-      const snap = await db.ref(root).orderByChild('submittedAt').limitToLast(100).get();
-      snap.forEach(child => {
-        const val = child.val() || {};
-        if(val && typeof val === 'object' && (val.receiptBase64 || val.status || val.accountId || val.username)){
-          rows.push({ id: child.key, _root: root, ...val });
+  function pushPaymentRow(root, id, val){
+    if(!val || typeof val !== 'object') return;
+
+    // Format biasa: apps/UPKK/payments/{paymentId}
+    const looksLikePayment =
+      val.receiptBase64 ||
+      val.amount ||
+      val.plan ||
+      val.status ||
+      val.accountId ||
+      val.username ||
+      val.parentUsername ||
+      val.submittedAt;
+
+    if(looksLikePayment){
+      rows.push({ id, _root: root, ...val });
+      return;
+    }
+
+    // Format nested fallback: payments/{uid}/{paymentId}
+    Object.entries(val).forEach(([childId, childVal])=>{
+      if(childVal && typeof childVal === 'object'){
+        const nestedLooksLikePayment =
+          childVal.receiptBase64 ||
+          childVal.amount ||
+          childVal.plan ||
+          childVal.status ||
+          childVal.accountId ||
+          childVal.username ||
+          childVal.parentUsername ||
+          childVal.submittedAt;
+
+        if(nestedLooksLikePayment){
+          rows.push({
+            id: childId,
+            _root: root + '/' + id,
+            accountId: childVal.accountId || id,
+            username: childVal.username || childVal.parentUsername || '',
+            ...childVal
+          });
         }
-      });
+      }
+    });
+  }
+
+  for(const root of [...new Set(candidateRoots)]){
+    try{
+      const snap = await db.ref(root).get();
+      if(!snap.exists()) continue;
+      snap.forEach(child => pushPaymentRow(root, child.key, child.val() || {}));
     }catch(err){
       console.warn('Payment path skipped:', root, err.message || err);
     }
   }
 
-  // Buang duplicate jika rekod yang sama terbaca dua kali
   const unique = [];
   const seen = new Set();
   rows.forEach(p => {
@@ -1720,35 +1763,40 @@ async function loadPayments(){
     }
   });
 
-  unique.sort((a,b)=>String(b.submittedAt||b.updatedAt||'').localeCompare(String(a.submittedAt||a.updatedAt||'')));
+  unique.sort((a,b)=>{
+    const bd = new Date(b.submittedAt || b.updatedAt || b.approvedAt || 0).getTime() || 0;
+    const ad = new Date(a.submittedAt || a.updatedAt || a.approvedAt || 0).getTime() || 0;
+    return bd - ad;
+  });
 
   if(!unique.length){
     box.innerHTML = `<div class="empty-state">
       <b>Tiada pembayaran dipaparkan.</b>
-      <p class="hint">Jika resit sudah masuk di Firebase, pastikan ia berada di <code>apps/UPKK/payments</code> dan ada field <code>status: pending</code>.</p>
+      <p class="hint">Sistem sedang membaca path utama <code>apps/UPKK/payments</code>. Jika Firebase sudah ada rekod tetapi masih kosong, tekan Debug Path Pembayaran.</p>
       <button class="secondary mini" onclick="debugPaymentsPath()">Debug Path Pembayaran</button>
     </div>`;
     return;
   }
 
-  box.innerHTML = `<table><thead><tr><th>Parent</th><th>Pelan</th><th>Jumlah</th><th>Status</th><th>Path</th><th>Resit</th><th>Tindakan</th></tr></thead><tbody>${unique.map((p,idx)=>{
+  box.innerHTML = `<div class="hint" style="margin-bottom:10px">Jumlah rekod dikesan: <b>${unique.length}</b></div>
+  <table><thead><tr><th>Parent</th><th>Pelan</th><th>Jumlah</th><th>Status</th><th>Path</th><th>Resit</th><th>Tindakan</th></tr></thead><tbody>${unique.map((p,idx)=>{
     const token = 'pay_' + idx;
     paymentActionMap[token] = {root:p._root, id:p.id};
     const status = String(p.status || 'pending').toLowerCase();
+    const submitted = p.submittedAt || p.updatedAt || p.approvedAt || '';
     return `
     <tr>
-      <td><b>${esc(p.username||p.parentUsername||p.accountId||'-')}</b><br><span class="hint">${esc(p.parentName||p.studentName||'')}</span><br><span class="hint">${esc(new Date(p.submittedAt||p.updatedAt||Date.now()).toLocaleString('ms-MY'))}</span></td>
+      <td><b>${esc(p.username||p.parentUsername||p.accountId||'-')}</b><br><span class="hint">${esc(p.parentName||p.studentName||'')}</span><br><span class="hint">${submitted ? esc(new Date(submitted).toLocaleString('ms-MY')) : '-'}</span></td>
       <td>${esc(p.plan||'-')}</td>
       <td>${rm(p.amount)}</td>
       <td><b>${esc(status)}</b>${p.adminRemark?'<br><span class="hint">'+esc(p.adminRemark)+'</span>':''}</td>
       <td><code>${esc(p._root)}</code></td>
       <td>${p.receiptBase64?`<button class="secondary mini" onclick="viewReceipt('${token}')">Lihat Resit</button>`:'-'}</td>
-      <td class="actions">${status==='approved'?'✅ Diluluskan':`<button class="mini" onclick="approvePayment('${token}')">Luluskan</button><button class="danger mini" onclick="rejectPayment('${token}')">Tolak</button>`}</td>
+      <td class="actions">${status==='approved'?'✅ Diluluskan':status==='rejected'?'❌ Ditolak':`<button class="mini" onclick="approvePayment('${token}')">Luluskan</button><button class="danger mini" onclick="rejectPayment('${token}')">Tolak</button>`}</td>
     </tr>`}).join('')}</tbody></table>`;
 }
-
 async function debugPaymentsPath(){
-  const candidateRoots = [paymentRoot, APP_ROOT + '/payment', 'payments', 'payment'];
+  const candidateRoots = [paymentRoot, APP_ROOT + '/payments', APP_ROOT + '/payment', 'payments', 'payment'];
   const lines = [];
   for(const root of candidateRoots){
     try{
