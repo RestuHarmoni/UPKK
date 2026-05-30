@@ -1,4 +1,4 @@
-const CACHE_NAME = 'upkk-smartkids-v64-task013-toyyibpay';
+const CACHE_NAME = 'upkk-smartkids-v65-task014-admin-ux';
 const CORE_ASSETS = [
   './',
   './index.html',
@@ -8,6 +8,7 @@ const CORE_ASSETS = [
   './src/firebase-config.js',
   './src/app.js',
   './src/pwa-register.js',
+  './admin/assets/admin-panel.css',
   './assets/images/logo.webp',
   './assets/images/avatar-boy.webp',
   './assets/images/avatar-girl.webp',

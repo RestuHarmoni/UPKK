@@ -1,0 +1,40 @@
+UPKK SmartKids - TASK015 ADMIN PANEL MODULAR SYSTEM
+
+Status: Completed on clean_v6 TASK014 base.
+
+Objective:
+- Reduce admin/index.html size and improve maintainability.
+- Move admin CSS into a dedicated CSS file.
+- Move existing inline admin JavaScript into admin/modules/admin-core.js.
+- Add lightweight module registry files for future modular development.
+
+Files changed:
+- admin/index.html
+- admin/assets/admin-panel.css
+- admin/modules/admin-core.js
+- admin/modules/admin-dashboard.js
+- admin/modules/admin-users.js
+- admin/modules/admin-payments.js
+- admin/modules/admin-question-bank.js
+- admin/modules/admin-content-manager.js
+- admin/modules/admin-sound-manager.js
+- admin/modules/admin-reports.js
+- admin/modules/admin-certificates.js
+- admin/modules/admin-settings.js
+- sw.js
+- docs/TASK-015_ADMIN_PANEL_MODULAR_SYSTEM_REPORT.txt
+
+Important note:
+This task is a safe modular bridge. It keeps existing global function names and admin workflow intact, but prepares each section for future deeper refactor. No Firebase path was intentionally changed.
+
+Recommended next step:
+TASK016 Admin QA pass after upload during maintenance ON:
+- Login admin
+- Dashboard load
+- User list load
+- Payment approve flow
+- Trial code creation
+- Question editor save
+- Settings + maintenance switch
+- Sound settings save
+- Report PDF / certificate print

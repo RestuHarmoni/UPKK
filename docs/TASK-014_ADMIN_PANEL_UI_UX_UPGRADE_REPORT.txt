@@ -1,0 +1,38 @@
+TASK-014 ADMIN PANEL UI/UX + MANAGEMENT UPGRADE
+
+Base: UPKK SmartKids clean_v6 TASK013 ToyyibPay Bill Link + Admin Approve
+
+Perubahan utama:
+1. Admin Panel ditukar kepada layout premium emerald dengan sidebar, hero dashboard, KPI cards dan quick actions.
+2. WhatsApp Settings dibuang daripada tab utama kerana pembayaran premium menggunakan ToyyibPay.
+3. Access / License Code ditukar kepada Trial Code sahaja. Exam/Premium dikawal melalui ToyyibPay Approval + Access Manager.
+4. Maintenance / System Control dipindahkan ke Settings + Maintenance supaya admin mudah ON/OFF dari satu page setting.
+5. Subscription Settings dikemas sebagai ToyyibPay / Premium Access Page dengan harga RM49.90, harga asal RM150 dan payment link.
+6. Question Bank Editor dikemas dengan safe edit note dan butang Clean Text untuk buang zero-width/spacing/kotoran teks tersesat sebelum simpan.
+7. User Management diberi layout heading dan toolbar lebih kemas untuk monitor parent/user.
+8. Sound Template ditambah future slot: notification sound, payment notice, suara tahniah, suara motivasi dan background music.
+9. App Content Manager dinaik taraf menjadi Notification / Content Manager: support hebahan semua user atau personal user, title, target dan latest notification pointer.
+10. Exam Report PDF ditambah logo rasmi dalam report cover.
+11. Ditambah Sijil Pencapaian Pelajar Cemerlang dengan preview dan print/download PDF.
+12. PWA cache version dikemaskini ke v65-task014-admin-ux.
+
+Nota:
+- Semua perubahan dibuat pada frontend static GitHub Pages compatible.
+- Tiada Firebase Storage digunakan.
+- Tiada ToyyibPay userSecretKey disimpan dalam web.
+- Flow premium kekal: ToyyibPay Bill Link + Admin Approve 1 Klik.
+
+Fail utama diubah:
+- admin/index.html
+- index.html
+- sw.js
+- docs/TASK-014_ADMIN_PANEL_UI_UX_UPGRADE_REPORT.txt
+
+QA wajib selepas upload:
+1. Login admin /admin/
+2. Buka Dashboard, Settings + Maintenance, ToyyibPay Approval, Question Bank Editor dan Report & Sijil PDF.
+3. Test Save Subscription Settings.
+4. Test Payment Approval satu akaun dummy.
+5. Test Clean Text pada Question Bank.
+6. Test Generate Exam Report dan Print PDF.
+7. Test Generate Certificate dan Print PDF.
