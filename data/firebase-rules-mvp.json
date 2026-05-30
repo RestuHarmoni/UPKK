@@ -61,6 +61,14 @@
             }
           }
         },
+        "payments": {
+          ".read": true,
+          ".write": true
+        },
+        "subscriptions": {
+          ".read": true,
+          ".write": true
+        },
         "accessCodes": {
           ".read": true,
           ".write": true

@@ -99,7 +99,7 @@ header{position:sticky;top:0;z-index:50;box-shadow:0 14px 34px rgba(15,23,42,.12
     <button class="tab" onclick="showTab('licenseManager', this)">Trial / License Manager</button>
     <button class="tab" onclick="showTab('resultsManager', this)">Results Manager</button>
     <button class="tab" onclick="showTab('appContent', this)">App Content Manager</button>
-    <button class="tab" onclick="showTab('systemControl', this)">System Control</button>
+    <button class="tab" onclick="showTab('systemControl', this)">Maintenance / System Control</button>
     <button class="tab" onclick="showTab('examReport', this)">Exam Report Analytic</button>
   </div>
 
@@ -451,13 +451,16 @@ header{position:sticky;top:0;z-index:50;box-shadow:0 14px 34px rgba(15,23,42,.12
   <section id="systemControl" class="panel">
     <div class="grid">
       <section class="card">
-        <h2>System Control</h2>
-        <p class="hint">Kawalan maintenance, app version notice dan force refresh.</p>
-        <label>Maintenance Mode</label><select id="sysMaintenance"><option value="false">OFF</option><option value="true">ON</option></select>
-        <label>Maintenance Message</label><textarea id="sysMaintenanceMsg">Sistem sedang diselenggara. Sila cuba sebentar lagi.</textarea>
+        <h2>Maintenance / System Control</h2>
+        <p class="hint">Suis maintenance akan menutup akses user biasa serta-merta, tetapi Admin Panel masih boleh digunakan.</p>
+        <label>Maintenance Mode</label><select id="sysMaintenance"><option value="false">OFF - Web Dibuka</option><option value="true">ON - Web Maintenance</option></select>
+        <label>Maintenance Title</label><input id="sysMaintenanceTitle" value="Sistem Sedang Diselenggara" />
+        <label>Maintenance Message</label><textarea id="sysMaintenanceMsg">Kami sedang membuat penambahbaikan sistem. Sila cuba semula sebentar lagi.</textarea>
+        <label>Maintenance Start</label><input id="sysMaintenanceStart" type="datetime-local" />
+        <label>Maintenance End / Dijangka Tamat</label><input id="sysMaintenanceEnd" type="datetime-local" />
         <label>App Version Notice</label><input id="sysVersionNotice" placeholder="v3.17" />
         <label>Force Refresh Notice</label><textarea id="sysForceNotice">Versi baru tersedia. Sila refresh aplikasi.</textarea>
-        <div class="actions"><button onclick="saveSystemControl()">Simpan System Control</button><button class="warning" onclick="bumpForceRefreshVersion()">Bump Force Refresh</button><button class="secondary" onclick="loadSystemControl()">Refresh</button></div>
+        <div class="actions"><button onclick="saveSystemControl()">Simpan Maintenance</button><button class="warning" onclick="quickMaintenanceOn()">ON Maintenance Sekarang</button><button class="secondary" onclick="quickMaintenanceOff()">OFF Maintenance</button><button class="warning" onclick="bumpForceRefreshVersion()">Bump Force Refresh</button><button class="secondary" onclick="loadSystemControl()">Refresh</button></div>
         <div id="systemMsg" class="log">Sedia.</div>
       </section>
     </div>
@@ -1205,9 +1208,13 @@ async function confirmResetResultWithParentPassword(){
 }
 async function loadAppContent(){ const snap=await db.ref(contentRoot).get(); const c=snap.exists()?snap.val():{}; $('contentBanner').value=c.banner||''; $('contentPopup').value=c.popupNotice||''; $('contentMotivation').value=Array.isArray(c.motivation)?c.motivation.join('\n'):(c.motivation||''); $('contentPreview').textContent=JSON.stringify(c,null,2)||'Tiada content.'; }
 async function saveAppContent(){ const data={banner:$('contentBanner').value,popupNotice:$('contentPopup').value,motivation:String($('contentMotivation').value||'').split('\n').map(x=>x.trim()).filter(Boolean),updatedAt:new Date().toISOString()}; await db.ref(contentRoot).update(data); setLogBox('contentMsg','App content disimpan.'); await loadAppContent(); }
-async function loadSystemControl(){ const snap=await db.ref(settingsRoot + '/systemControl').get(); const s=snap.exists()?snap.val():{}; $('sysMaintenance').value=String(!!s.maintenanceMode); $('sysMaintenanceMsg').value=s.maintenanceMessage||'Sistem sedang diselenggara. Sila cuba sebentar lagi.'; $('sysVersionNotice').value=s.versionNotice||''; $('sysForceNotice').value=s.forceRefreshNotice||'Versi baru tersedia. Sila refresh aplikasi.'; }
-async function saveSystemControl(){ const data={maintenanceMode:$('sysMaintenance').value==='true',maintenanceMessage:$('sysMaintenanceMsg').value,versionNotice:$('sysVersionNotice').value,forceRefreshNotice:$('sysForceNotice').value,updatedAt:new Date().toISOString()}; await db.ref(settingsRoot + '/systemControl').update(data); setLogBox('systemMsg','System control disimpan.'); }
-async function bumpForceRefreshVersion(){ await db.ref(settingsRoot + '/systemControl').update({forceRefreshVersion:Date.now(),forceRefreshNotice:$('sysForceNotice').value,updatedAt:new Date().toISOString()}); setLogBox('systemMsg','Force refresh version dinaikkan.'); }
+function firebaseDateTimeLocal(v){ if(!v) return ''; const d=new Date(v); if(isNaN(d.getTime())) return ''; const pad=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`; }
+function dateTimeLocalToIso(id){ const v=$(id)?.value||''; return v ? new Date(v).toISOString() : ''; }
+async function loadSystemControl(){ const snap=await db.ref(settingsRoot + '/systemControl').get(); const s=snap.exists()?snap.val():{}; $('sysMaintenance').value=String(!!s.maintenanceMode); $('sysMaintenanceTitle').value=s.maintenanceTitle||'Sistem Sedang Diselenggara'; $('sysMaintenanceMsg').value=s.maintenanceMessage||'Kami sedang membuat penambahbaikan sistem. Sila cuba semula sebentar lagi.'; $('sysMaintenanceStart').value=firebaseDateTimeLocal(s.maintenanceStart); $('sysMaintenanceEnd').value=firebaseDateTimeLocal(s.maintenanceEnd); $('sysVersionNotice').value=s.versionNotice||''; $('sysForceNotice').value=s.forceRefreshNotice||'Versi baru tersedia. Sila refresh aplikasi.'; setLogBox('systemMsg', s.maintenanceMode ? 'Maintenance sedang ON. User biasa akan nampak paparan maintenance.' : 'Maintenance OFF. Web dibuka kepada user biasa.'); }
+async function saveSystemControl(){ const data={maintenanceMode:$('sysMaintenance').value==='true',maintenanceTitle:$('sysMaintenanceTitle').value.trim()||'Sistem Sedang Diselenggara',maintenanceMessage:$('sysMaintenanceMsg').value.trim()||'Kami sedang membuat penambahbaikan sistem. Sila cuba semula sebentar lagi.',maintenanceStart:dateTimeLocalToIso('sysMaintenanceStart'),maintenanceEnd:dateTimeLocalToIso('sysMaintenanceEnd'),allowAdminBypass:true,versionNotice:$('sysVersionNotice').value,forceRefreshNotice:$('sysForceNotice').value,updatedAt:new Date().toISOString(),updatedBy:currentAdminSession?.adminId||''}; await db.ref(settingsRoot + '/systemControl').update(data); await db.ref(adminLogRoot).push({action:data.maintenanceMode?'maintenance_on':'maintenance_off',adminId:currentAdminSession?.adminId||'',at:new Date().toISOString()}); setLogBox('systemMsg',data.maintenanceMode?'Maintenance ON disimpan. User biasa kini disekat.':'Maintenance OFF disimpan. Web dibuka semula.'); }
+async function quickMaintenanceOn(){ $('sysMaintenance').value='true'; if(!$('sysMaintenanceTitle').value.trim()) $('sysMaintenanceTitle').value='Sistem Sedang Diselenggara'; if(!$('sysMaintenanceMsg').value.trim()) $('sysMaintenanceMsg').value='Kami sedang membuat penambahbaikan sistem. Sila cuba semula sebentar lagi.'; await saveSystemControl(); }
+async function quickMaintenanceOff(){ $('sysMaintenance').value='false'; await saveSystemControl(); }
+async function bumpForceRefreshVersion(){ await db.ref(settingsRoot + '/systemControl').update({forceRefreshVersion:Date.now(),forceRefreshNotice:$('sysForceNotice').value,updatedAt:new Date().toISOString(),updatedBy:currentAdminSession?.adminId||''}); setLogBox('systemMsg','Force refresh version dinaikkan.'); }
 function normalizeReportDate(raw){
   if(!raw) return new Date();
   if(raw instanceof Date) return raw;

@@ -34,5 +34,6 @@ window.UPKK_DB_PATHS = {
   leaderboard: "apps/UPKK/leaderboard",
   questionBank: "apps/UPKK/questionBank",
   questionBankMeta: "apps/UPKK/questionBankMeta",
-  systemCounters: "apps/UPKK/systemCounters"
+  systemCounters: "apps/UPKK/systemCounters",
+  settings: "apps/UPKK/settings"
 };

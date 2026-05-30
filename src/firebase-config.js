@@ -36,5 +36,6 @@ window.UPKK_DB_PATHS = {
   examSessions: "apps/UPKK/examSessions",
   questionBank: "apps/UPKK/questionBank",
   questionBankMeta: "apps/UPKK/questionBankMeta",
-  systemCounters: "apps/UPKK/systemCounters"
+  systemCounters: "apps/UPKK/systemCounters",
+  settings: "apps/UPKK/settings"
 };

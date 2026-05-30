@@ -1,4 +1,4 @@
-const APP_VERSION = '8.51-PAYMENT-NOTIFICATIONS';
+const APP_VERSION = '8.52-MAINTENANCE-MODE';
 const PIN_LENGTH = 6;
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCK_MINUTES = 10;
@@ -233,6 +233,93 @@ function firebaseDb(){
 function fbPath(group, tail=''){
   const base = (window.UPKK_DB_PATHS && window.UPKK_DB_PATHS[group]) || `apps/${APP_CODE}/${group}`;
   return tail ? `${base}/${tail}` : base;
+}
+
+
+const UPKK_MAINTENANCE_DEFAULT = {
+  maintenanceMode: false,
+  maintenanceTitle: 'Sistem Sedang Diselenggara',
+  maintenanceMessage: 'Kami sedang membuat penambahbaikan sistem. Sila cuba semula sebentar lagi.',
+  maintenanceStart: '',
+  maintenanceEnd: '',
+  allowAdminBypass: true
+};
+let UPKK_MAINTENANCE_STATE = {...UPKK_MAINTENANCE_DEFAULT};
+let UPKK_MAINTENANCE_ACTIVE = false;
+let UPKK_MAINTENANCE_LISTENER_READY = false;
+
+function normalizeMaintenanceControl(raw={}){
+  return {
+    ...UPKK_MAINTENANCE_DEFAULT,
+    ...(raw || {}),
+    maintenanceMode: raw?.maintenanceMode === true || raw?.maintenanceMode === 'true'
+  };
+}
+async function loadMaintenanceControl(){
+  const db = firebaseDb();
+  if(!db) return normalizeMaintenanceControl({maintenanceMode:false});
+  try{
+    const snap = await firebaseGetOnce(fbPath('settings','systemControl'));
+    return normalizeMaintenanceControl(snap.exists()?snap.val():{});
+  }catch(err){
+    console.warn('Maintenance control load failed:', err);
+    return normalizeMaintenanceControl({maintenanceMode:false});
+  }
+}
+function maintenanceDateText(v){
+  if(!v) return '';
+  const d = new Date(v);
+  if(Number.isNaN(d.getTime())) return escapeHtml(String(v));
+  return d.toLocaleString('ms-MY', {dateStyle:'medium', timeStyle:'short'});
+}
+function renderMaintenanceScreen(control=UPKK_MAINTENANCE_STATE){
+  UPKK_MAINTENANCE_ACTIVE = true;
+  clearTimer();
+  currentQuiz = null;
+  selectedAnswer = null;
+  setProfileLock(true);
+  try{ if($splash) $splash.classList.add('hide'); }catch(e){}
+  try{ if($phoneShell) $phoneShell.classList.remove('app-hidden'); }catch(e){}
+  document.body.classList.add('maintenance-mode-active');
+  const nav = document.querySelector('.bottom-nav');
+  if(nav) nav.style.display = 'none';
+  const start = maintenanceDateText(control.maintenanceStart);
+  const end = maintenanceDateText(control.maintenanceEnd);
+  const schedule = (start || end) ? `<div class="maintenance-schedule">${start?`<span><b>Mula</b>${start}</span>`:''}${end?`<span><b>Dijangka Tamat</b>${end}</span>`:''}</div>` : '';
+  if($app){
+    $app.innerHTML = `<section class="card hero maintenance-card" style="text-align:center;padding:28px 18px;max-width:520px;margin:20px auto;">
+      <div style="font-size:52px;line-height:1;margin-bottom:10px;">🔧</div>
+      <span class="badge">MAINTENANCE MODE</span>
+      <h2 class="title" style="margin:12px 0 8px;">${escapeHtml(control.maintenanceTitle || 'Sistem Sedang Diselenggara')}</h2>
+      <p class="subtitle" style="white-space:pre-line;">${escapeHtml(control.maintenanceMessage || UPKK_MAINTENANCE_DEFAULT.maintenanceMessage)}</p>
+      ${schedule}
+      <p class="small" style="margin-top:16px;opacity:.8;">Admin masih boleh mengurus sistem melalui Admin Panel.</p>
+      <button class="btn secondary" style="margin-top:14px;" onclick="location.reload()">Semak Semula</button>
+    </section>`;
+  }
+}
+function clearMaintenanceScreen(){
+  if(!UPKK_MAINTENANCE_ACTIVE) return;
+  UPKK_MAINTENANCE_ACTIVE = false;
+  document.body.classList.remove('maintenance-mode-active');
+  const nav = document.querySelector('.bottom-nav');
+  if(nav) nav.style.display = '';
+}
+function startMaintenanceRealtimeGuard(){
+  if(UPKK_MAINTENANCE_LISTENER_READY) return;
+  const db = firebaseDb();
+  if(!db) return;
+  UPKK_MAINTENANCE_LISTENER_READY = true;
+  db.ref(fbPath('settings','systemControl')).on('value', snap=>{
+    const control = normalizeMaintenanceControl(snap.exists()?snap.val():{});
+    UPKK_MAINTENANCE_STATE = control;
+    if(control.maintenanceMode){
+      renderMaintenanceScreen(control);
+    }else if(UPKK_MAINTENANCE_ACTIVE){
+      clearMaintenanceScreen();
+      startSplashFlow();
+    }
+  }, err=>console.warn('Maintenance realtime guard failed:', err));
 }
 
 const UPKK_DEFAULT_WHATSAPP = {
@@ -2099,6 +2186,15 @@ async function boot(){
   window.__UPKK_QUESTION_SOURCE = 'loading';
 
   try{ bindNav(); }catch(err){ console.warn('Bind nav failed:', err); }
+
+  try{
+    UPKK_MAINTENANCE_STATE = await loadMaintenanceControl();
+    startMaintenanceRealtimeGuard();
+    if(UPKK_MAINTENANCE_STATE.maintenanceMode){
+      renderMaintenanceScreen(UPKK_MAINTENANCE_STATE);
+      return;
+    }
+  }catch(err){ console.warn('Maintenance pre-check skipped:', err); }
 
   // UI masuk dahulu, bukan tunggu questionBank siap.
   startSplashFlow();
