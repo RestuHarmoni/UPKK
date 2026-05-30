@@ -1,4 +1,4 @@
-const CACHE_NAME = 'upkk-smartkids-v65-task014-admin-ux';
+const CACHE_NAME = 'upkk-smartkids-v67-task015-recovery-functional';
 const CORE_ASSETS = [
   './',
   './index.html',

@@ -1,0 +1,21 @@
+TASK-015 RECOVERY FIX - Functional Admin Panel
+
+Status: RECOVERY BUILD
+
+Masalah ditemui:
+- TASK-015 modular split menjadikan layout admin cantik tetapi beberapa fungsi tidak berjalan kerana event handler/fungsi lama tidak lengkap dipindahkan ke module.
+
+Fix dibuat:
+- admin/index.html dipulihkan semula berdasarkan TASK-014 yang lebih lengkap/fungsional.
+- Cache/version dinaikkan ke v67 supaya browser tidak guna admin lama.
+- Folder admin/modules dikekalkan sebagai rujukan/future modular refactor, tetapi admin utama kembali kepada versi functional.
+
+File utama terlibat:
+- admin/index.html
+- sw.js
+- docs/TASK-015_RECOVERY_FUNCTIONAL_ADMIN_REPORT.txt
+
+Nota deployment:
+- Upload semasa maintenance ON.
+- Selepas upload, buka /admin/ dan buat Ctrl+F5.
+- Test login admin, Dashboard, Users, Payments/ToyyibPay, Trial Code, Question Bank, Settings/Maintenance.
