@@ -498,6 +498,7 @@ const adminLogRoot = APP_ROOT + '/adminLogs';
 const settingsRoot = APP_ROOT + '/settings';
 const paymentRoot = APP_ROOT + '/payments';
 const subscriptionRoot = APP_ROOT + '/subscriptions';
+let paymentActionMap = {};
 const ADMIN_SESSION_KEY = 'upkkSmartKidsAdminSession_v2';
 let currentAdminSession = null;
 
@@ -1680,35 +1681,108 @@ async function loadPayments(){
   const box = $('paymentsBox');
   if(!box) return;
   box.innerHTML = 'Memuatkan pembayaran...';
-  const snap = await db.ref(paymentRoot).orderByChild('submittedAt').limitToLast(100).get();
+
+  // Baca beberapa path untuk serasi dengan versi lama/baru.
+  // Path utama yang digunakan oleh app parent ialah apps/UPKK/payments.
+  const candidateRoots = [
+    paymentRoot,
+    APP_ROOT + '/payment',
+    'payments',
+    'payment'
+  ];
+
   const rows = [];
-  snap.forEach(child => rows.push({id:child.key, ...(child.val()||{})}));
-  rows.sort((a,b)=>String(b.submittedAt||'').localeCompare(String(a.submittedAt||'')));
-  if(!rows.length){ box.innerHTML = '<p class="hint">Tiada pembayaran.</p>'; return; }
-  box.innerHTML = `<table><thead><tr><th>Parent</th><th>Pelan</th><th>Jumlah</th><th>Status</th><th>Resit</th><th>Tindakan</th></tr></thead><tbody>${rows.map(p=>`
+  paymentActionMap = {};
+
+  for(const root of candidateRoots){
+    try{
+      const snap = await db.ref(root).orderByChild('submittedAt').limitToLast(100).get();
+      snap.forEach(child => {
+        const val = child.val() || {};
+        if(val && typeof val === 'object' && (val.receiptBase64 || val.status || val.accountId || val.username)){
+          rows.push({ id: child.key, _root: root, ...val });
+        }
+      });
+    }catch(err){
+      console.warn('Payment path skipped:', root, err.message || err);
+    }
+  }
+
+  // Buang duplicate jika rekod yang sama terbaca dua kali
+  const unique = [];
+  const seen = new Set();
+  rows.forEach(p => {
+    const key = `${p._root}/${p.id}`;
+    if(!seen.has(key)){
+      seen.add(key);
+      unique.push(p);
+    }
+  });
+
+  unique.sort((a,b)=>String(b.submittedAt||b.updatedAt||'').localeCompare(String(a.submittedAt||a.updatedAt||'')));
+
+  if(!unique.length){
+    box.innerHTML = `<div class="empty-state">
+      <b>Tiada pembayaran dipaparkan.</b>
+      <p class="hint">Jika resit sudah masuk di Firebase, pastikan ia berada di <code>apps/UPKK/payments</code> dan ada field <code>status: pending</code>.</p>
+      <button class="secondary mini" onclick="debugPaymentsPath()">Debug Path Pembayaran</button>
+    </div>`;
+    return;
+  }
+
+  box.innerHTML = `<table><thead><tr><th>Parent</th><th>Pelan</th><th>Jumlah</th><th>Status</th><th>Path</th><th>Resit</th><th>Tindakan</th></tr></thead><tbody>${unique.map((p,idx)=>{
+    const token = 'pay_' + idx;
+    paymentActionMap[token] = {root:p._root, id:p.id};
+    const status = String(p.status || 'pending').toLowerCase();
+    return `
     <tr>
-      <td><b>${esc(p.username||p.accountId||'-')}</b><br><span class="hint">${esc(p.studentName||'')}</span><br><span class="hint">${esc(new Date(p.submittedAt||Date.now()).toLocaleString('ms-MY'))}</span></td>
+      <td><b>${esc(p.username||p.parentUsername||p.accountId||'-')}</b><br><span class="hint">${esc(p.parentName||p.studentName||'')}</span><br><span class="hint">${esc(new Date(p.submittedAt||p.updatedAt||Date.now()).toLocaleString('ms-MY'))}</span></td>
       <td>${esc(p.plan||'-')}</td>
       <td>${rm(p.amount)}</td>
-      <td><b>${esc(p.status||'pending')}</b>${p.adminRemark?'<br><span class="hint">'+esc(p.adminRemark)+'</span>':''}</td>
-      <td>${p.receiptBase64?`<button class="secondary mini" onclick="viewReceipt('${p.id}')">Lihat Resit</button>`:'-'}</td>
-      <td class="actions">${p.status==='approved'?'✅ Diluluskan':`<button class="mini" onclick="approvePayment('${p.id}')">Luluskan</button><button class="danger mini" onclick="rejectPayment('${p.id}')">Tolak</button>`}</td>
-    </tr>`).join('')}</tbody></table>`;
+      <td><b>${esc(status)}</b>${p.adminRemark?'<br><span class="hint">'+esc(p.adminRemark)+'</span>':''}</td>
+      <td><code>${esc(p._root)}</code></td>
+      <td>${p.receiptBase64?`<button class="secondary mini" onclick="viewReceipt('${token}')">Lihat Resit</button>`:'-'}</td>
+      <td class="actions">${status==='approved'?'✅ Diluluskan':`<button class="mini" onclick="approvePayment('${token}')">Luluskan</button><button class="danger mini" onclick="rejectPayment('${token}')">Tolak</button>`}</td>
+    </tr>`}).join('')}</tbody></table>`;
 }
-async function viewReceipt(id){
-  const snap = await db.ref(paymentRoot + '/' + id).get();
+
+async function debugPaymentsPath(){
+  const candidateRoots = [paymentRoot, APP_ROOT + '/payment', 'payments', 'payment'];
+  const lines = [];
+  for(const root of candidateRoots){
+    try{
+      const snap = await db.ref(root).limitToLast(5).get();
+      lines.push(`${root}: ${snap.exists() ? snap.numChildren() + ' rekod' : 'kosong'}`);
+    }catch(err){
+      lines.push(`${root}: ERROR - ${err.message || err}`);
+    }
+  }
+  alert(lines.join('\n'));
+}
+
+function getPaymentTarget(token){
+  const target = paymentActionMap[token];
+  if(!target) throw new Error('Rekod pembayaran tidak dijumpai. Tekan Refresh Pembayaran dahulu.');
+  return target;
+}
+
+async function viewReceipt(token){
+  const target = getPaymentTarget(token);
+  const snap = await db.ref(target.root + '/' + target.id).get();
   const p = snap.val() || {};
   if(!p.receiptBase64){ alert('Resit tidak dijumpai.'); return; }
   const w = window.open('', '_blank');
-  w.document.write(`<title>Resit ${esc(id)}</title><body style="margin:0;background:#111;display:flex;align-items:center;justify-content:center;min-height:100vh"><img src="${p.receiptBase64}" style="max-width:96vw;max-height:96vh;border-radius:12px;background:white"></body>`);
+  w.document.write(`<title>Resit ${esc(target.id)}</title><body style="margin:0;background:#111;display:flex;align-items:center;justify-content:center;min-height:100vh"><img src="${p.receiptBase64}" style="max-width:96vw;max-height:96vh;border-radius:12px;background:white"></body>`);
 }
-async function approvePayment(id){
-  const snap = await db.ref(paymentRoot + '/' + id).get();
+
+async function approvePayment(token){
+  const target = getPaymentTarget(token);
+  const snap = await db.ref(target.root + '/' + target.id).get();
   const p = snap.val() || {};
   const duration = Number(p.durationDays || 365);
   const now = new Date();
   const expiry = new Date(now.getTime() + duration * 86400000);
-  const accountId = p.accountId || p.username || '';
+  const accountId = p.accountId || p.username || p.parentUsername || '';
   if(!accountId){ alert('Account ID tidak lengkap.'); return; }
   const subscription = {
     status: 'active',
@@ -1718,14 +1792,14 @@ async function approvePayment(id){
     expiryDate: expiry.toISOString(),
     examActive: true,
     examUntil: expiry.toISOString(),
-    paymentId: id,
+    paymentId: target.id,
     updatedAt: now.toISOString()
   };
   const updates = {};
-  updates[paymentRoot + '/' + id + '/status'] = 'approved';
-  updates[paymentRoot + '/' + id + '/approvedAt'] = now.toISOString();
-  updates[paymentRoot + '/' + id + '/updatedAt'] = now.toISOString();
-  updates[paymentRoot + '/' + id + '/adminRemark'] = 'Diluluskan oleh admin.';
+  updates[target.root + '/' + target.id + '/status'] = 'approved';
+  updates[target.root + '/' + target.id + '/approvedAt'] = now.toISOString();
+  updates[target.root + '/' + target.id + '/updatedAt'] = now.toISOString();
+  updates[target.root + '/' + target.id + '/adminRemark'] = 'Diluluskan oleh admin.';
   updates[subscriptionRoot + '/' + safeKey(accountId)] = subscription;
   updates[userRoot + '/' + safeKey(accountId) + '/subscription'] = subscription;
   updates[userRoot + '/' + safeKey(accountId) + '/plan'] = 'PREMIUM';
@@ -1734,9 +1808,11 @@ async function approvePayment(id){
   await loadPayments();
   alert('Pembayaran diluluskan dan Premium diaktifkan.');
 }
-async function rejectPayment(id){
+
+async function rejectPayment(token){
+  const target = getPaymentTarget(token);
   const remark = prompt('Catatan penolakan:', 'Resit tidak jelas / bayaran tidak sah') || 'Ditolak oleh admin.';
-  await db.ref(paymentRoot + '/' + id).update({status:'rejected', adminRemark:remark, updatedAt:new Date().toISOString()});
+  await db.ref(target.root + '/' + target.id).update({status:'rejected', adminRemark:remark, updatedAt:new Date().toISOString()});
   await loadPayments();
 }
 
