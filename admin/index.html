@@ -1677,13 +1677,43 @@ async function saveSubscriptionSettings(){
   $('subSettingsLog').textContent = 'Berjaya disimpan pada ' + new Date().toLocaleString('ms-MY');
   $('subPreviewBox').innerHTML = renderSubPreview(data);
 }
+function looksLikePaymentRecord(val){
+  if(!val || typeof val !== 'object') return false;
+  return Boolean(
+    val.receiptBase64 || val.receiptImage || val.receiptData || val.receipt ||
+    val.status || val.accountId || val.username || val.parentUsername ||
+    val.amount || val.plan || val.submittedAt || val.paymentId
+  );
+}
+
+function collectPaymentRowsFromSnapshot(snap, root){
+  const rows = [];
+  function walk(nodeSnap, relPath){
+    const val = nodeSnap.val();
+    if(looksLikePaymentRecord(val)){
+      rows.push({ id: nodeSnap.key, _root: root, _path: relPath, ...val });
+      return;
+    }
+    if(val && typeof val === 'object'){
+      nodeSnap.forEach(child => {
+        const childRel = relPath ? relPath + '/' + child.key : child.key;
+        walk(child, childRel);
+      });
+    }
+  }
+  snap.forEach(child => walk(child, child.key));
+  return rows;
+}
+
+function paymentReceiptValue(p){
+  return p.receiptBase64 || p.receiptImage || p.receiptData || p.receipt || '';
+}
+
 async function loadPayments(){
   const box = $('paymentsBox');
   if(!box) return;
   box.innerHTML = 'Memuatkan pembayaran...';
 
-  // Baca beberapa path untuk serasi dengan versi lama/baru.
-  // Path utama yang digunakan oleh app parent ialah apps/UPKK/payments.
   const candidateRoots = [
     paymentRoot,
     APP_ROOT + '/payment',
@@ -1693,26 +1723,25 @@ async function loadPayments(){
 
   const rows = [];
   paymentActionMap = {};
+  const debugLines = [];
 
   for(const root of candidateRoots){
     try{
-      const snap = await db.ref(root).orderByChild('submittedAt').limitToLast(100).get();
-      snap.forEach(child => {
-        const val = child.val() || {};
-        if(val && typeof val === 'object' && (val.receiptBase64 || val.status || val.accountId || val.username)){
-          rows.push({ id: child.key, _root: root, ...val });
-        }
-      });
+      const snap = await db.ref(root).get();
+      debugLines.push(`${root}: ${snap.exists() ? snap.numChildren() + ' child' : 'kosong'}`);
+      if(snap.exists()){
+        rows.push(...collectPaymentRowsFromSnapshot(snap, root));
+      }
     }catch(err){
+      debugLines.push(`${root}: ERROR ${err.message || err}`);
       console.warn('Payment path skipped:', root, err.message || err);
     }
   }
 
-  // Buang duplicate jika rekod yang sama terbaca dua kali
   const unique = [];
   const seen = new Set();
   rows.forEach(p => {
-    const key = `${p._root}/${p.id}`;
+    const key = `${p._root}/${p._path || p.id}`;
     if(!seen.has(key)){
       seen.add(key);
       unique.push(p);
@@ -1724,24 +1753,28 @@ async function loadPayments(){
   if(!unique.length){
     box.innerHTML = `<div class="empty-state">
       <b>Tiada pembayaran dipaparkan.</b>
-      <p class="hint">Jika resit sudah masuk di Firebase, pastikan ia berada di <code>apps/UPKK/payments</code> dan ada field <code>status: pending</code>.</p>
+      <p class="hint">Admin sudah semak path berikut:</p>
+      <pre style="white-space:pre-wrap;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:10px">${esc(debugLines.join('\n'))}</pre>
+      <p class="hint">Jika Firebase ada rekod, pastikan rekod berada di <code>apps/UPKK/payments</code>. Fix ini juga menyokong rekod nested seperti <code>payments/username/paymentId</code>.</p>
       <button class="secondary mini" onclick="debugPaymentsPath()">Debug Path Pembayaran</button>
     </div>`;
     return;
   }
 
-  box.innerHTML = `<table><thead><tr><th>Parent</th><th>Pelan</th><th>Jumlah</th><th>Status</th><th>Path</th><th>Resit</th><th>Tindakan</th></tr></thead><tbody>${unique.map((p,idx)=>{
+  box.innerHTML = `<div class="hint" style="margin-bottom:10px">Jumlah rekod dijumpai: <b>${unique.length}</b></div>
+  <table><thead><tr><th>Parent</th><th>Pelan</th><th>Jumlah</th><th>Status</th><th>Path</th><th>Resit</th><th>Tindakan</th></tr></thead><tbody>${unique.map((p,idx)=>{
     const token = 'pay_' + idx;
-    paymentActionMap[token] = {root:p._root, id:p.id};
+    paymentActionMap[token] = {root:p._root, id:p.id, path:p._path || p.id};
     const status = String(p.status || 'pending').toLowerCase();
+    const receipt = paymentReceiptValue(p);
     return `
     <tr>
       <td><b>${esc(p.username||p.parentUsername||p.accountId||'-')}</b><br><span class="hint">${esc(p.parentName||p.studentName||'')}</span><br><span class="hint">${esc(new Date(p.submittedAt||p.updatedAt||Date.now()).toLocaleString('ms-MY'))}</span></td>
       <td>${esc(p.plan||'-')}</td>
       <td>${rm(p.amount)}</td>
       <td><b>${esc(status)}</b>${p.adminRemark?'<br><span class="hint">'+esc(p.adminRemark)+'</span>':''}</td>
-      <td><code>${esc(p._root)}</code></td>
-      <td>${p.receiptBase64?`<button class="secondary mini" onclick="viewReceipt('${token}')">Lihat Resit</button>`:'-'}</td>
+      <td><code>${esc(p._root + '/' + (p._path || p.id))}</code></td>
+      <td>${receipt?`<button class="secondary mini" onclick="viewReceipt('${token}')">Lihat Resit</button>`:'-'}</td>
       <td class="actions">${status==='approved'?'✅ Diluluskan':`<button class="mini" onclick="approvePayment('${token}')">Luluskan</button><button class="danger mini" onclick="rejectPayment('${token}')">Tolak</button>`}</td>
     </tr>`}).join('')}</tbody></table>`;
 }
@@ -1768,16 +1801,17 @@ function getPaymentTarget(token){
 
 async function viewReceipt(token){
   const target = getPaymentTarget(token);
-  const snap = await db.ref(target.root + '/' + target.id).get();
+  const snap = await db.ref(target.root + '/' + (target.path || target.id)).get();
   const p = snap.val() || {};
-  if(!p.receiptBase64){ alert('Resit tidak dijumpai.'); return; }
+  const receipt = paymentReceiptValue(p);
+  if(!receipt){ alert('Resit tidak dijumpai.'); return; }
   const w = window.open('', '_blank');
-  w.document.write(`<title>Resit ${esc(target.id)}</title><body style="margin:0;background:#111;display:flex;align-items:center;justify-content:center;min-height:100vh"><img src="${p.receiptBase64}" style="max-width:96vw;max-height:96vh;border-radius:12px;background:white"></body>`);
+  w.document.write(`<title>Resit ${esc(target.id)}</title><body style="margin:0;background:#111;display:flex;align-items:center;justify-content:center;min-height:100vh"><img src="${receipt}" style="max-width:96vw;max-height:96vh;border-radius:12px;background:white"></body>`);
 }
 
 async function approvePayment(token){
   const target = getPaymentTarget(token);
-  const snap = await db.ref(target.root + '/' + target.id).get();
+  const snap = await db.ref(target.root + '/' + (target.path || target.id)).get();
   const p = snap.val() || {};
   const duration = Number(p.durationDays || 365);
   const now = new Date();
@@ -1796,10 +1830,10 @@ async function approvePayment(token){
     updatedAt: now.toISOString()
   };
   const updates = {};
-  updates[target.root + '/' + target.id + '/status'] = 'approved';
-  updates[target.root + '/' + target.id + '/approvedAt'] = now.toISOString();
-  updates[target.root + '/' + target.id + '/updatedAt'] = now.toISOString();
-  updates[target.root + '/' + target.id + '/adminRemark'] = 'Diluluskan oleh admin.';
+  updates[target.root + '/' + (target.path || target.id) + '/status'] = 'approved';
+  updates[target.root + '/' + (target.path || target.id) + '/approvedAt'] = now.toISOString();
+  updates[target.root + '/' + (target.path || target.id) + '/updatedAt'] = now.toISOString();
+  updates[target.root + '/' + (target.path || target.id) + '/adminRemark'] = 'Diluluskan oleh admin.';
   updates[subscriptionRoot + '/' + safeKey(accountId)] = subscription;
   updates[userRoot + '/' + safeKey(accountId) + '/subscription'] = subscription;
   updates[userRoot + '/' + safeKey(accountId) + '/plan'] = 'PREMIUM';
@@ -1812,7 +1846,7 @@ async function approvePayment(token){
 async function rejectPayment(token){
   const target = getPaymentTarget(token);
   const remark = prompt('Catatan penolakan:', 'Resit tidak jelas / bayaran tidak sah') || 'Ditolak oleh admin.';
-  await db.ref(target.root + '/' + target.id).update({status:'rejected', adminRemark:remark, updatedAt:new Date().toISOString()});
+  await db.ref(target.root + '/' + (target.path || target.id)).update({status:'rejected', adminRemark:remark, updatedAt:new Date().toISOString()});
   await loadPayments();
 }
 
