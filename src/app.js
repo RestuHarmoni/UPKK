@@ -2904,6 +2904,8 @@ async function loadUserSupportTickets(){
     return UPKK_SUPPORT_TICKETS_CACHE;
   }catch(err){
     console.warn('Support load error:', err);
+    const msg = document.getElementById('supportTicketStatusMsg');
+    if(msg) msg.textContent = 'Gagal baca inbox support. Semak internet atau Firebase Rules untuk apps/UPKK/supportTickets.';
     return [];
   }
 }
@@ -2935,6 +2937,8 @@ async function markSupportTicketRead(ticketId){
 async function submitSupportTicket(){
   const db = firebaseDb();
   if(!db){ alert('Firebase belum aktif. Sila semak internet.'); return; }
+  const btn = document.getElementById('supportSubmitBtn');
+  const statusBox = document.getElementById('supportTicketStatusMsg');
   const category = document.getElementById('supportCategoryInput')?.value || 'other';
   const subject = String(document.getElementById('supportSubjectInput')?.value || '').trim();
   const message = String(document.getElementById('supportMessageInput')?.value || '').trim();
@@ -2942,6 +2946,7 @@ async function submitSupportTicket(){
   if(message.length < 8){ alert('Sila tulis mesej pertanyaan dengan lebih jelas.'); return; }
   const now = new Date().toISOString();
   const ticketRef = db.ref(fbPath('supportTickets')).push();
+  const msgKey = ticketRef.child('messages').push().key || ('msg_' + Date.now());
   const payload = {
     accountId: profile.accountId || profile.username || '',
     username: profile.username || '',
@@ -2958,16 +2963,27 @@ async function submitSupportTicket(){
     userRead: true,
     unreadForUser: false,
     messages: {
-      [ticketRef.child('messages').push().key]: {from:'user', name: profile.name || profile.username || 'User', message, at:now}
+      [msgKey]: {from:'user', name: profile.name || profile.username || 'User', message, at:now}
     }
   };
-  await ticketRef.set(payload);
-  const subj = document.getElementById('supportSubjectInput');
-  const msg = document.getElementById('supportMessageInput');
-  if(subj) subj.value = '';
-  if(msg) msg.value = '';
-  alert('Pertanyaan berjaya dihantar kepada admin. Semak bahagian ini semula untuk jawapan admin.');
-  await refreshUserSupportTickets();
+  try{
+    if(btn){ btn.disabled = true; btn.textContent = 'Menghantar...'; }
+    if(statusBox) statusBox.textContent = 'Sedang hantar pertanyaan kepada admin...';
+    await ticketRef.set(payload);
+    const subj = document.getElementById('supportSubjectInput');
+    const msg = document.getElementById('supportMessageInput');
+    if(subj) subj.value = '';
+    if(msg) msg.value = '';
+    if(statusBox) statusBox.textContent = 'Pertanyaan berjaya dihantar. Admin boleh baca di Admin Panel > Aduan / Support.';
+    alert('Pertanyaan berjaya dihantar kepada admin. Semak Inbox Mesej Admin untuk jawapan.');
+    await refreshUserSupportTickets();
+  }catch(err){
+    console.warn('Support submit failed:', err);
+    if(statusBox) statusBox.textContent = 'Gagal hantar support. Pastikan Firebase Rules membenarkan write ke apps/UPKK/supportTickets.';
+    alert('Gagal hantar pertanyaan. Semak internet atau Firebase Rules supportTickets.');
+  }finally{
+    if(btn){ btn.disabled = false; btn.textContent = 'Hantar Pertanyaan'; }
+  }
 }
 
 function renderSettings(){
@@ -3008,6 +3024,11 @@ function renderSettings(){
     <div style="height:10px"></div>
     <button class="btn secondary" onclick="cancelAddStudentProfile()">Batal</button>
   </section>` : '';
+  // TASK017B_SUPPORT_LOAD_ON_SETTINGS: preload current user's support tickets before rendering settings badges.
+  if(!window.__UPKK_SUPPORT_PRELOADING){
+    window.__UPKK_SUPPORT_PRELOADING = true;
+    setTimeout(()=>refreshUserSupportTickets().finally(()=>{ window.__UPKK_SUPPORT_PRELOADING = false; }).catch(()=>{}), 150);
+  }
   const deviceList = Object.values(normalizeDeviceMap(profile.devices, profile.allowedDevices)).filter(d=>d.active!==false);
   const deviceRows = deviceList.map((d,i)=>`<div class="exam-row"><div><b>${escapeHtml(d.deviceName || ('Device '+(i+1)))} ${d.deviceId===deviceId()?'<span class="badge">THIS DEVICE</span>':''}</b><br><span>${escapeHtml(d.platform||'')} ${escapeHtml(d.browser||'')}</span><br><span class="small">${escapeHtml(d.deviceId||'')} ${d.lastActive?('• Last: '+escapeHtml(new Date(d.lastActive).toLocaleString())):''}</span></div>${d.deviceId===deviceId()?'':`<button class="mini-btn danger" onclick="removeDevice('${escapeHtml(d.deviceId)}')">Remove</button>`}</div>`).join('');
   window.__UPKK_SETTING_NOTICE = '';
@@ -3052,10 +3073,10 @@ function renderSettings(){
     <div class="field" style="margin-top:12px"><label>Tajuk Ringkas</label><input id="supportSubjectInput" class="input" maxlength="90" placeholder="Contoh: Bayaran sudah dibuat tetapi exam belum unlock" /></div>
     <div class="field" style="margin-top:12px"><label>Mesej Kepada Admin</label><textarea id="supportMessageInput" class="input" rows="4" maxlength="900" placeholder="Tulis masalah atau pertanyaan dengan jelas."></textarea></div>
     <div style="height:12px"></div>
-    <button class="btn gold" onclick="submitSupportTicket()">Hantar Pertanyaan</button>
+    <button id="supportSubmitBtn" class="btn gold" onclick="submitSupportTicket()">Hantar Pertanyaan</button>
     <div style="height:10px"></div>
     <button class="btn secondary" onclick="refreshUserSupportTickets()">Refresh Jawapan Admin</button>
-    <div id="supportTicketList" style="margin-top:14px">${renderUserSupportTicketsHtml()}</div>
+    <div id="supportTicketStatusMsg" class="small" style="margin-top:10px;color:#047857">Sedia untuk hantar pertanyaan.</div><div id="supportTicketList" style="margin-top:14px">${renderUserSupportTicketsHtml()}</div>
   </section>
   <section class="card settings-danger-zone">
     <span class="badge">🗑️ DELETE / RESET PROFIL PELAJAR</span>
@@ -4165,3 +4186,9 @@ function upkkCelebrateFinish(qz){
 window.addEventListener('beforeunload', ()=>{ try{ persistExamSession(); }catch(e){} });
 document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='hidden'){ try{ persistExamSession(); }catch(e){} } });
 boot();
+
+
+// TASK-017B: expose support actions for inline buttons and browser/PWA compatibility.
+window.submitSupportTicket = submitSupportTicket;
+window.refreshUserSupportTickets = refreshUserSupportTickets;
+window.markSupportTicketRead = markSupportTicketRead;

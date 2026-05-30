@@ -537,7 +537,7 @@ header .wrap.top{display:grid!important;grid-template-columns:1fr auto;gap:16px;
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
-<script src="../src/firebase-config.js?v=3.68-task016-support-center"></script>
+<script src="../src/firebase-config.js?v=3.69-task017b-support-active"></script>
 <script>
 firebase.initializeApp(window.UPKK_FIREBASE_CONFIG);
 const db = firebase.database();
@@ -2015,9 +2015,14 @@ function supportStatusTag(value){ const cls = value === 'closed' ? 'red' : value
 function supportDateLabel(value){ try{ return value ? new Date(value).toLocaleString('ms-MY', {dateStyle:'medium', timeStyle:'short'}) : '-'; }catch(e){ return '-'; } }
 async function loadSupportTickets(){
   const box=$('supportTicketListBox'); if(box) box.textContent='Memuatkan pertanyaan...';
-  const snap = await db.ref(supportRoot).get();
-  supportTicketMap = snap.exists() ? (snap.val() || {}) : {};
-  renderSupportTickets();
+  try{
+    const snap = await db.ref(supportRoot).get();
+    supportTicketMap = snap.exists() ? (snap.val() || {}) : {};
+    renderSupportTickets();
+  }catch(err){
+    console.error('Support load failed:', err);
+    if(box) box.innerHTML='<div class="admin-muted-box">Gagal baca support ticket. Semak Firebase Rules untuk <code>apps/UPKK/supportTickets</code>.</div>';
+  }
 }
 function supportTicketArray(){
   return Object.entries(supportTicketMap || {}).map(([id,t])=>({id, ...(t||{})})).sort((a,b)=>String(b.updatedAt||b.createdAt||'').localeCompare(String(a.updatedAt||a.createdAt||'')));
@@ -2059,20 +2064,26 @@ async function replySupportTicket(){
   if(reply.length < 3) return alert('Tulis jawapan admin dahulu.');
   const now=new Date().toISOString();
   const msgRef=db.ref(supportRoot + '/' + currentSupportTicketId + '/messages').push();
-  await db.ref().update({
-    [supportRoot + '/' + currentSupportTicketId + '/latestAdminReply']: reply,
-    [supportRoot + '/' + currentSupportTicketId + '/latestAdminReplyAt']: now,
-    [supportRoot + '/' + currentSupportTicketId + '/status']: 'answered',
-    [supportRoot + '/' + currentSupportTicketId + '/updatedAt']: now,
-    [supportRoot + '/' + currentSupportTicketId + '/answeredAt']: now,
-    [supportRoot + '/' + currentSupportTicketId + '/answeredBy']: currentAdminSession?.adminId || 'admin',
-    [supportRoot + '/' + currentSupportTicketId + '/userRead']: false,
-    [supportRoot + '/' + currentSupportTicketId + '/unreadForUser']: true,
-    [supportRoot + '/' + currentSupportTicketId + '/messages/' + msgRef.key]: {from:'admin', name:currentAdminSession?.adminId || 'Admin', message:reply, at:now}
-  });
-  $('supportTicketMsg').textContent='Jawapan admin berjaya dihantar.';
-  await loadSupportTickets();
-  openSupportTicket(currentSupportTicketId);
+  try{
+    await db.ref().update({
+      [supportRoot + '/' + currentSupportTicketId + '/latestAdminReply']: reply,
+      [supportRoot + '/' + currentSupportTicketId + '/latestAdminReplyAt']: now,
+      [supportRoot + '/' + currentSupportTicketId + '/status']: 'answered',
+      [supportRoot + '/' + currentSupportTicketId + '/updatedAt']: now,
+      [supportRoot + '/' + currentSupportTicketId + '/answeredAt']: now,
+      [supportRoot + '/' + currentSupportTicketId + '/answeredBy']: currentAdminSession?.adminId || 'admin',
+      [supportRoot + '/' + currentSupportTicketId + '/userRead']: false,
+      [supportRoot + '/' + currentSupportTicketId + '/unreadForUser']: true,
+      [supportRoot + '/' + currentSupportTicketId + '/messages/' + msgRef.key]: {from:'admin', name:currentAdminSession?.adminId || 'Admin', message:reply, at:now}
+    });
+    $('supportTicketMsg').textContent='Jawapan admin berjaya dihantar. User akan nampak badge mesej baru di Setting > Inbox.';
+    await loadSupportTickets();
+    openSupportTicket(currentSupportTicketId);
+  }catch(err){
+    console.error('Support reply failed:', err);
+    $('supportTicketMsg').textContent='Gagal hantar jawapan. Semak Firebase Rules supportTickets.';
+    alert('Gagal hantar jawapan admin. Semak internet atau Firebase Rules.');
+  }
 }
 async function markSupportTicketClosed(){
   if(!currentSupportTicketId) return alert('Pilih pertanyaan dahulu.');
@@ -2088,6 +2099,15 @@ function exportSupportTicketsCSV(){
   const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='upkk-support-tickets.csv'; a.click(); URL.revokeObjectURL(a.href);
 }
+
+
+// TASK-017B: expose support actions for inline admin buttons.
+window.loadSupportTickets = loadSupportTickets;
+window.renderSupportTickets = renderSupportTickets;
+window.openSupportTicket = openSupportTicket;
+window.replySupportTicket = replySupportTicket;
+window.markSupportTicketClosed = markSupportTicketClosed;
+window.exportSupportTicketsCSV = exportSupportTicketsCSV;
 
 async function loadAll(){ await Promise.all([loadSummary(), loadCodes(), loadUsers(), loadHistory()]); }
 async function initAdminPanel(){ const ok = await verifyAdminSession(); if(ok){ await loadAll(); const hash=(location.hash||'').replace('#',''); await loadStudentSearchOptions().catch(()=>{}); if(hash) showTab(hash); } }
