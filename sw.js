@@ -1,4 +1,4 @@
-const CACHE_NAME = 'upkk-smartkids-v53-maintenance-ui-final';
+const CACHE_NAME = 'upkk-smartkids-v54-maintenance-safety';
 const CORE_ASSETS = [
   './',
   './index.html',
