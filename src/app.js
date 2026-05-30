@@ -287,14 +287,23 @@ function renderMaintenanceScreen(control=UPKK_MAINTENANCE_STATE){
   const end = maintenanceDateText(control.maintenanceEnd);
   const schedule = (start || end) ? `<div class="maintenance-schedule">${start?`<span><b>Mula</b>${start}</span>`:''}${end?`<span><b>Dijangka Tamat</b>${end}</span>`:''}</div>` : '';
   if($app){
-    $app.innerHTML = `<section class="card hero maintenance-card" style="text-align:center;padding:28px 18px;max-width:520px;margin:20px auto;">
-      <div style="font-size:52px;line-height:1;margin-bottom:10px;">🔧</div>
-      <span class="badge">MAINTENANCE MODE</span>
-      <h2 class="title" style="margin:12px 0 8px;">${escapeHtml(control.maintenanceTitle || 'Sistem Sedang Diselenggara')}</h2>
-      <p class="subtitle" style="white-space:pre-line;">${escapeHtml(control.maintenanceMessage || UPKK_MAINTENANCE_DEFAULT.maintenanceMessage)}</p>
-      ${schedule}
-      <p class="small" style="margin-top:16px;opacity:.8;">Admin masih boleh mengurus sistem melalui Admin Panel.</p>
-      <button class="btn secondary" style="margin-top:14px;" onclick="location.reload()">Semak Semula</button>
+    $app.innerHTML = `<section class="maintenance-screen" aria-live="polite">
+      <div class="maintenance-bg-orb maintenance-bg-orb-1"></div>
+      <div class="maintenance-bg-orb maintenance-bg-orb-2"></div>
+      <div class="maintenance-panel">
+        <div class="maintenance-logo">
+          <div class="maintenance-logo-icon">🔧</div>
+          <div>
+            <div class="maintenance-brand">UPKK SmartKids</div>
+            <div class="maintenance-status-pill">Maintenance Mode</div>
+          </div>
+        </div>
+        <h2 class="maintenance-title">${escapeHtml(control.maintenanceTitle || 'Sistem Sedang Diselenggara')}</h2>
+        <p class="maintenance-message">${escapeHtml(control.maintenanceMessage || UPKK_MAINTENANCE_DEFAULT.maintenanceMessage)}</p>
+        ${schedule}
+        <div class="maintenance-progress"><span></span></div>
+        <button class="maintenance-retry-btn" onclick="location.reload()">Semak Semula</button>
+      </div>
     </section>`;
   }
 }
