@@ -484,12 +484,10 @@ header{position:sticky;top:0;z-index:50;box-shadow:0 14px 34px rgba(15,23,42,.12
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <script src="../src/firebase-config.js?v=3.14"></script>
 <script>
 firebase.initializeApp(window.UPKK_FIREBASE_CONFIG);
 const db = firebase.database();
-const storage = firebase.storage();
 const APP_ROOT = 'apps/UPKK';
 const codeRoot = APP_ROOT + '/accessCodes';
 const userRoot = APP_ROOT + '/users';
@@ -1102,7 +1100,6 @@ async function exportQuestionBank(){
 
 
 /* ADMIN EXPANSION COMPLETE v3.17 */
-const settingsRoot = APP_ROOT + '/settings';
 const contentRoot = APP_ROOT + '/content';
 const resultsRoot = APP_ROOT + '/results';
 const examHistoryRoot = APP_ROOT + '/examHistory';

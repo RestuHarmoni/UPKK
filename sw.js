@@ -1,4 +1,4 @@
-const CACHE_NAME = 'upkk-smartkids-v3-46-subscription-settings';
+const CACHE_NAME = 'upkk-smartkids-v3-47-admin-panel-fix';
 const CORE_ASSETS = [
   './',
   './index.html',
