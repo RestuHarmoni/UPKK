@@ -1,4 +1,4 @@
-const APP_VERSION = '8.46-SUBSCRIPTION-SETTINGS';
+const APP_VERSION = '8.51-PAYMENT-NOTIFICATIONS';
 const PIN_LENGTH = 6;
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCK_MINUTES = 10;
@@ -78,6 +78,9 @@ let deviceRenderLock = false;
 let studentsListenerRef = null;
 let studentsListenerAccountId = '';
 let lastStudentsSignature = '';
+let notificationsListenerRef = null;
+let notificationsListenerAccountId = '';
+let shownNotificationIds = new Set();
 
 
 /* v8.02 Keyboard/Input Focus Guard
@@ -706,6 +709,67 @@ function ensureAccountStudentsRealtimeListener(accountId=profile.accountId){
     }catch(err){ console.warn('Students realtime sync failed:', err); }
   }, err=>console.warn('Students realtime listener error:', err));
 }
+
+function stopAccountNotificationsRealtimeListener(){
+  try{
+    if(notificationsListenerRef) notificationsListenerRef.off('value');
+  }catch(err){ console.warn('Stop notifications listener skipped:', err); }
+  notificationsListenerRef = null;
+  notificationsListenerAccountId = '';
+}
+function ensureAccountNotificationsRealtimeListener(accountId=profile.accountId){
+  const db = firebaseDb();
+  const accId = safeFirebaseKey(accountId || '');
+  if(!db || !accId || !isLoggedInSession()) return;
+  if(notificationsListenerRef && notificationsListenerAccountId === accId) return;
+  stopAccountNotificationsRealtimeListener();
+  notificationsListenerAccountId = accId;
+  notificationsListenerRef = db.ref(fbPath('notifications', accId));
+  notificationsListenerRef.limitToLast(10).on('value', snapshot=>{
+    try{
+      const data = snapshot.exists() ? (snapshot.val() || {}) : {};
+      const unread = Object.entries(data)
+        .map(([id,n]) => ({id, ...(n || {})}))
+        .filter(n => n && n.read !== true)
+        .sort((a,b)=>String(a.createdAt||'').localeCompare(String(b.createdAt||'')));
+      if(!unread.length) return;
+      unread.forEach((n, idx)=>setTimeout(()=>showTopNotification(n), idx * 650));
+    }catch(err){ console.warn('Notifications realtime sync failed:', err); }
+  }, err=>console.warn('Notifications listener error:', err));
+}
+function ensureTopNotificationLayer(){
+  let layer = document.getElementById('topNotificationLayer');
+  if(layer) return layer;
+  layer = document.createElement('div');
+  layer.id = 'topNotificationLayer';
+  layer.className = 'top-notification-layer';
+  document.body.appendChild(layer);
+  return layer;
+}
+function showTopNotification(notification){
+  const id = notification.id || `${notification.type||'notice'}_${notification.createdAt||Date.now()}`;
+  if(shownNotificationIds.has(id)) return;
+  shownNotificationIds.add(id);
+  const layer = ensureTopNotificationLayer();
+  const item = document.createElement('div');
+  item.className = `top-notification-card ${String(notification.type||'').includes('rejected') ? 'is-error' : 'is-success'}`;
+  item.innerHTML = `<button class="top-notification-close" aria-label="Tutup">×</button><div class="top-notification-title">${escapeHtml(notification.title||'Notifikasi')}</div><div class="top-notification-message">${escapeHtml(notification.message||'')}</div>`;
+  layer.appendChild(item);
+  const close = ()=>{
+    item.classList.add('hide');
+    setTimeout(()=>item.remove(), 260);
+    markNotificationRead(notification.id).catch(()=>{});
+  };
+  item.querySelector('.top-notification-close')?.addEventListener('click', close);
+  setTimeout(close, 6500);
+}
+async function markNotificationRead(notificationId){
+  if(!notificationId || !notificationsListenerAccountId) return;
+  const db = firebaseDb();
+  if(!db) return;
+  await db.ref(fbPath('notifications', `${notificationsListenerAccountId}/${notificationId}`)).update({read:true, readAt:new Date().toISOString()});
+}
+
 function syncExamSessionsMapToFirebase(map){
   const db=firebaseDb();
   if(!db || !profile?.accountId || !profile?.studentId) return;
@@ -1593,7 +1657,7 @@ function loadProfile(){
 function saveProfile(){
   profile=normalizeProfile(profile);
   if(!profile.studentId){ saveDraftProfile(); return; }
-  const profiles=loadProfiles(); profiles[accountLocalKey(profile)]=profile; saveProfiles(profiles); localStorage.setItem(CURRENT_PROFILE_ID_KEY, accountLocalKey(profile)); localStorage.setItem(PROFILE_KEY, JSON.stringify(profile)); localStorage.setItem(LOGGED_IN_KEY, '1'); localStorage.removeItem(DRAFT_PROFILE_KEY); syncProfileToFirebase(); ensureAccountStudentsRealtimeListener(profile.accountId);
+  const profiles=loadProfiles(); profiles[accountLocalKey(profile)]=profile; saveProfiles(profiles); localStorage.setItem(CURRENT_PROFILE_ID_KEY, accountLocalKey(profile)); localStorage.setItem(PROFILE_KEY, JSON.stringify(profile)); localStorage.setItem(LOGGED_IN_KEY, '1'); localStorage.removeItem(DRAFT_PROFILE_KEY); syncProfileToFirebase(); ensureAccountStudentsRealtimeListener(profile.accountId); ensureAccountNotificationsRealtimeListener(profile.accountId);
 }
 function activeStudentId(){ return accountLocalKey(profile); }
 function historyForProfile(p){ try{return JSON.parse(localStorage.getItem(`${HISTORY_KEY}_${accountLocalKey(p)}`)||'[]')}catch(e){return[]} }
@@ -2058,6 +2122,7 @@ async function boot(){
       if(isLoggedInSession() && profile?.accountId){
         await refreshAllAccountProfilesFromFirebase(profile.accountId);
         ensureAccountStudentsRealtimeListener(profile.accountId);
+        ensureAccountNotificationsRealtimeListener(profile.accountId);
         await refreshCurrentStudentCloudCache();
       }
     }catch(err){ console.warn('Boot cloud sync skipped:', err); }
