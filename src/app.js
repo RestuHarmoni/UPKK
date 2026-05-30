@@ -280,6 +280,7 @@ const UPKK_DEFAULT_SUBSCRIPTION_SETTINGS = {
 };
 let UPKK_SUBSCRIPTION_SETTINGS_CACHE = null;
 let UPKK_PAYMENT_STATUS_CACHE = null;
+let UPKK_ACCOUNT_SUBSCRIPTION_CACHE = null;
 function moneyRm(v){
   const n = Number(v || 0);
   return 'RM' + n.toFixed(2);
@@ -927,16 +928,46 @@ function isFutureIso(iso){
 function getUsernameSubscription(){
   return profile.subscription || profile.accountSubscription || {};
 }
+async function loadAccountSubscriptionFromFirebase(force=false){
+  const db = firebaseDb();
+  const accountId = profile.accountId || profile.username || '';
+  if(!db || !accountId) return profile.subscription || {};
+  if(UPKK_ACCOUNT_SUBSCRIPTION_CACHE && !force) return UPKK_ACCOUNT_SUBSCRIPTION_CACHE;
+  const key = safeFirebaseKey(accountId);
+  let sub = {};
+  try{
+    const snap = await db.ref(fbPath('subscriptions', key)).get();
+    if(snap.exists()) sub = {...sub, ...(snap.val() || {})};
+  }catch(err){
+    console.warn('Subscription read failed:', err);
+  }
+  try{
+    const accountSnap = await db.ref(accountPath(accountId)).child('subscription').get();
+    if(accountSnap.exists()) sub = {...sub, ...(accountSnap.val() || {})};
+  }catch(err){
+    console.warn('Account subscription read failed:', err);
+  }
+  if(sub && Object.keys(sub).length){
+    profile.subscription = mergeSubscriptionWithEntitlements(sub, profile.entitlements || {});
+    profile.plan = (normalizeSubscriptionRecord(profile.subscription).examActive && isFutureIso(normalizeSubscriptionRecord(profile.subscription).examUntil)) ? PREMIUM_STATUS.PREMIUM : (profile.plan || PREMIUM_STATUS.FREE);
+    UPKK_ACCOUNT_SUBSCRIPTION_CACHE = profile.subscription;
+    saveProfile();
+  }
+  return profile.subscription || {};
+}
 function normalizeSubscriptionRecord(sub={}){
   const trialUntil = sub.trialUntil || sub.latihanTrialUntil || sub.trial?.endDate || sub.latihanTrial?.endDate || '';
-  const examUntil = sub.examUntil || sub.examLicenseUntil || sub.exam?.endDate || sub.examLicense?.endDate || '';
+  const examUntil = sub.examUntil || sub.examLicenseUntil || sub.expiryDate || sub.endDate || sub.activeUntil || sub.exam?.endDate || sub.examLicense?.endDate || '';
+  const statusActive = String(sub.status || '').toLowerCase() === 'active';
   return {
     trialActive: !!(sub.trialActive ?? sub.latihanTrialActive ?? sub.trial?.active ?? sub.latihanTrial?.active),
     trialUntil,
     trialCode: sub.trialCode || sub.trial?.code || sub.latihanTrial?.code || '',
-    examActive: !!(sub.examActive ?? sub.examLicenseActive ?? sub.exam?.active ?? sub.examLicense?.active),
+    examActive: !!(sub.examActive ?? sub.examLicenseActive ?? sub.exam?.active ?? sub.examLicense?.active ?? statusActive),
     examUntil,
-    examCode: sub.examCode || sub.exam?.code || sub.examLicense?.code || '',
+    examCode: sub.examCode || sub.exam?.code || sub.examLicense?.code || sub.paymentId || '',
+    status: sub.status || '',
+    plan: sub.plan || '',
     updatedAt: sub.updatedAt || ''
   };
 }
@@ -1031,6 +1062,13 @@ async function loadUsernameSubscriptionFromFirebase(username=profile.username, a
   const usernameSnap = await usernameRef.get();
   const usernameVal = usernameSnap.exists() ? usernameSnap.val() : {};
   let sub = (usernameVal && typeof usernameVal === 'object' && usernameVal.subscription) ? usernameVal.subscription : {};
+  try{
+    const acctKey = safeFirebaseKey(accountId || profile.accountId || usernameIndexAccountId(usernameVal) || username || '');
+    if(acctKey){
+      const subSnap = await db.ref(fbPath('subscriptions', acctKey)).get();
+      if(subSnap.exists()) sub = {...sub, ...(subSnap.val() || {})};
+    }
+  }catch(e){ console.warn('Subscription node read failed:', e); }
   let legacyEntitlements = {};
   try{
     if(accountData && accountData.entitlements) legacyEntitlements = {...legacyEntitlements, ...accountData.entitlements};
@@ -3177,8 +3215,17 @@ function examSubjectRows(){
 function renderExamMenu(){
   if(!requireProfile()) return;
   if(!hasActiveExamAccess()){
-    $app.innerHTML = `${profileSummary()}${subscriptionPromoCard(UPKK_SUBSCRIPTION_SETTINGS_CACHE || UPKK_DEFAULT_SUBSCRIPTION_SETTINGS, UPKK_PAYMENT_STATUS_CACHE)}<section class="card"><button class="btn secondary" onclick="page='subjects';render()">Pergi ke Latihan</button></section>`;
-    renderPremiumPaywall().catch(()=>{});
+    $app.innerHTML = `${profileSummary()}<section class="card"><p>Memeriksa status Premium...</p></section>`;
+    loadAccountSubscriptionFromFirebase(true).then(()=>{
+      if(hasActiveExamAccess()) render();
+      else {
+        $app.innerHTML = `${profileSummary()}${subscriptionPromoCard(UPKK_SUBSCRIPTION_SETTINGS_CACHE || UPKK_DEFAULT_SUBSCRIPTION_SETTINGS, UPKK_PAYMENT_STATUS_CACHE)}<section class="card"><button class="btn secondary" onclick="page='subjects';render()">Pergi ke Latihan</button></section>`;
+        renderPremiumPaywall().catch(()=>{});
+      }
+    }).catch(()=>{
+      $app.innerHTML = `${profileSummary()}${subscriptionPromoCard(UPKK_SUBSCRIPTION_SETTINGS_CACHE || UPKK_DEFAULT_SUBSCRIPTION_SETTINGS, UPKK_PAYMENT_STATUS_CACHE)}<section class="card"><button class="btn secondary" onclick="page='subjects';render()">Pergi ke Latihan</button></section>`;
+      renderPremiumPaywall().catch(()=>{});
+    });
     return;
   }
   const rowsAll = examSubjectRows();
@@ -3321,7 +3368,10 @@ function applySavedAnswerToQuestion(q, saved){
 async function startExam(subjectKey){
   upkkPlaySound('examStart');
   if(!requireProfile()) return;
-  if(!hasActiveExamAccess()){ alert('Peperiksaan memerlukan lesen aktif 1 tahun.'); return redeemExamLicenseFromSettings(); }
+  if(!hasActiveExamAccess()){
+    await loadAccountSubscriptionFromFirebase(true).catch(()=>{});
+  }
+  if(!hasActiveExamAccess()){ alert('Peperiksaan memerlukan langganan Premium aktif.'); page='exam'; render(); return; }
   if(!canStartExamSubject(subjectKey)) return showExamRepeatLocked();
   clearTimer(); quizType='exam';
   const s=await ensureSubjectLoaded(subjectKey); if(!s) return;
