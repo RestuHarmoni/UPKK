@@ -110,6 +110,7 @@ header .wrap.top{display:grid!important;grid-template-columns:1fr auto;gap:16px;
     <button class="tab" onclick="showTab('codes', this)">Trial Code</button>
     <button class="tab" onclick="showTab('questions', this)">Question Bank Editor</button>
     <button class="tab" onclick="showTab('users', this)">Users / Parent</button>
+    <button class="tab" onclick="showTab('supportTickets', this)">Aduan / Support</button>
     <button class="tab" onclick="showTab('history', this)">Trial Redeem History</button>
     <button class="tab" onclick="showTab('settings', this)">Settings + Maintenance</button>
     <button class="tab" onclick="showTab('subscriptionSettings', this)">ToyyibPay / Access Page</button>
@@ -248,6 +249,30 @@ header .wrap.top{display:grid!important;grid-template-columns:1fr auto;gap:16px;
 
   <section id="users" class="panel">
     <section class="card"><div class="section-head"><div><h2>User / Parent Management</h2><p class="hint">Susunan table dikemaskan untuk monitor username, pelajar, trial, akses premium dan status pembayaran.</p></div><button class="secondary" onclick="loadUsers()">Refresh Users</button></div><div id="usersBox">Memuatkan...</div></section>
+  </section>
+
+
+  <section id="supportTickets" class="panel">
+    <div class="grid">
+      <section class="card">
+        <div class="section-head"><div><h2>💬 Aduan & Pertanyaan User</h2><p class="hint">Admin boleh monitor mesej support daripada parent/pelajar dan respon terus di sini. Data disimpan di <code>apps/UPKK/supportTickets</code>.</p></div><span class="admin-tag">Support Inbox</span></div>
+        <div class="grid3">
+          <div><label>Status</label><select id="supportStatusFilter" onchange="renderSupportTickets()"><option value="all">Semua</option><option value="open">Belum Dibalas</option><option value="answered">Sudah Dibalas</option><option value="closed">Selesai</option></select></div>
+          <div><label>Kategori</label><select id="supportCategoryFilter" onchange="renderSupportTickets()"><option value="all">Semua</option><option value="payment">Bayaran / ToyyibPay</option><option value="account">Akaun / Login</option><option value="exam">Peperiksaan / Akses</option><option value="technical">Masalah Teknikal</option><option value="question">Soalan / Pembelajaran</option><option value="other">Lain-lain</option></select></div>
+          <div><label>Search</label><input id="supportSearchInput" placeholder="Nama / username / tajuk" oninput="renderSupportTickets()" /></div>
+        </div>
+        <div class="actions" style="margin-top:12px"><button onclick="loadSupportTickets()">Refresh Inbox</button><button class="secondary" onclick="exportSupportTicketsCSV()">Export CSV</button></div>
+        <div id="supportTicketListBox" class="admin-table-wrap" style="margin-top:12px">Memuatkan...</div>
+      </section>
+      <section class="card">
+        <div class="section-head"><div><h2>Respon Admin</h2><p class="hint">Pilih satu pertanyaan untuk lihat detail dan balas kepada user.</p></div></div>
+        <div id="supportTicketDetailBox" class="admin-muted-box">Pilih pertanyaan daripada senarai.</div>
+        <label style="margin-top:12px">Jawapan Admin</label>
+        <textarea id="supportAdminReplyInput" rows="5" placeholder="Tulis jawapan admin di sini..."></textarea>
+        <div class="actions"><button onclick="replySupportTicket()">Hantar Jawapan</button><button class="secondary" onclick="markSupportTicketClosed()">Tanda Selesai</button></div>
+        <div id="supportTicketMsg" class="log">Sedia.</div>
+      </section>
+    </div>
   </section>
 
   <section id="history" class="panel">
@@ -512,7 +537,7 @@ header .wrap.top{display:grid!important;grid-template-columns:1fr auto;gap:16px;
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
-<script src="../src/firebase-config.js?v=3.67-task015-recovery-functional"></script>
+<script src="../src/firebase-config.js?v=3.68-task016-support-center"></script>
 <script>
 firebase.initializeApp(window.UPKK_FIREBASE_CONFIG);
 const db = firebase.database();
@@ -527,6 +552,9 @@ const settingsRoot = APP_ROOT + '/settings';
 const paymentRoot = APP_ROOT + '/payments';
 const subscriptionRoot = APP_ROOT + '/subscriptions';
 const notificationRoot = APP_ROOT + '/notifications';
+const supportRoot = APP_ROOT + '/supportTickets';
+let supportTicketMap = {};
+let currentSupportTicketId = '';
 let paymentActionMap = {};
 const ADMIN_SESSION_KEY = 'upkkSmartKidsAdminSession_v2';
 let currentAdminSession = null;
@@ -616,6 +644,7 @@ function showTab(id, btn){
   if(id === 'history') loadHistory();
   if(id === 'subscriptionSettings') loadSubscriptionSettings();
   if(id === 'payments') loadPayments();
+  if(id === 'supportTickets') loadSupportTickets();
   if(id === 'soundSettings') loadSoundSettings();
   
   if(id === 'questionNotes') loadQuestionNoteSubjects();
@@ -1977,6 +2006,87 @@ async function rejectPayment(token){
   }
   await db.ref().update(updates);
   await loadPayments();
+}
+
+
+function supportCategoryLabel(value){ return ({payment:'Bayaran / ToyyibPay', account:'Akaun / Login', exam:'Peperiksaan / Akses', technical:'Masalah Teknikal', question:'Soalan / Pembelajaran', other:'Lain-lain'}[value] || value || 'Pertanyaan'); }
+function supportStatusLabel(value){ return ({open:'Belum Dibalas', answered:'Sudah Dibalas', closed:'Selesai'}[value] || value || 'Belum Dibalas'); }
+function supportStatusTag(value){ const cls = value === 'closed' ? 'red' : value === 'answered' ? 'gold' : ''; return `<span class="admin-tag ${cls}">${supportStatusLabel(value)}</span>`; }
+function supportDateLabel(value){ try{ return value ? new Date(value).toLocaleString('ms-MY', {dateStyle:'medium', timeStyle:'short'}) : '-'; }catch(e){ return '-'; } }
+async function loadSupportTickets(){
+  const box=$('supportTicketListBox'); if(box) box.textContent='Memuatkan pertanyaan...';
+  const snap = await db.ref(supportRoot).get();
+  supportTicketMap = snap.exists() ? (snap.val() || {}) : {};
+  renderSupportTickets();
+}
+function supportTicketArray(){
+  return Object.entries(supportTicketMap || {}).map(([id,t])=>({id, ...(t||{})})).sort((a,b)=>String(b.updatedAt||b.createdAt||'').localeCompare(String(a.updatedAt||a.createdAt||'')));
+}
+function renderSupportTickets(){
+  const box=$('supportTicketListBox'); if(!box) return;
+  const status=$('supportStatusFilter')?.value||'all';
+  const category=$('supportCategoryFilter')?.value||'all';
+  const q=String($('supportSearchInput')?.value||'').toLowerCase().trim();
+  let list=supportTicketArray().filter(t=>{
+    if(status !== 'all' && (t.status||'open') !== status) return false;
+    if(category !== 'all' && (t.category||'other') !== category) return false;
+    if(q){
+      const hay=[t.username,t.parentName,t.studentName,t.subject,t.message,t.latestAdminReply].join(' ').toLowerCase();
+      if(!hay.includes(q)) return false;
+    }
+    return true;
+  });
+  if(!list.length){ box.innerHTML='<div class="admin-muted-box">Tiada pertanyaan ditemui.</div>'; return; }
+  box.innerHTML=`<table><thead><tr><th>User</th><th>Kategori</th><th>Tajuk</th><th>Status</th><th>Kemaskini</th><th>Aksi</th></tr></thead><tbody>${list.map(t=>`<tr><td><b>${esc(t.studentName||t.parentName||'-')}</b><br><small>${esc(t.username||t.accountId||'')}</small></td><td>${esc(supportCategoryLabel(t.category))}</td><td><b>${esc(t.subject||'-')}</b><br><small>${esc((t.message||'').slice(0,90))}${(t.message||'').length>90?'...':''}</small></td><td>${supportStatusTag(t.status||'open')}</td><td>${esc(supportDateLabel(t.updatedAt||t.createdAt))}</td><td><button class="secondary" onclick="openSupportTicket('${esc(t.id)}')">Buka</button></td></tr>`).join('')}</tbody></table>`;
+}
+function renderSupportMessages(t){
+  const msgs = Object.values(t.messages || {}).sort((a,b)=>String(a.at||'').localeCompare(String(b.at||'')));
+  if(!msgs.length) return '<div class="admin-muted-box">Tiada mesej detail.</div>';
+  return msgs.map(m=>`<div class="admin-muted-box" style="margin:8px 0;background:${m.from==='admin'?'#ecfdf5':'#f8fafc'}"><b>${m.from==='admin'?'Admin':esc(m.name||'User')}</b><br><span>${esc(m.message||'')}</span><br><small>${esc(supportDateLabel(m.at))}</small></div>`).join('');
+}
+function openSupportTicket(id){
+  currentSupportTicketId=id;
+  const t=supportTicketMap[id] || {};
+  const box=$('supportTicketDetailBox');
+  if(box){
+    box.innerHTML=`<b>${esc(t.subject||'-')}</b><br><small>${esc(supportCategoryLabel(t.category))} • ${esc(t.username||'')}</small><hr><p>${esc(t.message||'')}</p>${renderSupportMessages(t)}`;
+  }
+  if($('supportAdminReplyInput')) $('supportAdminReplyInput').value = '';
+}
+async function replySupportTicket(){
+  if(!currentSupportTicketId) return alert('Pilih pertanyaan dahulu.');
+  const reply=String($('supportAdminReplyInput')?.value||'').trim();
+  if(reply.length < 3) return alert('Tulis jawapan admin dahulu.');
+  const now=new Date().toISOString();
+  const msgRef=db.ref(supportRoot + '/' + currentSupportTicketId + '/messages').push();
+  await db.ref().update({
+    [supportRoot + '/' + currentSupportTicketId + '/latestAdminReply']: reply,
+    [supportRoot + '/' + currentSupportTicketId + '/latestAdminReplyAt']: now,
+    [supportRoot + '/' + currentSupportTicketId + '/status']: 'answered',
+    [supportRoot + '/' + currentSupportTicketId + '/updatedAt']: now,
+    [supportRoot + '/' + currentSupportTicketId + '/answeredAt']: now,
+    [supportRoot + '/' + currentSupportTicketId + '/answeredBy']: currentAdminSession?.adminId || 'admin',
+    [supportRoot + '/' + currentSupportTicketId + '/userRead']: false,
+    [supportRoot + '/' + currentSupportTicketId + '/unreadForUser']: true,
+    [supportRoot + '/' + currentSupportTicketId + '/messages/' + msgRef.key]: {from:'admin', name:currentAdminSession?.adminId || 'Admin', message:reply, at:now}
+  });
+  $('supportTicketMsg').textContent='Jawapan admin berjaya dihantar.';
+  await loadSupportTickets();
+  openSupportTicket(currentSupportTicketId);
+}
+async function markSupportTicketClosed(){
+  if(!currentSupportTicketId) return alert('Pilih pertanyaan dahulu.');
+  await db.ref(supportRoot + '/' + currentSupportTicketId).update({status:'closed', closedAt:new Date().toISOString(), updatedAt:new Date().toISOString(), closedBy:currentAdminSession?.adminId || 'admin'});
+  $('supportTicketMsg').textContent='Pertanyaan ditanda selesai.';
+  await loadSupportTickets();
+  openSupportTicket(currentSupportTicketId);
+}
+function exportSupportTicketsCSV(){
+  const rows=[['Date','Status','Category','Username','Student','Subject','Message','Admin Reply']];
+  supportTicketArray().forEach(t=>rows.push([t.createdAt||'',t.status||'',supportCategoryLabel(t.category),t.username||'',t.studentName||'',t.subject||'',t.message||'',t.latestAdminReply||'']));
+  const csv=rows.map(r=>r.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='upkk-support-tickets.csv'; a.click(); URL.revokeObjectURL(a.href);
 }
 
 async function loadAll(){ await Promise.all([loadSummary(), loadCodes(), loadUsers(), loadHistory()]); }

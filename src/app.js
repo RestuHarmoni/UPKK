@@ -1,4 +1,4 @@
-const APP_VERSION = '8.52-MAINTENANCE-MODE';
+const APP_VERSION = '8.54-TASK017-SUPPORT-INBOX-READ-BADGE';
 const PIN_LENGTH = 6;
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCK_MINUTES = 10;
@@ -2756,6 +2756,7 @@ function renderProfile(){
 
   bindSafeTextInput('usernameInput', e=>{ e.target.value = cleanUsername(e.target.value); profile.username=e.target.value; if(profile.studentId) profile=blankProfile(); saveDraftProfile(); });
   bindSafeTextInput('pinInput', e=>{ e.target.value = cleanPin(e.target.value); profile.pin=e.target.value; if(profile.studentId) profile=blankProfile(); saveDraftProfile(); });
+  setTimeout(()=>{ if(page === 'settings') refreshUserSupportTickets().catch(()=>{}); }, 100);
   bindSafeTextInput('studentFullNameInput', e=>{ e.target.value = uppercaseName(e.target.value); profile.name=e.target.value; });
   bindSafeTextInput('oldUsernameInput', e=>{ e.target.value=cleanUsername(e.target.value); });
   bindSafeTextInput('oldPinInput', e=>{ e.target.value=cleanPin(e.target.value); });
@@ -2841,6 +2842,134 @@ function cancelEditStudentProfile(){
   render();
 }
 
+
+let UPKK_SUPPORT_TICKETS_CACHE = [];
+function supportCategoryLabel(value){
+  return ({payment:'Bayaran / ToyyibPay', account:'Akaun / Login', exam:'Peperiksaan / Akses', technical:'Masalah Teknikal', question:'Soalan / Pembelajaran', other:'Lain-lain'}[value] || value || 'Pertanyaan');
+}
+function supportStatusLabel(value){
+  return ({open:'Dihantar', answered:'Dibalas Admin', closed:'Selesai'}[value] || value || 'Dihantar');
+}
+function supportDateLabel(value){
+  try{ return value ? new Date(value).toLocaleString('ms-MY', {dateStyle:'medium', timeStyle:'short'}) : '-'; }catch(e){ return '-'; }
+}
+function isSupportTicketUnreadForUser(t){
+  if(!t || !t.latestAdminReply) return false;
+  if(t.userRead === true || t.unreadForUser === false) return false;
+  return true;
+}
+function supportUnreadCount(){
+  return (Array.isArray(UPKK_SUPPORT_TICKETS_CACHE) ? UPKK_SUPPORT_TICKETS_CACHE : []).filter(isSupportTicketUnreadForUser).length;
+}
+function supportNewBadge(t){
+  return isSupportTicketUnreadForUser(t) ? '<span class="support-new-dot" title="Mesej baru daripada admin">● Baru</span>' : '<span class="support-read-pill">Sudah baca</span>';
+}
+function renderUserSupportInboxHtml(){
+  if(!Array.isArray(UPKK_SUPPORT_TICKETS_CACHE) || !UPKK_SUPPORT_TICKETS_CACHE.length){
+    return '<div class="empty">Belum ada mesej admin.</div>';
+  }
+  const replied = UPKK_SUPPORT_TICKETS_CACHE.filter(t=>t.latestAdminReply);
+  if(!replied.length){
+    return '<div class="empty">Belum ada respon admin. Jika sudah hantar pertanyaan, jawapan admin akan muncul di sini.</div>';
+  }
+  return replied.slice(0,8).map(t=>`<div class="exam-row support-ticket-row support-inbox-row ${isSupportTicketUnreadForUser(t)?'is-unread':'is-read'}">
+    <div>
+      <b>${supportNewBadge(t)} ${escapeHtml(t.subject || supportCategoryLabel(t.category))}</b><br>
+      <span class="small">${escapeHtml(supportCategoryLabel(t.category))} • ${escapeHtml(supportStatusLabel(t.status))} • ${escapeHtml(supportDateLabel(t.latestAdminReplyAt || t.answeredAt || t.updatedAt))}</span>
+      <div class="support-reply-box"><b>Jawapan Admin:</b><br>${escapeHtml(t.latestAdminReply || '')}</div>
+    </div>
+    <div>${isSupportTicketUnreadForUser(t) ? `<button class="mini-btn" onclick="markSupportTicketRead('${escapeHtml(t.id)}')">Tanda Dibaca</button>` : ''}</div>
+  </div>`).join('');
+}
+function renderUserSupportTicketsHtml(){
+  if(!Array.isArray(UPKK_SUPPORT_TICKETS_CACHE) || !UPKK_SUPPORT_TICKETS_CACHE.length){
+    return '<div class="empty">Belum ada pertanyaan. Hantar mesej pertama kepada admin jika perlukan bantuan.</div>';
+  }
+  return UPKK_SUPPORT_TICKETS_CACHE.slice(0,6).map(t=>{
+    const reply = t.latestAdminReply ? `<div class="support-reply-box"><b>Jawapan Admin:</b><br>${escapeHtml(t.latestAdminReply)}</div>` : '<div class="small">Menunggu respon admin.</div>';
+    return `<div class="exam-row support-ticket-row ${isSupportTicketUnreadForUser(t)?'is-unread':'is-read'}"><div><b>${supportNewBadge(t)} ${escapeHtml(t.subject || supportCategoryLabel(t.category))}</b><br><span class="small">${escapeHtml(supportCategoryLabel(t.category))} • ${escapeHtml(supportStatusLabel(t.status))} • ${escapeHtml(supportDateLabel(t.updatedAt || t.createdAt))}</span><br><span>${escapeHtml(t.message || '')}</span>${reply}</div>${isSupportTicketUnreadForUser(t)?`<button class="mini-btn" onclick="markSupportTicketRead('${escapeHtml(t.id)}')">Dibaca</button>`:''}</div>`;
+  }).join('');
+}
+async function loadUserSupportTickets(){
+  const db = firebaseDb();
+  if(!db || !profile) return [];
+  const accountId = profile.accountId || profile.username || '';
+  const username = profile.username || '';
+  try{
+    const snap = await db.ref(fbPath('supportTickets')).get();
+    const raw = snap.exists() ? snap.val() : {};
+    UPKK_SUPPORT_TICKETS_CACHE = Object.entries(raw || {}).map(([id,t])=>({id, ...(t||{})}))
+      .filter(t => (accountId && t.accountId === accountId) || (username && t.username === username))
+      .sort((a,b)=>String(b.updatedAt||b.createdAt||'').localeCompare(String(a.updatedAt||a.createdAt||'')));
+    return UPKK_SUPPORT_TICKETS_CACHE;
+  }catch(err){
+    console.warn('Support load error:', err);
+    return [];
+  }
+}
+async function refreshUserSupportTickets(){
+  await loadUserSupportTickets();
+  const box = document.getElementById('supportTicketList');
+  if(box) box.innerHTML = renderUserSupportTicketsHtml();
+  const inbox = document.getElementById('supportInboxList');
+  if(inbox) inbox.innerHTML = renderUserSupportInboxHtml();
+  const badge = document.getElementById('supportInboxBadge');
+  if(badge){
+    const count = supportUnreadCount();
+    badge.textContent = count ? `🔴 ${count} mesej baru` : '✓ Tiada mesej baru';
+    badge.className = count ? 'badge support-unread-badge' : 'badge support-read-badge';
+  }
+}
+async function markSupportTicketRead(ticketId){
+  const db = firebaseDb();
+  if(!db || !ticketId){ return; }
+  const now = new Date().toISOString();
+  try{
+    await db.ref(fbPath('supportTickets', ticketId)).update({userRead:true, unreadForUser:false, userReadAt:now});
+    await refreshUserSupportTickets();
+  }catch(err){
+    console.warn('Support read update failed:', err);
+    alert('Gagal tanda mesej sebagai dibaca. Semak internet atau cuba lagi.');
+  }
+}
+async function submitSupportTicket(){
+  const db = firebaseDb();
+  if(!db){ alert('Firebase belum aktif. Sila semak internet.'); return; }
+  const category = document.getElementById('supportCategoryInput')?.value || 'other';
+  const subject = String(document.getElementById('supportSubjectInput')?.value || '').trim();
+  const message = String(document.getElementById('supportMessageInput')?.value || '').trim();
+  if(!subject){ alert('Sila tulis tajuk ringkas pertanyaan.'); return; }
+  if(message.length < 8){ alert('Sila tulis mesej pertanyaan dengan lebih jelas.'); return; }
+  const now = new Date().toISOString();
+  const ticketRef = db.ref(fbPath('supportTickets')).push();
+  const payload = {
+    accountId: profile.accountId || profile.username || '',
+    username: profile.username || '',
+    parentName: profile.parentName || profile.username || '',
+    studentId: profile.studentId || '',
+    studentName: profile.name || '',
+    category, subject, message,
+    status: 'open',
+    createdAt: now,
+    updatedAt: now,
+    latestUserMessage: message,
+    latestAdminReply: '',
+    latestAdminReplyAt: '',
+    userRead: true,
+    unreadForUser: false,
+    messages: {
+      [ticketRef.child('messages').push().key]: {from:'user', name: profile.name || profile.username || 'User', message, at:now}
+    }
+  };
+  await ticketRef.set(payload);
+  const subj = document.getElementById('supportSubjectInput');
+  const msg = document.getElementById('supportMessageInput');
+  if(subj) subj.value = '';
+  if(msg) msg.value = '';
+  alert('Pertanyaan berjaya dihantar kepada admin. Semak bahagian ini semula untuk jawapan admin.');
+  await refreshUserSupportTickets();
+}
+
 function renderSettings(){
   if(!isLoggedInSession() || !profile.studentId){ page='profile'; renderProfile(); return; }
   // Defer Firebase/device management refresh so Settings buttons stay responsive.
@@ -2907,14 +3036,26 @@ function renderSettings(){
     <div style="height:10px"></div>
     <button type="button" class="btn secondary" onclick="cancelEditStudentProfile()">Tutup Edit</button>
   </section>` : ''}
-  <section class="card">
-    <span class="badge">🎟️ ACCESS / LESEN</span>
-    <p class="small">Status akses: <b>${escapeHtml(planLabel())}</b></p>
-    <button class="btn gold" onclick="redeemExamLicenseFromSettings()">Redeem Kod Trial / Lesen Exam</button>
+  <section class="card support-inbox-card">
+    <span id="supportInboxBadge" class="badge ${supportUnreadCount() ? 'support-unread-badge' : 'support-read-badge'}">${supportUnreadCount() ? `🔴 ${supportUnreadCount()} mesej baru` : '✓ Tiada mesej baru'}</span>
+    <h2 style="margin:8px 0 6px">📥 Inbox Mesej Admin</h2>
+    <p class="small">Jawapan admin dan notifikasi support akan muncul di sini. Simbol merah bermaksud mesej belum dibaca; selepas tekan <b>Tanda Dibaca</b>, simbol itu akan hilang.</p>
+    <div id="supportInboxList" style="margin-top:14px">${renderUserSupportInboxHtml()}</div>
     <div style="height:10px"></div>
-    <button class="btn secondary" onclick="openUpkkWhatsApp('buy')">💬 Beli Lesen Melalui WhatsApp</button>
+    <button class="btn secondary" onclick="refreshUserSupportTickets()">Refresh Inbox</button>
+  </section>
+  <section class="card support-center-card">
+    <span class="badge">💬 SUPPORT CENTER</span>
+    <h2 style="margin:8px 0 6px">Bantuan & Pertanyaan Admin</h2>
+    <p class="small">Gunakan bahagian ini untuk hubungi admin tentang bayaran ToyyibPay, akaun, peperiksaan, teknikal atau soalan pembelajaran. Admin boleh baca dan balas terus dari Admin Panel.</p>
+    <div class="field" style="margin-top:12px"><label>Kategori Pertanyaan</label><select id="supportCategoryInput" class="input"><option value="payment">Bayaran / ToyyibPay</option><option value="account">Akaun / Login</option><option value="exam">Peperiksaan / Akses</option><option value="technical">Masalah Teknikal</option><option value="question">Soalan / Pembelajaran</option><option value="other">Lain-lain</option></select></div>
+    <div class="field" style="margin-top:12px"><label>Tajuk Ringkas</label><input id="supportSubjectInput" class="input" maxlength="90" placeholder="Contoh: Bayaran sudah dibuat tetapi exam belum unlock" /></div>
+    <div class="field" style="margin-top:12px"><label>Mesej Kepada Admin</label><textarea id="supportMessageInput" class="input" rows="4" maxlength="900" placeholder="Tulis masalah atau pertanyaan dengan jelas."></textarea></div>
+    <div style="height:12px"></div>
+    <button class="btn gold" onclick="submitSupportTicket()">Hantar Pertanyaan</button>
     <div style="height:10px"></div>
-    <button class="btn secondary" onclick="openUpkkWhatsApp('support')">📱 Hubungi Admin</button>
+    <button class="btn secondary" onclick="refreshUserSupportTickets()">Refresh Jawapan Admin</button>
+    <div id="supportTicketList" style="margin-top:14px">${renderUserSupportTicketsHtml()}</div>
   </section>
   <section class="card settings-danger-zone">
     <span class="badge">🗑️ DELETE / RESET PROFIL PELAJAR</span>

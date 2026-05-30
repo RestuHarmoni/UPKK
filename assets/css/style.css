@@ -3152,3 +3152,14 @@ body.maintenance-mode-active .phone-shell{
 .toyyibpay-action-box{margin-top:14px;display:grid;gap:10px;background:#ffffff;border:1px solid #bbf7d0;border-radius:20px;padding:14px}.pay-now-btn{background:linear-gradient(135deg,#f59e0b,#facc15)!important;color:#422006!important;box-shadow:0 12px 26px rgba(245,158,11,.25)}
 .toyyibpay-action-box code{white-space:normal;word-break:break-all;background:#ecfdf5;color:#065f46;border-radius:8px;padding:2px 5px}
 @media(max-width:560px){.premium-toyyibpay-card .premium-hero-band{margin:-14px -14px 14px}.premium-toyyibpay-card .premium-card-top h2{font-size:21px}.price-row{gap:6px}.toyyibpay-action-box{padding:12px}}
+
+
+/* TASK-017 Support Inbox unread/read badge */
+.support-inbox-card{border:1px solid rgba(16,185,129,.28);background:linear-gradient(180deg,#ffffff 0%,#f0fdf4 100%)}
+.support-unread-badge,.support-new-dot{background:#fee2e2!important;color:#991b1b!important;border:1px solid rgba(220,38,38,.18);font-weight:900}
+.support-read-badge,.support-read-pill{background:#dcfce7!important;color:#166534!important;border:1px solid rgba(34,197,94,.18);font-weight:900}
+.support-new-dot,.support-read-pill{display:inline-flex;align-items:center;gap:4px;border-radius:999px;padding:4px 8px;font-size:11px;margin-right:6px}
+.support-ticket-row.is-unread{border-left:5px solid #ef4444;background:#fff7ed}
+.support-ticket-row.is-read{opacity:.92}
+.support-reply-box{margin-top:8px;border-radius:14px;background:#ecfdf5;border:1px solid rgba(16,185,129,.18);padding:10px 12px;color:#064e3b;line-height:1.55}
+@media (max-width:520px){.support-ticket-row{align-items:flex-start;gap:10px}.support-ticket-row .mini-btn{margin-top:8px}}
