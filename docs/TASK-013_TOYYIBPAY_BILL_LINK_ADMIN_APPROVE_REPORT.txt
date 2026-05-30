@@ -1,0 +1,78 @@
+TASK-013: ToyyibPay Bill Link + Admin Approve 1 Klik
+Base: UPKK SmartKids - Pending(clean_v6)
+
+Objektif:
+- Guna ToyyibPay Bill Link sedia ada tanpa Firebase Cloud Functions.
+- Tidak guna Firebase Storage.
+- Tidak simpan userSecretKey ToyyibPay dalam frontend/browser.
+- User bayar di ToyyibPay, kemudian hantar permohonan semakan.
+- Admin semak bayaran di ToyyibPay dan tekan Luluskan 1 Klik untuk unlock peperiksaan.
+
+Link Bill Default:
+https://toyyibpay.com/Lesen-Peperiksaan-Unlock
+
+Harga:
+- Harga asal: RM150.00
+- Harga promo: RM49.90
+- Tempoh akses: 365 hari
+
+File Diubah:
+1. src/app.js
+   - Tukar kad premium kepada emerald ToyyibPay sales/bill page.
+   - Tambah butang Bayar Sekarang.
+   - Tambah butang Saya Sudah Bayar - Minta Admin Approve.
+   - Rekod payment disimpan ke apps/UPKK/payments dengan paymentMethod=toyyibpay_link.
+   - Tiada receiptBase64 baru digunakan.
+
+2. assets/css/style.css
+   - Tambah UI emerald premium sales page.
+   - Tambah style ToyyibPay action box dan price banner.
+
+3. admin/index.html
+   - Tambah input Link Bill ToyyibPay dalam Subscription Settings.
+   - Tukar label pembayaran kepada Pembayaran ToyyibPay.
+   - Admin payment list paparkan method/ref.
+   - Button approve menjadi Luluskan 1 Klik.
+   - Approval unlock subscription/examLicense seperti sistem sedia ada.
+
+4. index.html
+   - Update cache busting version ke 3.64-task013-toyyibpay-link.
+
+5. sw.js
+   - Update service worker cache ke upkk-smartkids-v64-task013-toyyibpay.
+
+Firebase Path Digunakan:
+- apps/UPKK/settings/subscription
+- apps/UPKK/payments
+- apps/UPKK/subscriptions/{accountId}
+- apps/UPKK/users/{accountId}/subscription
+- apps/UPKK/users/{accountId}/entitlements/examLicense
+- apps/UPKK/notifications/{accountId}
+
+Flow User:
+1. User buka unlock/premium page.
+2. Klik Bayar Sekarang RM49.90.
+3. Browser buka ToyyibPay Bill Link.
+4. Selepas bayar, user kembali ke app.
+5. User isi optional Bill Code/Transaction ID.
+6. User tekan Saya Sudah Bayar.
+7. Rekod pending masuk Admin > Pembayaran ToyyibPay.
+
+Flow Admin:
+1. Admin buka Pembayaran ToyyibPay.
+2. Semak bayaran sebenar di dashboard ToyyibPay.
+3. Tekan Luluskan 1 Klik.
+4. Sistem aktifkan subscription dan examLicense 365 hari.
+
+Nota Keselamatan:
+- userSecretKey ToyyibPay tidak digunakan dalam frontend.
+- Sistem ini bukan auto callback; ia adalah semi-auto manual approve.
+- Sesuai untuk Firebase static hosting/free flow.
+
+Checklist Upload:
+1. Upload semua file ZIP ini ke hosting.
+2. Buat hard refresh / clear PWA cache jika perubahan belum nampak.
+3. Admin > Subscription Settings: pastikan Link Bill ToyyibPay betul.
+4. Test user klik Bayar Sekarang.
+5. Test user tekan Saya Sudah Bayar.
+6. Test admin approve 1 klik.

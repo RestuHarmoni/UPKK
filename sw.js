@@ -1,4 +1,4 @@
-const CACHE_NAME = 'upkk-smartkids-v54-maintenance-safety';
+const CACHE_NAME = 'upkk-smartkids-v64-task013-toyyibpay';
 const CORE_ASSETS = [
   './',
   './index.html',

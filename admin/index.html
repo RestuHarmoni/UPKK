@@ -76,6 +76,14 @@ header{position:sticky;top:0;z-index:50;box-shadow:0 14px 34px rgba(15,23,42,.12
 .sound-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin-top:12px}
 .sound-card{border:1px solid #dcfce7;background:linear-gradient(180deg,#ffffff,#f8fffb);border-radius:18px;padding:14px;box-shadow:0 8px 20px rgba(15,138,75,.05)}
 .sound-card h3{margin:0 0 6px;color:#166534;font-size:15px}.sound-card p{margin:0 0 10px;color:#64748b;font-size:12px;font-weight:700}.sound-card .actions{gap:8px}.sound-preview-row{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end}.sound-toggle-row{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:8px 0}.sound-toggle-row label{display:flex;align-items:center;gap:7px;margin:0;font-size:13px;font-weight:900;color:#14532d}.sound-note{background:#eff6ff;border:1px solid #bfdbfe;border-radius:14px;padding:11px;color:#1e3a8a;font-weight:750;font-size:12px;line-height:1.45}
+
+/* TASK-013 ToyyibPay Bill Link + Admin 1 Klik Approve */
+.toyyibpay-admin-note{background:linear-gradient(135deg,#ecfdf5,#fefce8);border:1px solid #bbf7d0;border-radius:18px;padding:14px;margin:10px 0;color:#14532d;font-weight:800}
+.payment-method-pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:5px 9px;background:#dcfce7;color:#166534;font-weight:900;font-size:12px}
+.payment-ref-box{font-size:12px;color:#475569;margin-top:4px;word-break:break-all}
+.premium-admin-preview{background:linear-gradient(135deg,#064e3b,#10b981)!important;color:white!important;border:0!important}
+.premium-admin-preview h2{color:white!important}.premium-admin-preview .hint{color:rgba(255,255,255,.86)!important}.premium-admin-preview ul{background:rgba(255,255,255,.10);border-radius:16px;padding:12px 12px 12px 26px}.premium-admin-preview .price-now{color:#fef3c7!important}.premium-admin-preview code{background:rgba(255,255,255,.16);color:white}
+
 </style>
 </head>
 <body class="admin-responsive-root">
@@ -278,10 +286,13 @@ header{position:sticky;top:0;z-index:50;box-shadow:0 14px 34px rgba(15,23,42,.12
         </div>
         <label>Tempoh Langganan (Hari)</label>
         <input id="subDurationDays" type="number" value="365" />
+        <label>Link Bill ToyyibPay</label>
+        <input id="subPaymentUrl" type="url" placeholder="https://toyyibpay.com/Lesen-Peperiksaan-Unlock" />
+        <div class="toyyibpay-admin-note">Mode bayaran: ToyyibPay Bill Link + Admin Approve 1 Klik. Tidak guna Firebase Storage dan tidak simpan userSecretKey dalam web.</div>
         <label>Nota Promosi</label>
         <textarea id="subNote" placeholder="Nota ringkas promosi untuk parent"></textarea>
         <label>Arahan Pembayaran</label>
-        <textarea id="subPaymentInstruction" placeholder="Masukkan arahan bank/DuitNow/QR dan cara upload resit"></textarea>
+        <textarea id="subPaymentInstruction" placeholder="Arahan selepas user klik Bayar Sekarang di ToyyibPay"></textarea>
         <label>Kelebihan Premium (satu baris satu item)</label>
         <textarea id="subFeatures" placeholder="Semua Peperiksaan UPKK&#10;Analisa Prestasi&#10;Leaderboard Keluarga"></textarea>
         <div class="actions">
@@ -299,8 +310,8 @@ header{position:sticky;top:0;z-index:50;box-shadow:0 14px 34px rgba(15,23,42,.12
 
   <section id="payments" class="panel">
     <section class="card">
-      <h2>💳 Pembayaran Manual</h2>
-      <p class="hint">Senarai resit yang dihantar oleh parent. Tekan Luluskan untuk aktifkan Premium secara automatik.</p>
+      <h2>💳 Pembayaran ToyyibPay</h2>
+      <p class="hint">Senarai permohonan selepas parent bayar melalui ToyyibPay. Semak di dashboard ToyyibPay, kemudian tekan Luluskan untuk unlock peperiksaan.</p>
       <div class="actions">
         <button onclick="loadPayments()">Refresh Pembayaran</button>
       </div>
@@ -1311,6 +1322,14 @@ function printExamReportPDF(){
 .sound-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin-top:12px}
 .sound-card{border:1px solid #dcfce7;background:linear-gradient(180deg,#ffffff,#f8fffb);border-radius:18px;padding:14px;box-shadow:0 8px 20px rgba(15,138,75,.05)}
 .sound-card h3{margin:0 0 6px;color:#166534;font-size:15px}.sound-card p{margin:0 0 10px;color:#64748b;font-size:12px;font-weight:700}.sound-card .actions{gap:8px}.sound-preview-row{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end}.sound-toggle-row{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:8px 0}.sound-toggle-row label{display:flex;align-items:center;gap:7px;margin:0;font-size:13px;font-weight:900;color:#14532d}.sound-note{background:#eff6ff;border:1px solid #bfdbfe;border-radius:14px;padding:11px;color:#1e3a8a;font-weight:750;font-size:12px;line-height:1.45}
+
+/* TASK-013 ToyyibPay Bill Link + Admin 1 Klik Approve */
+.toyyibpay-admin-note{background:linear-gradient(135deg,#ecfdf5,#fefce8);border:1px solid #bbf7d0;border-radius:18px;padding:14px;margin:10px 0;color:#14532d;font-weight:800}
+.payment-method-pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:5px 9px;background:#dcfce7;color:#166534;font-weight:900;font-size:12px}
+.payment-ref-box{font-size:12px;color:#475569;margin-top:4px;word-break:break-all}
+.premium-admin-preview{background:linear-gradient(135deg,#064e3b,#10b981)!important;color:white!important;border:0!important}
+.premium-admin-preview h2{color:white!important}.premium-admin-preview .hint{color:rgba(255,255,255,.86)!important}.premium-admin-preview ul{background:rgba(255,255,255,.10);border-radius:16px;padding:12px 12px 12px 26px}.premium-admin-preview .price-now{color:#fef3c7!important}.premium-admin-preview code{background:rgba(255,255,255,.16);color:white}
+
 </style></head><body><main class="print-area">${node.outerHTML}</main><script>window.onload=()=>setTimeout(()=>{window.print()},450)<\/script></body></html>`);
   w.document.close();
 }
@@ -1620,20 +1639,22 @@ async function writeDefaultSettings(){
 }
 
 const DEFAULT_SUBSCRIPTION_SETTINGS = {
-  title: 'UPKK SmartKids Premium',
-  promoLabel: '🔥 PROMOSI TERHAD',
+  title: 'PROMO Pakej UPKK SmartKids',
+  promoLabel: '🔥 PROMO TERHAD - JIMAT 67%',
   originalPrice: 150,
-  promoPrice: 49,
+  promoPrice: 49.90,
   durationDays: 365,
-  note: 'Nikmati akses penuh UPKK SmartKids dengan harga promosi RM49.00 sahaja.',
-  paymentInstruction: 'Sila buat pembayaran mengikut arahan admin, kemudian upload bukti pembayaran. Akaun akan diaktifkan selepas semakan admin.',
+  paymentMode: 'toyyibpay_link',
+  paymentUrl: 'https://toyyibpay.com/Lesen-Peperiksaan-Unlock',
+  note: 'Unlock Peperiksaan UPKK SmartKids dengan harga promo RM49.90 sahaja.',
+  paymentInstruction: 'Klik Bayar Sekarang untuk membuat bayaran ToyyibPay. Selepas selesai, kembali ke app dan tekan Saya Sudah Bayar supaya admin boleh approve 1 klik.',
   features: [
     'Semua Peperiksaan UPKK',
-    'Analisa Prestasi',
+    '6 Subjek Lengkap',
+    'Analisa Prestasi Automatik',
     'Leaderboard Keluarga',
     'Resume Progress',
-    'Multi Device Sync',
-    'Update Soalan Baharu'
+    'Akses 12 Bulan'
   ]
 };
 function rm(v){ return 'RM' + Number(v||0).toFixed(2); }
@@ -1642,7 +1663,9 @@ function getSubFormData(){
     title: $('subTitle').value.trim() || DEFAULT_SUBSCRIPTION_SETTINGS.title,
     promoLabel: $('subPromoLabel').value.trim() || DEFAULT_SUBSCRIPTION_SETTINGS.promoLabel,
     originalPrice: Number($('subOriginalPrice').value || 150),
-    promoPrice: Number($('subPromoPrice').value || 49),
+    promoPrice: Number($('subPromoPrice').value || 49.90),
+    paymentMode: 'toyyibpay_link',
+    paymentUrl: $('subPaymentUrl').value.trim(),
     durationDays: Number($('subDurationDays').value || 365),
     note: $('subNote').value.trim(),
     paymentInstruction: $('subPaymentInstruction').value.trim(),
@@ -1662,6 +1685,7 @@ function renderSubPreview(s){
     <p>${esc(s.note||'')}</p>
     <ul>${features}</ul>
     <p class="hint">${esc(s.paymentInstruction||'')}</p>
+    <p class="hint"><b>Link ToyyibPay:</b> <code>${esc(s.paymentUrl||'-')}</code></p>
   </div>`;
 }
 async function loadSubscriptionSettings(){
@@ -1670,8 +1694,9 @@ async function loadSubscriptionSettings(){
   $('subTitle').value = s.title || '';
   $('subPromoLabel').value = s.promoLabel || '';
   $('subOriginalPrice').value = Number(s.originalPrice || 150).toFixed(2);
-  $('subPromoPrice').value = Number(s.promoPrice || 49).toFixed(2);
+  $('subPromoPrice').value = Number(s.promoPrice || 49.90).toFixed(2);
   $('subDurationDays').value = Number(s.durationDays || 365);
+  $('subPaymentUrl').value = s.paymentUrl || DEFAULT_SUBSCRIPTION_SETTINGS.paymentUrl || '';
   $('subNote').value = s.note || '';
   $('subPaymentInstruction').value = s.paymentInstruction || '';
   $('subFeatures').value = Array.isArray(s.features) ? s.features.join('\n') : String(s.features || DEFAULT_SUBSCRIPTION_SETTINGS.features.join('\n'));
@@ -1690,10 +1715,7 @@ async function loadPayments(){
   if(!box) return;
   box.innerHTML = 'Memuatkan pembayaran...';
 
-  // MERGED FIX v3.52:
-  // Baca terus dari path sebenar upload resit parent:
-  // apps/UPKK/payments
-  // dan kekalkan sokongan path lama supaya data lama tidak hilang.
+  // TASK-013: Baca permohonan bayaran ToyyibPay dan kekalkan sokongan data resit lama.
   const candidateRoots = [
     paymentRoot,
     APP_ROOT + '/payments',
@@ -1711,6 +1733,8 @@ async function loadPayments(){
     // Format biasa: apps/UPKK/payments/{paymentId}
     const looksLikePayment =
       val.receiptBase64 ||
+      val.paymentMethod ||
+      val.paymentReference ||
       val.amount ||
       val.plan ||
       val.status ||
@@ -1729,6 +1753,8 @@ async function loadPayments(){
       if(childVal && typeof childVal === 'object'){
         const nestedLooksLikePayment =
           childVal.receiptBase64 ||
+          childVal.paymentMethod ||
+          childVal.paymentReference ||
           childVal.amount ||
           childVal.plan ||
           childVal.status ||
@@ -1786,7 +1812,7 @@ async function loadPayments(){
   }
 
   box.innerHTML = `<div class="hint" style="margin-bottom:10px">Jumlah rekod dikesan: <b>${unique.length}</b></div>
-  <table><thead><tr><th>Parent</th><th>Pelan</th><th>Jumlah</th><th>Status</th><th>Path</th><th>Resit</th><th>Tindakan</th></tr></thead><tbody>${unique.map((p,idx)=>{
+  <table><thead><tr><th>Parent</th><th>Pelan</th><th>Jumlah</th><th>Status</th><th>Kaedah/Ref</th><th>Path</th><th>Tindakan</th></tr></thead><tbody>${unique.map((p,idx)=>{
     const token = 'pay_' + idx;
     paymentActionMap[token] = {root:p._root, id:p.id};
     const status = String(p.status || 'pending').toLowerCase();
@@ -1797,9 +1823,9 @@ async function loadPayments(){
       <td>${esc(p.plan||'-')}</td>
       <td>${rm(p.amount)}</td>
       <td><b>${esc(status)}</b>${p.adminRemark?'<br><span class="hint">'+esc(p.adminRemark)+'</span>':''}</td>
+      <td><span class="payment-method-pill">${esc(p.paymentMethod||'manual')}</span>${p.paymentReference?'<div class="payment-ref-box">Ref: '+esc(p.paymentReference)+'</div>':''}${p.receiptBase64?`<div style="margin-top:6px"><button class="secondary mini" onclick="viewReceipt('${token}')">Lihat Resit Lama</button></div>`:''}</td>
       <td><code>${esc(p._root)}</code></td>
-      <td>${p.receiptBase64?`<button class="secondary mini" onclick="viewReceipt('${token}')">Lihat Resit</button>`:'-'}</td>
-      <td class="actions">${status==='approved'?'✅ Diluluskan':status==='rejected'?'❌ Ditolak':`<button class="mini" onclick="approvePayment('${token}')">Luluskan</button><button class="danger mini" onclick="rejectPayment('${token}')">Tolak</button>`}</td>
+      <td class="actions">${status==='approved'?'✅ Diluluskan':status==='rejected'?'❌ Ditolak':`<button class="mini" onclick="approvePayment('${token}')">Luluskan 1 Klik</button><button class="danger mini" onclick="rejectPayment('${token}')">Tolak</button>`}</td>
     </tr>`}).join('')}</tbody></table>`;
 }
 async function debugPaymentsPath(){
@@ -1880,11 +1906,11 @@ async function approvePayment(token){
   updates[target.root + '/' + target.id + '/status'] = 'approved';
   updates[target.root + '/' + target.id + '/approvedAt'] = now.toISOString();
   updates[target.root + '/' + target.id + '/updatedAt'] = now.toISOString();
-  updates[target.root + '/' + target.id + '/adminRemark'] = 'Diluluskan oleh admin.';
+  updates[target.root + '/' + target.id + '/adminRemark'] = 'Diluluskan oleh admin selepas semakan ToyyibPay.';
   updates[subscriptionRoot + '/' + safeKey(accountId)] = subscription;
   updates[userRoot + '/' + safeKey(accountId) + '/subscription'] = subscription;
   updates[userRoot + '/' + safeKey(accountId) + '/plan'] = 'PREMIUM';
-  updates[userRoot + '/' + safeKey(accountId) + '/entitlements/examLicense'] = {active:true, startDate:now.toISOString(), endDate:expiry.toISOString(), package:'manual_payment'};
+  updates[userRoot + '/' + safeKey(accountId) + '/entitlements/examLicense'] = {active:true, startDate:now.toISOString(), endDate:expiry.toISOString(), package:'toyyibpay_link'};
   Object.assign(updates, buildNotificationUpdate(accountId, paymentNotificationPayload(
     'subscription_approved',
     '🎉 Peperiksaan Dibuka',
@@ -1892,7 +1918,7 @@ async function approvePayment(token){
   )));
   await db.ref().update(updates);
   await loadPayments();
-  alert('Pembayaran diluluskan dan Premium diaktifkan.');
+  alert('Pembayaran ToyyibPay diluluskan dan peperiksaan Premium diaktifkan.');
 }
 
 async function rejectPayment(token){

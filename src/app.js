@@ -398,20 +398,22 @@ async function openUpkkWhatsApp(type='support'){
 }
 
 const UPKK_DEFAULT_SUBSCRIPTION_SETTINGS = {
-  title: 'UPKK SmartKids Premium',
-  promoLabel: '🔥 PROMOSI TERHAD',
+  title: 'PROMO Pakej UPKK SmartKids',
+  promoLabel: '🔥 PROMO TERHAD - JIMAT 67%',
   originalPrice: 150,
-  promoPrice: 49,
+  promoPrice: 49.90,
   durationDays: 365,
-  note: 'Nikmati akses penuh UPKK SmartKids dengan harga promosi RM49.00 sahaja. Selepas pembayaran dibuat, sila upload bukti pembayaran untuk pengaktifan akaun Premium.',
-  paymentInstruction: 'Sila buat bayaran mengikut arahan admin, kemudian upload resit JPG/PNG di bawah. Pengaktifan biasanya dalam tempoh 1–24 jam selepas semakan admin.',
+  paymentMode: 'toyyibpay_link',
+  paymentUrl: 'https://toyyibpay.com/Lesen-Peperiksaan-Unlock',
+  note: 'Unlock Peperiksaan UPKK SmartKids dengan harga promo RM49.90 sahaja. Akses premium sah selama 12 bulan selepas admin sahkan bayaran.',
+  paymentInstruction: 'Klik Bayar Sekarang untuk membuat bayaran melalui ToyyibPay. Selepas selesai, kembali ke app dan tekan Saya Sudah Bayar supaya admin boleh approve 1 klik.',
   features: [
     'Semua Peperiksaan UPKK',
-    'Analisa Prestasi',
+    '6 Subjek Lengkap',
+    'Analisa Prestasi Automatik',
     'Leaderboard Keluarga',
     'Resume Progress',
-    'Multi Device Sync',
-    'Update Soalan Baharu'
+    'Akses 12 Bulan'
   ]
 };
 let UPKK_SUBSCRIPTION_SETTINGS_CACHE = null;
@@ -424,8 +426,10 @@ function moneyRm(v){
 function normalizeSubscriptionSettings(data={}){
   const merged = {...UPKK_DEFAULT_SUBSCRIPTION_SETTINGS, ...(data||{})};
   merged.originalPrice = Number(merged.originalPrice || 150);
-  merged.promoPrice = Number(merged.promoPrice || 49);
+  merged.promoPrice = Number(merged.promoPrice || 49.90);
   merged.durationDays = Number(merged.durationDays || 365);
+  merged.paymentMode = merged.paymentMode || 'toyyibpay_link';
+  merged.paymentUrl = String(merged.paymentUrl || UPKK_DEFAULT_SUBSCRIPTION_SETTINGS.paymentUrl || '').trim();
   if(typeof merged.features === 'string'){
     merged.features = merged.features.split('\n').map(s=>s.trim()).filter(Boolean);
   }
@@ -464,36 +468,92 @@ async function loadLatestPaymentStatus(force=false){
   }
 }
 function subscriptionPromoCard(settings=UPKK_DEFAULT_SUBSCRIPTION_SETTINGS, status=null){
+  settings = normalizeSubscriptionSettings(settings || {});
   const features = (settings.features||[]).map(f=>`<li>✔ ${escapeHtml(f)}</li>`).join('');
-  const statusHtml = status ? `<div class="payment-status-box ${String(status.status||'pending').toLowerCase()}">
-    <b>${status.status==='approved'?'✅ Premium Aktif':status.status==='rejected'?'❌ Pembayaran Ditolak':'⏳ Menunggu Semakan Admin'}</b>
-    <span>${status.adminRemark?escapeHtml(status.adminRemark):'Resit terakhir: '+escapeHtml(new Date(status.submittedAt||Date.now()).toLocaleString('ms-MY'))}</span>
+  const statusText = status ? String(status.status||'pending').toLowerCase() : '';
+  const statusHtml = status ? `<div class="payment-status-box ${statusText}">
+    <b>${statusText==='approved'?'✅ Premium Aktif':statusText==='rejected'?'❌ Bayaran Ditolak':'⏳ Menunggu Kelulusan Admin'}</b>
+    <span>${status.adminRemark?escapeHtml(status.adminRemark):'Permohonan bayaran terakhir: '+escapeHtml(new Date(status.submittedAt||Date.now()).toLocaleString('ms-MY'))}</span>
   </div>` : '';
-  return `<section class="card premium-paywall-card">
-    <div class="premium-card-top">
-      <span class="premium-diamond">💎</span>
-      <div>
-        <h2>${escapeHtml(settings.title||'UPKK SmartKids Premium')}</h2>
-        <p class="small">${escapeHtml(settings.note||'')}</p>
+  const paymentUrl = escapeHtml(settings.paymentUrl || '');
+  return `<section class="card premium-paywall-card premium-toyyibpay-card">
+    <div class="premium-hero-band">
+      <div class="premium-card-top">
+        <span class="premium-diamond">🎓</span>
+        <div>
+          <span class="premium-kicker">UPKK SmartKids</span>
+          <h2>${escapeHtml(settings.title||'PROMO Pakej UPKK SmartKids')}</h2>
+          <p class="small">${escapeHtml(settings.note||'')}</p>
+        </div>
+      </div>
+      <div class="premium-price-wrap emerald">
+        <div class="promo-label">${escapeHtml(settings.promoLabel||'🔥 PROMO TERHAD')}</div>
+        <div class="price-row"><span class="price-old"><span>${moneyRm(settings.originalPrice)}</span></span><span class="discount-pill">Jimat ${moneyRm(Math.max(0, Number(settings.originalPrice||0)-Number(settings.promoPrice||0)))}</span></div>
+        <div class="price-now">${moneyRm(settings.promoPrice)}</div>
+        <div class="price-caption">Akses ${Number(settings.durationDays||365)} hari • Semua peperiksaan UPKK</div>
       </div>
     </div>
-    <div class="premium-price-wrap">
-      <div class="price-old"><span>${moneyRm(settings.originalPrice)}</span></div>
-      <div class="promo-label">${escapeHtml(settings.promoLabel||'🔥 PROMOSI TERHAD')}</div>
-      <div class="price-now">${moneyRm(settings.promoPrice)}</div>
-      <div class="save-pill">Jimat ${moneyRm(Math.max(0, Number(settings.originalPrice||0)-Number(settings.promoPrice||0)))}</div>
-    </div>
-    <ul class="premium-feature-list">${features}</ul>
-    <div class="payment-note-box">${escapeHtml(settings.paymentInstruction||'')}</div>
+    <div class="premium-section-title">Apa yang dibuka?</div>
+    <ul class="premium-feature-list emerald-list">${features}</ul>
+    <div class="payment-note-box emerald-note">${escapeHtml(settings.paymentInstruction||'')}</div>
     ${statusHtml}
-    <div class="receipt-upload-box">
-      <label><b>Upload Bukti Pembayaran</b></label>
-      <input id="paymentReceiptInput" class="input" type="file" accept="image/png,image/jpeg,image/jpg" />
-      <button class="btn gold" onclick="submitManualPaymentReceipt()">Hantar Pembayaran</button>
-      <p class="small">Format JPG/PNG sahaja. Sistem akan kecilkan gambar sebelum simpan ke Firebase Database.</p>
+    <div class="toyyibpay-action-box">
+      <button class="btn gold pay-now-btn" onclick="startToyyibPayCheckout()">💳 Bayar Sekarang RM${Number(settings.promoPrice||49.90).toFixed(2)}</button>
+      <input id="paymentReferenceInput" class="input" type="text" placeholder="Optional: Masukkan Bill Code / Transaction ID ToyyibPay" />
+      <button class="btn secondary" onclick="submitToyyibPayPaymentPending()">Saya Sudah Bayar - Minta Admin Approve</button>
+      <p class="small">Bayaran dibuat di ToyyibPay. Sistem ini tidak menyimpan resit gambar dan tidak menggunakan Firebase Storage.</p>
+      ${paymentUrl?`<p class="small">Link bayaran aktif: <code>${paymentUrl}</code></p>`:''}
     </div>
   </section>`;
 }
+
+async function startToyyibPayCheckout(){
+  try{
+    const settings = await loadSubscriptionSettingsForUser();
+    const url = String(settings.paymentUrl || '').trim();
+    if(!url){ alert('Link ToyyibPay belum ditetapkan oleh admin.'); return; }
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }catch(err){
+    alert('Gagal buka ToyyibPay: ' + (err.message || err));
+  }
+}
+
+async function submitToyyibPayPaymentPending(){
+  try{
+    const db = firebaseDb();
+    if(!db) throw new Error('Firebase belum aktif. Semak internet/config.');
+    const settings = await loadSubscriptionSettingsForUser();
+    const now = new Date().toISOString();
+    const refInput = document.getElementById('paymentReferenceInput');
+    const reference = String(refInput?.value || '').trim();
+    const paymentRef = db.ref(fbPath('payments')).push();
+    await paymentRef.set({
+      accountId: profile.accountId || profile.username || '',
+      username: profile.username || '',
+      parentName: profile.parentName || profile.username || '',
+      studentName: profile.name || '',
+      plan: settings.title || 'PROMO Pakej UPKK SmartKids',
+      amount: Number(settings.promoPrice || 49.90),
+      originalAmount: Number(settings.originalPrice || 150),
+      durationDays: Number(settings.durationDays || 365),
+      paymentMethod: 'toyyibpay_link',
+      paymentUrl: settings.paymentUrl || '',
+      paymentReference: reference,
+      status: 'pending',
+      submittedAt: now,
+      updatedAt: now,
+      adminRemark: 'Menunggu semakan bayaran ToyyibPay oleh admin.'
+    });
+    UPKK_PAYMENT_STATUS_CACHE = null;
+    alert('Permohonan pengesahan bayaran berjaya dihantar. Admin akan approve 1 klik selepas semakan ToyyibPay.');
+    await loadLatestPaymentStatus(true);
+    render();
+  }catch(err){
+    console.error(err);
+    alert('Gagal hantar permohonan bayaran: ' + (err.message || err));
+  }
+}
+
 function readFileAsDataUrl(file){
   return new Promise((resolve,reject)=>{
     const reader = new FileReader();
@@ -519,42 +579,7 @@ function imageToCompressedDataUrl(dataUrl, maxW=900, quality=.72){
   });
 }
 async function submitManualPaymentReceipt(){
-  try{
-    const input = document.getElementById('paymentReceiptInput');
-    const file = input?.files?.[0];
-    if(!file){ alert('Sila pilih gambar resit dahulu.'); return; }
-    if(!/^image\/(png|jpe?g)$/i.test(file.type)){ alert('Resit mesti dalam format JPG atau PNG.'); return; }
-    if(file.size > 4 * 1024 * 1024){ alert('Saiz resit terlalu besar. Sila guna gambar bawah 4MB.'); return; }
-    const db = firebaseDb();
-    if(!db) throw new Error('Firebase belum aktif. Semak internet/config.');
-    const settings = await loadSubscriptionSettingsForUser();
-    const raw = await readFileAsDataUrl(file);
-    const receiptBase64 = await imageToCompressedDataUrl(raw);
-    const now = new Date().toISOString();
-    const paymentRef = db.ref(fbPath('payments')).push();
-    await paymentRef.set({
-      accountId: profile.accountId || profile.username || '',
-      username: profile.username || '',
-      parentName: profile.parentName || profile.username || '',
-      studentName: profile.name || '',
-      plan: settings.title || 'UPKK SmartKids Premium',
-      amount: Number(settings.promoPrice || 49),
-      originalAmount: Number(settings.originalPrice || 150),
-      durationDays: Number(settings.durationDays || 365),
-      status: 'pending',
-      submittedAt: now,
-      updatedAt: now,
-      receiptBase64,
-      adminRemark: ''
-    });
-    UPKK_PAYMENT_STATUS_CACHE = null;
-    alert('Resit berjaya dihantar. Status akaun akan dikemaskini selepas admin luluskan pembayaran.');
-    await loadLatestPaymentStatus(true);
-    render();
-  }catch(err){
-    console.error(err);
-    alert('Gagal hantar resit: ' + (err.message || err));
-  }
+  return submitToyyibPayPaymentPending();
 }
 async function renderPremiumPaywall(){
   const settings = await loadSubscriptionSettingsForUser(true);

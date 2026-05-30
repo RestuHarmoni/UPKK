@@ -3128,3 +3128,27 @@ body.maintenance-mode-active .phone-shell{
   .maintenance-brand{text-align:center}
   .maintenance-schedule{grid-template-columns:1fr}
 }
+
+/* TASK-013 ToyyibPay Sales Page / Emerald Bill Design */
+.premium-toyyibpay-card{
+  border:0!important;
+  background:linear-gradient(180deg,#ecfdf5 0%,#ffffff 58%,#f7fee7 100%)!important;
+  box-shadow:0 22px 60px rgba(6,78,59,.18)!important;
+  overflow:hidden;
+}
+.premium-toyyibpay-card .premium-hero-band{
+  margin:-18px -18px 16px;
+  padding:22px 18px 18px;
+  background:radial-gradient(circle at top left,rgba(250,204,21,.28),transparent 34%),linear-gradient(135deg,#064e3b 0%,#059669 58%,#10b981 100%);
+  color:white;
+}
+.premium-kicker{display:inline-flex;margin-bottom:6px;padding:5px 10px;border-radius:999px;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.24);font-weight:900;font-size:12px;color:#ecfdf5}
+.premium-toyyibpay-card .premium-card-top h2{color:white;margin:.15rem 0;font-size:24px;line-height:1.1}.premium-toyyibpay-card .premium-card-top .small{color:rgba(255,255,255,.88)}
+.premium-toyyibpay-card .premium-diamond{background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.25);box-shadow:0 15px 34px rgba(0,0,0,.16)}
+.premium-price-wrap.emerald{background:rgba(255,255,255,.12)!important;border:1px solid rgba(255,255,255,.24);box-shadow:inset 0 1px 0 rgba(255,255,255,.18);backdrop-filter:blur(8px)}
+.price-row{display:flex;justify-content:center;align-items:center;gap:10px;flex-wrap:wrap}.discount-pill{display:inline-flex;border-radius:999px;padding:6px 10px;background:#fef3c7;color:#7c2d12;font-weight:1000;font-size:12px}
+.price-caption{font-weight:900;color:#dcfce7;font-size:12px}.premium-section-title{font-weight:1000;color:#064e3b;margin:12px 0 8px;font-size:15px}
+.emerald-list li{background:#ecfdf5!important;border-color:#bbf7d0!important;color:#064e3b!important}.emerald-note{background:#f0fdf4!important;border-color:#bbf7d0!important;color:#14532d!important;font-weight:750}
+.toyyibpay-action-box{margin-top:14px;display:grid;gap:10px;background:#ffffff;border:1px solid #bbf7d0;border-radius:20px;padding:14px}.pay-now-btn{background:linear-gradient(135deg,#f59e0b,#facc15)!important;color:#422006!important;box-shadow:0 12px 26px rgba(245,158,11,.25)}
+.toyyibpay-action-box code{white-space:normal;word-break:break-all;background:#ecfdf5;color:#065f46;border-radius:8px;padding:2px 5px}
+@media(max-width:560px){.premium-toyyibpay-card .premium-hero-band{margin:-14px -14px 14px}.premium-toyyibpay-card .premium-card-top h2{font-size:21px}.price-row{gap:6px}.toyyibpay-action-box{padding:12px}}
