@@ -272,7 +272,43 @@ function maintenanceDateText(v){
   if(Number.isNaN(d.getTime())) return escapeHtml(String(v));
   return d.toLocaleString('ms-MY', {dateStyle:'medium', timeStyle:'short'});
 }
+
+function injectMaintenanceInlineStyles(){
+  if(document.getElementById('upkkMaintenanceInlineStyle')) return;
+  const st = document.createElement('style');
+  st.id = 'upkkMaintenanceInlineStyle';
+  st.textContent = `
+    body.maintenance-mode-active{margin:0;background:#eafaf1!important;overflow:hidden;}
+    body.maintenance-mode-active .phone-shell{max-width:none;width:100%;min-height:100vh;border-radius:0;background:linear-gradient(135deg,#eafaf1 0%,#f8fffb 45%,#fff7df 100%)!important;box-shadow:none!important;}
+    body.maintenance-mode-active .app-header,body.maintenance-mode-active .copyright,body.maintenance-mode-active .bottom-nav{display:none!important;}
+    body.maintenance-mode-active .app-main{padding:0!important;min-height:100vh!important;display:block!important;}
+    .maintenance-screen{position:relative;min-height:100vh;width:100%;display:flex;align-items:center;justify-content:center;padding:24px;overflow:hidden;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#123326;}
+    .maintenance-bg-orb{position:absolute;border-radius:999px;filter:blur(4px);opacity:.55;animation:upkkMaintFloat 7s ease-in-out infinite;}
+    .maintenance-bg-orb-1{width:260px;height:260px;background:rgba(22,163,74,.18);top:-70px;left:-60px;}
+    .maintenance-bg-orb-2{width:320px;height:320px;background:rgba(245,158,11,.18);right:-100px;bottom:-100px;animation-delay:-2s;}
+    .maintenance-panel{position:relative;width:min(520px,100%);background:rgba(255,255,255,.88);border:1px solid rgba(15,138,75,.16);border-radius:34px;padding:30px 24px 24px;box-shadow:0 24px 70px rgba(15,138,75,.20);backdrop-filter:blur(14px);text-align:center;}
+    .maintenance-logo{display:flex;align-items:center;justify-content:center;gap:13px;margin-bottom:20px;}
+    .maintenance-logo-icon{width:62px;height:62px;border-radius:22px;display:grid;place-items:center;background:linear-gradient(135deg,#0f8a4b,#22c55e);color:#fff;font-size:30px;box-shadow:0 12px 26px rgba(15,138,75,.28);}
+    .maintenance-brand{font-size:22px;font-weight:900;color:#0f8a4b;letter-spacing:-.03em;line-height:1.05;text-align:left;}
+    .maintenance-status-pill{display:inline-flex;margin-top:7px;padding:6px 11px;border-radius:999px;background:#fff7ed;color:#b45309;border:1px solid rgba(245,158,11,.25);font-size:12px;font-weight:800;letter-spacing:.02em;text-transform:uppercase;}
+    .maintenance-title{font-size:clamp(26px,5vw,38px);line-height:1.08;font-weight:950;margin:8px 0 12px;color:#123326;letter-spacing:-.045em;}
+    .maintenance-message{font-size:16px;line-height:1.65;color:#4b6357;margin:0 auto 20px;max-width:430px;}
+    .maintenance-schedule{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:16px 0 20px;}
+    .maintenance-schedule span{border:1px solid rgba(15,138,75,.13);background:rgba(240,253,244,.76);border-radius:18px;padding:12px 10px;color:#295141;font-size:13px;line-height:1.35;}
+    .maintenance-schedule b{display:block;color:#0f8a4b;font-size:12px;text-transform:uppercase;margin-bottom:3px;}
+    .maintenance-progress{height:10px;border-radius:999px;background:rgba(15,138,75,.10);overflow:hidden;margin:18px 0 18px;}
+    .maintenance-progress span{display:block;height:100%;width:42%;border-radius:999px;background:linear-gradient(90deg,#0f8a4b,#22c55e,#f59e0b);animation:upkkMaintBar 1.8s ease-in-out infinite;}
+    .maintenance-retry-btn{border:0;border-radius:18px;padding:13px 20px;background:linear-gradient(135deg,#0f8a4b,#16a34a);color:#fff;font-weight:900;font-size:15px;box-shadow:0 13px 28px rgba(15,138,75,.24);cursor:pointer;}
+    .maintenance-mini-note{margin-top:14px;font-size:12px;color:#718879;}
+    @keyframes upkkMaintBar{0%{transform:translateX(-105%)}100%{transform:translateX(245%)}}
+    @keyframes upkkMaintFloat{0%,100%{transform:translate3d(0,0,0) scale(1)}50%{transform:translate3d(12px,18px,0) scale(1.04)}}
+    @media(max-width:520px){.maintenance-screen{padding:18px}.maintenance-panel{border-radius:28px;padding:24px 17px 20px}.maintenance-logo{flex-direction:column}.maintenance-brand{text-align:center}.maintenance-schedule{grid-template-columns:1fr}.maintenance-logo-icon{width:58px;height:58px}.maintenance-message{font-size:15px}}
+  `;
+  document.head.appendChild(st);
+}
+
 function renderMaintenanceScreen(control=UPKK_MAINTENANCE_STATE){
+  injectMaintenanceInlineStyles();
   UPKK_MAINTENANCE_ACTIVE = true;
   clearTimer();
   currentQuiz = null;
@@ -303,6 +339,7 @@ function renderMaintenanceScreen(control=UPKK_MAINTENANCE_STATE){
         ${schedule}
         <div class="maintenance-progress"><span></span></div>
         <button class="maintenance-retry-btn" onclick="location.reload()">Semak Semula</button>
+        <div class="maintenance-mini-note">Terima kasih atas kesabaran anda.</div>
       </div>
     </section>`;
   }

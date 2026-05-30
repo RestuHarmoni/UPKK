@@ -1,7 +1,7 @@
 (function(){
   if (!('serviceWorker' in navigator)) return;
 
-  const SW_VERSION = '4.00-clean-firebase';
+  const SW_VERSION = '4.01-maintenance-ui-final';
   const RELOAD_KEY = 'upkkSmartKidsReloadedForSW_' + SW_VERSION;
 
   window.addEventListener('load', function(){
