@@ -89,9 +89,10 @@ header{position:sticky;top:0;z-index:50;box-shadow:0 14px 34px rgba(15,23,42,.12
     <button class="tab" onclick="showTab('codes', this)">Access / License Code</button>
     <button class="tab" onclick="showTab('questions', this)">Question Bank</button>
     <button class="tab" onclick="showTab('users', this)">Users</button>
-    <button class="tab" onclick="showTab('payments', this)">Pembayaran</button>
     <button class="tab" onclick="showTab('history', this)">Redeem History</button>
     <button class="tab" onclick="showTab('settings', this)">Settings</button>
+    <button class="tab" onclick="showTab('subscriptionSettings', this)">Subscription Settings</button>
+    <button class="tab" onclick="showTab('payments', this)">Pembayaran</button>
     <button class="tab" onclick="showTab('soundSettings', this)">Sound Settings</button>
     <button class="tab" onclick="showTab('whatsapp', this)">WhatsApp Settings</button>
     <button class="tab" onclick="showTab('questionNotes', this)">Question Note Manager</button>
@@ -107,21 +108,6 @@ header{position:sticky;top:0;z-index:50;box-shadow:0 14px 34px rgba(15,23,42,.12
       <div class="card"><h2>Ringkasan</h2><div id="summaryBox">Memuatkan...</div></div>
       <div class="card"><h2>Nota Keselamatan</h2><p class="hint">Panel ini dilindungi dengan login.html dan semakan role admin dalam Firebase. Untuk production penuh, ketatkan Firebase Rules selepas migrasi ke Firebase Auth/Admin SDK.</p><button onclick="loadAll()">Refresh Semua Data</button></div>
     </div>
-  </section>
-
-  <section id="payments" class="panel">
-    <section class="card">
-      <span class="admin-badge">💳 MANUAL PAYMENT</span>
-      <h2 style="margin:10px 0 4px">Pembayaran Menunggu Kelulusan</h2>
-      <p class="hint">Resit disimpan dalam Firebase Database sebagai gambar Base64. Tekan Luluskan untuk aktifkan Premium Tahunan secara automatik.</p>
-      <div class="actions">
-        <button onclick="loadPayments()">Refresh Pembayaran</button>
-        <button class="secondary" onclick="loadPayments('all')">Lihat Semua</button>
-        <button class="secondary" onclick="loadPayments('pending')">Pending Sahaja</button>
-      </div>
-      <div id="paymentMsg" class="log" style="margin-top:12px">Sedia.</div>
-      <div id="paymentsTable"></div>
-    </section>
   </section>
 
   <section id="codes" class="panel">
@@ -270,7 +256,59 @@ header{position:sticky;top:0;z-index:50;box-shadow:0 14px 34px rgba(15,23,42,.12
   </section>
 
 
-  <section id="soundSettings" class="panel">
+  
+  <section id="subscriptionSettings" class="panel">
+    <div class="grid">
+      <section class="card">
+        <h2>💎 Subscription Settings</h2>
+        <p class="hint">Tetapkan harga, promosi dan nota pembayaran yang akan dipaparkan kepada parent dalam app.</p>
+        <label>Tajuk Pelan</label>
+        <input id="subTitle" placeholder="UPKK SmartKids Premium" />
+        <label>Label Promosi</label>
+        <input id="subPromoLabel" placeholder="🔥 PROMOSI TERHAD" />
+        <div class="grid">
+          <div>
+            <label>Harga Asal (RM)</label>
+            <input id="subOriginalPrice" type="number" step="0.01" value="150.00" />
+          </div>
+          <div>
+            <label>Harga Promosi (RM)</label>
+            <input id="subPromoPrice" type="number" step="0.01" value="49.00" />
+          </div>
+        </div>
+        <label>Tempoh Langganan (Hari)</label>
+        <input id="subDurationDays" type="number" value="365" />
+        <label>Nota Promosi</label>
+        <textarea id="subNote" placeholder="Nota ringkas promosi untuk parent"></textarea>
+        <label>Arahan Pembayaran</label>
+        <textarea id="subPaymentInstruction" placeholder="Masukkan arahan bank/DuitNow/QR dan cara upload resit"></textarea>
+        <label>Kelebihan Premium (satu baris satu item)</label>
+        <textarea id="subFeatures" placeholder="Semua Peperiksaan UPKK&#10;Analisa Prestasi&#10;Leaderboard Keluarga"></textarea>
+        <div class="actions">
+          <button onclick="saveSubscriptionSettings()">Simpan Subscription Settings</button>
+          <button class="secondary" onclick="loadSubscriptionSettings()">Refresh</button>
+        </div>
+        <div id="subSettingsLog" class="hint">Sedia.</div>
+      </section>
+      <section class="card">
+        <h2>Preview Kad Premium</h2>
+        <div id="subPreviewBox">Tekan Refresh untuk preview.</div>
+      </section>
+    </div>
+  </section>
+
+  <section id="payments" class="panel">
+    <section class="card">
+      <h2>💳 Pembayaran Manual</h2>
+      <p class="hint">Senarai resit yang dihantar oleh parent. Tekan Luluskan untuk aktifkan Premium secara automatik.</p>
+      <div class="actions">
+        <button onclick="loadPayments()">Refresh Pembayaran</button>
+      </div>
+      <div id="paymentsBox">Memuatkan...</div>
+    </section>
+  </section>
+
+<section id="soundSettings" class="panel">
     <section class="card">
       <span class="admin-badge">🔊 SOUND FUNCTION</span>
       <h2 style="margin:10px 0 4px">Sound Settings</h2>
@@ -456,11 +494,12 @@ const APP_ROOT = 'apps/UPKK';
 const codeRoot = APP_ROOT + '/accessCodes';
 const userRoot = APP_ROOT + '/users';
 const usernameRoot = APP_ROOT + '/usernames';
-const paymentRoot = APP_ROOT + '/payments';
-const subscriptionRoot = APP_ROOT + '/subscriptions';
 const entRoot = APP_ROOT + '/entitlements';
 const historyRoot = APP_ROOT + '/redeemHistory';
 const adminLogRoot = APP_ROOT + '/adminLogs';
+const settingsRoot = APP_ROOT + '/settings';
+const paymentRoot = APP_ROOT + '/payments';
+const subscriptionRoot = APP_ROOT + '/subscriptions';
 const ADMIN_SESSION_KEY = 'upkkSmartKidsAdminSession_v2';
 let currentAdminSession = null;
 
@@ -546,8 +585,9 @@ function showTab(id, btn){
   if(id === 'codes') loadCodes();
   if(id === 'questions') loadQuestionSubjects();
   if(id === 'users') loadUsers();
-  if(id === 'payments') loadPayments();
   if(id === 'history') loadHistory();
+  if(id === 'subscriptionSettings') loadSubscriptionSettings();
+  if(id === 'payments') loadPayments();
   if(id === 'soundSettings') loadSoundSettings();
   if(id === 'whatsapp') loadWhatsAppSettings();
   if(id === 'questionNotes') loadQuestionNoteSubjects();
@@ -557,118 +597,6 @@ function showTab(id, btn){
   if(id === 'systemControl') loadSystemControl();
   if(id === 'examReport') { loadStudentSearchOptions().then(loadExamReport); }
 }
-
-function paymentStatusPill(status){
-  const s=String(status||'pending').toLowerCase();
-  if(s==='approved') return '<span class="status-ok">Approved</span>';
-  if(s==='rejected') return '<span class="status-bad">Rejected</span>';
-  return '<b style="color:#b45309">Pending</b>';
-}
-function formatAdminDate(iso){
-  try{ return iso ? new Date(iso).toLocaleString('ms-MY') : '-'; }catch(e){ return iso || '-'; }
-}
-async function loadPayments(filter='pending'){
-  const box = $('paymentsTable');
-  const msg = $('paymentMsg');
-  if(!box) return;
-  box.innerHTML = 'Memuatkan pembayaran...';
-  if(msg) msg.textContent = 'Memuatkan...';
-  try{
-    const snap = await db.ref(paymentRoot).orderByChild('submittedAt').limitToLast(80).get();
-    const rows=[];
-    if(snap.exists()) snap.forEach(ch=>rows.push({id:ch.key, ...(ch.val()||{})}));
-    rows.sort((a,b)=> new Date(b.submittedAt||0)-new Date(a.submittedAt||0));
-    const filtered = filter === 'all' ? rows : rows.filter(r=>String(r.status||'pending').toLowerCase()==='pending');
-    if(msg) msg.textContent = `Jumlah: ${filtered.length} rekod (${filter}).`;
-    if(!filtered.length){ box.innerHTML = '<p class="hint">Tiada pembayaran untuk dipaparkan.</p>'; return; }
-    box.innerHTML = `<table>
-      <thead><tr><th>Parent</th><th>Plan</th><th>Status</th><th>Resit</th><th>Tindakan</th></tr></thead>
-      <tbody>${filtered.map(r=>`<tr>
-        <td data-label="Parent"><b>${esc(r.parentName || r.username || '-')}</b><br><span class="hint">${esc(r.username||'')}<br>${esc(r.accountId||'')}</span><br><small>${formatAdminDate(r.submittedAt)}</small></td>
-        <td data-label="Plan"><b>${esc(r.planLabel || r.plan || '-')}</b><br>${esc(r.currency||'MYR')} ${Number(r.amount||0).toFixed(2)}<br><span class="hint">${esc(r.note||'')}</span></td>
-        <td data-label="Status">${paymentStatusPill(r.status)}<br><small>${esc(r.adminRemark||'')}</small></td>
-        <td data-label="Resit">${r.receiptBase64 ? `<button class="secondary mini" onclick="viewPaymentReceipt('${r.id}')">Lihat Resit</button>` : '<span class="hint">Tiada resit</span>'}</td>
-        <td data-label="Tindakan">
-          <div class="actions">
-            <button class="mini" onclick="approveManualPayment('${r.id}')">Luluskan</button>
-            <button class="danger mini" onclick="rejectManualPayment('${r.id}')">Tolak</button>
-          </div>
-        </td>
-      </tr>`).join('')}</tbody>
-    </table>`;
-  }catch(err){
-    console.warn(err);
-    box.innerHTML = '<p class="status-bad">Gagal memuatkan pembayaran. Semak rules Firebase.</p>';
-    if(msg) msg.textContent = err.message || String(err);
-  }
-}
-async function viewPaymentReceipt(paymentId){
-  const snap = await db.ref(paymentRoot + '/' + paymentId).get();
-  if(!snap.exists()) return alert('Rekod pembayaran tidak wujud.');
-  const r=snap.val()||{};
-  if(!r.receiptBase64) return alert('Resit tidak wujud.');
-  const w = window.open('', '_blank');
-  if(!w) return alert('Popup diblock oleh browser.');
-  w.document.write(`<title>Resit ${esc(paymentId)}</title><body style="font-family:Arial;padding:20px;background:#f8fafc"><h2>Resit Pembayaran</h2><p>${esc(r.username||'')} • ${esc(r.planLabel||'')}</p><img src="${r.receiptBase64}" style="max-width:100%;border:1px solid #ddd;border-radius:16px;background:white"/></body>`);
-}
-function addDaysIsoFromNow(days){
-  const d = new Date();
-  d.setDate(d.getDate()+Number(days||365));
-  return d.toISOString();
-}
-async function approveManualPayment(paymentId){
-  const snap = await db.ref(paymentRoot + '/' + paymentId).get();
-  if(!snap.exists()) return alert('Rekod pembayaran tidak wujud.');
-  const p = snap.val() || {};
-  if(!confirm(`Luluskan pembayaran ${p.username || ''} dan aktifkan Premium Tahunan?`)) return;
-  const now = new Date().toISOString();
-  const expiry = addDaysIsoFromNow(365);
-  const usernameKey = safeKey(p.username || '');
-  const sub = {
-    status:'active',
-    plan:p.plan || 'premium_annual',
-    planLabel:p.planLabel || 'Premium Tahunan',
-    trialActive:true,
-    trialUntil:expiry,
-    examActive:true,
-    examUntil:expiry,
-    activatedAt:now,
-    expiryDate:expiry,
-    paymentId,
-    updatedAt:now
-  };
-  const updates = {};
-  updates[paymentRoot + '/' + paymentId + '/status'] = 'approved';
-  updates[paymentRoot + '/' + paymentId + '/approvedAt'] = now;
-  updates[paymentRoot + '/' + paymentId + '/approvedBy'] = currentAdminSession?.adminId || 'admin';
-  updates[paymentRoot + '/' + paymentId + '/updatedAt'] = now;
-  updates[subscriptionRoot + '/' + safeFirebaseKey(p.accountId || p.username || paymentId)] = {...sub, accountId:p.accountId||'', username:p.username||''};
-  if(usernameKey){
-    updates[usernameRoot + '/' + usernameKey + '/subscription'] = sub;
-    updates[usernameRoot + '/' + usernameKey + '/accountId'] = p.accountId || '';
-    updates[usernameRoot + '/' + usernameKey + '/username'] = p.username || '';
-    updates[usernameRoot + '/' + usernameKey + '/updatedAt'] = now;
-  }
-  if(p.accountId){
-    updates[userRoot + '/' + safeFirebaseKey(p.accountId) + '/subscription'] = sub;
-    updates[userRoot + '/' + safeFirebaseKey(p.accountId) + '/plan'] = 'PREMIUM';
-    updates[userRoot + '/' + safeFirebaseKey(p.accountId) + '/updatedAt'] = now;
-  }
-  await db.ref().update(updates);
-  await db.ref(adminLogRoot).push({action:'approve_payment', paymentId, username:p.username||'', accountId:p.accountId||'', at:now, adminId:currentAdminSession?.adminId||''}).catch(()=>{});
-  alert('Pembayaran diluluskan. Premium aktif automatik.');
-  loadPayments();
-}
-async function rejectManualPayment(paymentId){
-  const reason = prompt('Sebab tolak resit? Contoh: Resit tidak jelas / jumlah tidak tepat') || 'Resit ditolak oleh admin.';
-  const now = new Date().toISOString();
-  await db.ref(paymentRoot + '/' + paymentId).update({status:'rejected', adminRemark:reason, rejectedAt:now, rejectedBy:currentAdminSession?.adminId||'admin', updatedAt:now});
-  await db.ref(adminLogRoot).push({action:'reject_payment', paymentId, reason, at:now, adminId:currentAdminSession?.adminId||''}).catch(()=>{});
-  alert('Resit ditolak.');
-  loadPayments();
-}
-
-
 function applyTypeDefaults(){
   const type = $('type').value;
   if(type === 'trial_30_days'){ $('validDays').value = 30; if(!$('maxUse').value || $('maxUse').value === '1') $('maxUse').value = 500; }
@@ -763,18 +691,15 @@ async function loadHistory(){
   $('historyBox').innerHTML = `<table><thead><tr><th>ID</th><th>Kod</th><th>User</th><th>Jenis</th><th>Masa</th></tr></thead><tbody>${rows || '<tr><td colspan="5">Belum ada rekod redeem.</td></tr>'}</tbody></table>`;
 }
 async function loadSummary(){
-  const [codes, users, hist, pays] = await Promise.all([db.ref(codeRoot).get(), db.ref(userRoot).get(), db.ref(historyRoot).get(), db.ref(paymentRoot).get()]);
+  const [codes, users, hist] = await Promise.all([db.ref(codeRoot).get(), db.ref(userRoot).get(), db.ref(historyRoot).get()]);
   const codeVals = codes.exists()?Object.values(codes.val()):[];
-  const payVals = pays.exists()?Object.values(pays.val()):[];
   const activeCodes = codeVals.filter(c=>c.status==='active').length;
   const revokedCodes = codeVals.filter(c=>c.status==='revoked').length;
-  const pendingPays = payVals.filter(p=>String(p.status||'pending').toLowerCase()==='pending').length;
   $('summaryBox').innerHTML = `<table><tbody>
     <tr><th>Total Code</th><td>${codeVals.length}</td></tr>
     <tr><th>Active Code</th><td>${activeCodes}</td></tr>
     <tr><th>Revoked Code</th><td>${revokedCodes}</td></tr>
     <tr><th>Total User</th><td>${users.exists()?Object.keys(users.val()).length:0}</td></tr>
-    <tr><th>Pembayaran Pending</th><td><b style="color:#b45309">${pendingPays}</b></td></tr>
     <tr><th>Redeem History</th><td>${hist.exists()?Object.keys(hist.val()).length:0}</td></tr>
   </tbody></table>`;
 }
@@ -1687,6 +1612,137 @@ async function writeDefaultSettings(){
   if(!soundSnap.exists()) await db.ref(soundSettingsRoot).set(defaultSoundSettings());
   alert('Default settings disimpan.');
 }
+
+const DEFAULT_SUBSCRIPTION_SETTINGS = {
+  title: 'UPKK SmartKids Premium',
+  promoLabel: '🔥 PROMOSI TERHAD',
+  originalPrice: 150,
+  promoPrice: 49,
+  durationDays: 365,
+  note: 'Nikmati akses penuh UPKK SmartKids dengan harga promosi RM49.00 sahaja.',
+  paymentInstruction: 'Sila buat pembayaran mengikut arahan admin, kemudian upload bukti pembayaran. Akaun akan diaktifkan selepas semakan admin.',
+  features: [
+    'Semua Peperiksaan UPKK',
+    'Analisa Prestasi',
+    'Leaderboard Keluarga',
+    'Resume Progress',
+    'Multi Device Sync',
+    'Update Soalan Baharu'
+  ]
+};
+function rm(v){ return 'RM' + Number(v||0).toFixed(2); }
+function getSubFormData(){
+  return {
+    title: $('subTitle').value.trim() || DEFAULT_SUBSCRIPTION_SETTINGS.title,
+    promoLabel: $('subPromoLabel').value.trim() || DEFAULT_SUBSCRIPTION_SETTINGS.promoLabel,
+    originalPrice: Number($('subOriginalPrice').value || 150),
+    promoPrice: Number($('subPromoPrice').value || 49),
+    durationDays: Number($('subDurationDays').value || 365),
+    note: $('subNote').value.trim(),
+    paymentInstruction: $('subPaymentInstruction').value.trim(),
+    features: $('subFeatures').value.split('\n').map(s=>s.trim()).filter(Boolean),
+    updatedAt: new Date().toISOString()
+  };
+}
+function renderSubPreview(s){
+  const features = (s.features||[]).map(f=>`<li>✔ ${esc(f)}</li>`).join('');
+  const save = Math.max(0, Number(s.originalPrice||0)-Number(s.promoPrice||0));
+  return `<div class="premium-admin-preview">
+    <div class="promo-label">${esc(s.promoLabel||'🔥 PROMOSI TERHAD')}</div>
+    <h2>${esc(s.title||'UPKK SmartKids Premium')}</h2>
+    <div class="price-old"><span>${rm(s.originalPrice)}</span></div>
+    <div class="price-now">${rm(s.promoPrice)}</div>
+    <div class="save-pill">Jimat ${rm(save)}</div>
+    <p>${esc(s.note||'')}</p>
+    <ul>${features}</ul>
+    <p class="hint">${esc(s.paymentInstruction||'')}</p>
+  </div>`;
+}
+async function loadSubscriptionSettings(){
+  const snap = await db.ref(settingsRoot + '/subscription').get();
+  const s = {...DEFAULT_SUBSCRIPTION_SETTINGS, ...(snap.exists()?snap.val():{})};
+  $('subTitle').value = s.title || '';
+  $('subPromoLabel').value = s.promoLabel || '';
+  $('subOriginalPrice').value = Number(s.originalPrice || 150).toFixed(2);
+  $('subPromoPrice').value = Number(s.promoPrice || 49).toFixed(2);
+  $('subDurationDays').value = Number(s.durationDays || 365);
+  $('subNote').value = s.note || '';
+  $('subPaymentInstruction').value = s.paymentInstruction || '';
+  $('subFeatures').value = Array.isArray(s.features) ? s.features.join('\n') : String(s.features || DEFAULT_SUBSCRIPTION_SETTINGS.features.join('\n'));
+  $('subPreviewBox').innerHTML = renderSubPreview(s);
+  $('subSettingsLog').textContent = 'Subscription settings dimuatkan.';
+}
+async function saveSubscriptionSettings(){
+  const data = getSubFormData();
+  if(!data.features.length) data.features = DEFAULT_SUBSCRIPTION_SETTINGS.features;
+  await db.ref(settingsRoot + '/subscription').update(data);
+  $('subSettingsLog').textContent = 'Berjaya disimpan pada ' + new Date().toLocaleString('ms-MY');
+  $('subPreviewBox').innerHTML = renderSubPreview(data);
+}
+async function loadPayments(){
+  const box = $('paymentsBox');
+  if(!box) return;
+  box.innerHTML = 'Memuatkan pembayaran...';
+  const snap = await db.ref(paymentRoot).orderByChild('submittedAt').limitToLast(100).get();
+  const rows = [];
+  snap.forEach(child => rows.push({id:child.key, ...(child.val()||{})}));
+  rows.sort((a,b)=>String(b.submittedAt||'').localeCompare(String(a.submittedAt||'')));
+  if(!rows.length){ box.innerHTML = '<p class="hint">Tiada pembayaran.</p>'; return; }
+  box.innerHTML = `<table><thead><tr><th>Parent</th><th>Pelan</th><th>Jumlah</th><th>Status</th><th>Resit</th><th>Tindakan</th></tr></thead><tbody>${rows.map(p=>`
+    <tr>
+      <td><b>${esc(p.username||p.accountId||'-')}</b><br><span class="hint">${esc(p.studentName||'')}</span><br><span class="hint">${esc(new Date(p.submittedAt||Date.now()).toLocaleString('ms-MY'))}</span></td>
+      <td>${esc(p.plan||'-')}</td>
+      <td>${rm(p.amount)}</td>
+      <td><b>${esc(p.status||'pending')}</b>${p.adminRemark?'<br><span class="hint">'+esc(p.adminRemark)+'</span>':''}</td>
+      <td>${p.receiptBase64?`<button class="secondary mini" onclick="viewReceipt('${p.id}')">Lihat Resit</button>`:'-'}</td>
+      <td class="actions">${p.status==='approved'?'✅ Diluluskan':`<button class="mini" onclick="approvePayment('${p.id}')">Luluskan</button><button class="danger mini" onclick="rejectPayment('${p.id}')">Tolak</button>`}</td>
+    </tr>`).join('')}</tbody></table>`;
+}
+async function viewReceipt(id){
+  const snap = await db.ref(paymentRoot + '/' + id).get();
+  const p = snap.val() || {};
+  if(!p.receiptBase64){ alert('Resit tidak dijumpai.'); return; }
+  const w = window.open('', '_blank');
+  w.document.write(`<title>Resit ${esc(id)}</title><body style="margin:0;background:#111;display:flex;align-items:center;justify-content:center;min-height:100vh"><img src="${p.receiptBase64}" style="max-width:96vw;max-height:96vh;border-radius:12px;background:white"></body>`);
+}
+async function approvePayment(id){
+  const snap = await db.ref(paymentRoot + '/' + id).get();
+  const p = snap.val() || {};
+  const duration = Number(p.durationDays || 365);
+  const now = new Date();
+  const expiry = new Date(now.getTime() + duration * 86400000);
+  const accountId = p.accountId || p.username || '';
+  if(!accountId){ alert('Account ID tidak lengkap.'); return; }
+  const subscription = {
+    status: 'active',
+    plan: p.plan || 'UPKK SmartKids Premium',
+    amount: Number(p.amount || 0),
+    activatedAt: now.toISOString(),
+    expiryDate: expiry.toISOString(),
+    examActive: true,
+    examUntil: expiry.toISOString(),
+    paymentId: id,
+    updatedAt: now.toISOString()
+  };
+  const updates = {};
+  updates[paymentRoot + '/' + id + '/status'] = 'approved';
+  updates[paymentRoot + '/' + id + '/approvedAt'] = now.toISOString();
+  updates[paymentRoot + '/' + id + '/updatedAt'] = now.toISOString();
+  updates[paymentRoot + '/' + id + '/adminRemark'] = 'Diluluskan oleh admin.';
+  updates[subscriptionRoot + '/' + safeKey(accountId)] = subscription;
+  updates[userRoot + '/' + safeKey(accountId) + '/subscription'] = subscription;
+  updates[userRoot + '/' + safeKey(accountId) + '/plan'] = 'PREMIUM';
+  updates[userRoot + '/' + safeKey(accountId) + '/entitlements/examLicense'] = {active:true, startDate:now.toISOString(), endDate:expiry.toISOString(), package:'manual_payment'};
+  await db.ref().update(updates);
+  await loadPayments();
+  alert('Pembayaran diluluskan dan Premium diaktifkan.');
+}
+async function rejectPayment(id){
+  const remark = prompt('Catatan penolakan:', 'Resit tidak jelas / bayaran tidak sah') || 'Ditolak oleh admin.';
+  await db.ref(paymentRoot + '/' + id).update({status:'rejected', adminRemark:remark, updatedAt:new Date().toISOString()});
+  await loadPayments();
+}
+
 async function loadAll(){ await Promise.all([loadSummary(), loadCodes(), loadUsers(), loadHistory()]); }
 async function initAdminPanel(){ const ok = await verifyAdminSession(); if(ok){ await loadAll(); const hash=(location.hash||'').replace('#',''); await loadStudentSearchOptions().catch(()=>{}); if(hash) showTab(hash); } }
 initAdminPanel().catch(err=>{ console.error(err); alert('Admin load error: ' + err.message); redirectAdminLogin('Ralat akses admin.'); });

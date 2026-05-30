@@ -2879,14 +2879,25 @@ img, video, canvas, svg{
 }
 
 
-/* v3.44 Manual Payment UI */
-.premium-payment-card{display:grid;gap:12px}
-.payment-plan-box{display:grid;gap:4px;border:1px solid rgba(22,163,74,.22);background:linear-gradient(135deg,#f0fdf4,#fff7ed);border-radius:18px;padding:14px}
-.payment-plan-box strong{font-size:28px;color:#166534}
-.payment-plan-box span{color:#64748b;font-size:13px;font-weight:700}
-.payment-status{padding:12px;border-radius:14px;background:#f8fafc;border:1px solid #e2e8f0;font-weight:800;color:#334155}
-.payment-status.pending{background:#fffbeb;border-color:#fde68a;color:#92400e}
-.payment-status.approved{background:#ecfdf5;border-color:#bbf7d0;color:#166534}
-.payment-status.rejected{background:#fef2f2;border-color:#fecaca;color:#991b1b}
-.payment-upload-box{display:grid;gap:10px;border:1px dashed #bbf7d0;background:#fbfffd;border-radius:18px;padding:14px}
-.payment-upload-box input[type=file]{width:100%;padding:11px;border:1px solid #cbd5e1;border-radius:14px;background:#fff}
+/* v3.46 Subscription / Manual Payment UI */
+.premium-paywall-card{
+  border:1px solid rgba(244,185,66,.45);
+  background:linear-gradient(180deg,#fffdf5 0%,#ffffff 55%,#f7fff9 100%);
+  box-shadow:0 18px 46px rgba(130,92,0,.12);
+}
+.premium-card-top{display:flex;gap:14px;align-items:flex-start}
+.premium-diamond{width:52px;height:52px;border-radius:18px;display:grid;place-items:center;background:#fff3c4;font-size:28px;box-shadow:0 10px 24px rgba(244,185,66,.22)}
+.premium-price-wrap{margin:18px 0;padding:18px;border-radius:22px;background:linear-gradient(135deg,#14532d,#16a34a);color:white;text-align:center}
+.price-old{font-size:18px;opacity:.85}.price-old span{text-decoration:line-through;text-decoration-thickness:3px}
+.promo-label{display:inline-block;margin:8px auto;padding:7px 12px;border-radius:999px;background:#ef4444;color:white;font-weight:900;font-size:13px}
+.price-now{font-size:42px;line-height:1;font-weight:1000;letter-spacing:-1px;margin:6px 0}
+.save-pill{display:inline-block;background:#fef3c7;color:#7c2d12;border-radius:999px;padding:7px 12px;font-weight:900}
+.premium-feature-list{list-style:none;padding:0;margin:14px 0;display:grid;gap:8px}
+.premium-feature-list li{background:#f7fff9;border:1px solid #d9f2e3;border-radius:14px;padding:10px 12px;font-weight:800}
+.payment-note-box{background:#f8fafc;border:1px solid #e2e8f0;border-radius:16px;padding:12px;color:#334155;white-space:pre-line}
+.payment-status-box{margin:12px 0;padding:12px;border-radius:16px;border:1px solid #fde68a;background:#fffbeb;display:grid;gap:4px}
+.payment-status-box.approved{border-color:#bbf7d0;background:#f0fdf4}.payment-status-box.rejected{border-color:#fecaca;background:#fef2f2}
+.receipt-upload-box{margin-top:14px;padding:14px;border-radius:18px;border:1px dashed #f4b942;background:#fffdf5}
+.premium-admin-preview{border:1px solid #fde68a;border-radius:18px;padding:16px;background:#fffbeb}
+.premium-admin-preview .price-now{color:#15803d}
+@media(max-width:560px){.premium-card-top{flex-direction:column}.price-now{font-size:34px}}

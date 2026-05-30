@@ -1,4 +1,4 @@
-const APP_VERSION = '8.44-MANUAL-PAYMENT-AUTO-ACTIVATION';
+const APP_VERSION = '8.46-SUBSCRIPTION-SETTINGS';
 const PIN_LENGTH = 6;
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCK_MINUTES = 10;
@@ -260,6 +260,173 @@ async function openUpkkWhatsApp(type='support'){
   const msg = type==='buy' ? w.buyLicenseMessage : type==='renew' ? w.renewLicenseMessage : type==='problem' ? w.problemMessage : w.supportMessage;
   window.open(buildWhatsAppUrl(number,msg),'_blank','noopener,noreferrer');
 }
+
+const UPKK_DEFAULT_SUBSCRIPTION_SETTINGS = {
+  title: 'UPKK SmartKids Premium',
+  promoLabel: '🔥 PROMOSI TERHAD',
+  originalPrice: 150,
+  promoPrice: 49,
+  durationDays: 365,
+  note: 'Nikmati akses penuh UPKK SmartKids dengan harga promosi RM49.00 sahaja. Selepas pembayaran dibuat, sila upload bukti pembayaran untuk pengaktifan akaun Premium.',
+  paymentInstruction: 'Sila buat bayaran mengikut arahan admin, kemudian upload resit JPG/PNG di bawah. Pengaktifan biasanya dalam tempoh 1–24 jam selepas semakan admin.',
+  features: [
+    'Semua Peperiksaan UPKK',
+    'Analisa Prestasi',
+    'Leaderboard Keluarga',
+    'Resume Progress',
+    'Multi Device Sync',
+    'Update Soalan Baharu'
+  ]
+};
+let UPKK_SUBSCRIPTION_SETTINGS_CACHE = null;
+let UPKK_PAYMENT_STATUS_CACHE = null;
+function moneyRm(v){
+  const n = Number(v || 0);
+  return 'RM' + n.toFixed(2);
+}
+function normalizeSubscriptionSettings(data={}){
+  const merged = {...UPKK_DEFAULT_SUBSCRIPTION_SETTINGS, ...(data||{})};
+  merged.originalPrice = Number(merged.originalPrice || 150);
+  merged.promoPrice = Number(merged.promoPrice || 49);
+  merged.durationDays = Number(merged.durationDays || 365);
+  if(typeof merged.features === 'string'){
+    merged.features = merged.features.split('\n').map(s=>s.trim()).filter(Boolean);
+  }
+  if(!Array.isArray(merged.features) || !merged.features.length) merged.features = UPKK_DEFAULT_SUBSCRIPTION_SETTINGS.features;
+  return merged;
+}
+async function loadSubscriptionSettingsForUser(force=false){
+  if(UPKK_SUBSCRIPTION_SETTINGS_CACHE && !force) return UPKK_SUBSCRIPTION_SETTINGS_CACHE;
+  const db = firebaseDb();
+  if(!db) return UPKK_DEFAULT_SUBSCRIPTION_SETTINGS;
+  try{
+    const snap = await firebaseGetOnce(fbPath('settings','subscription'));
+    UPKK_SUBSCRIPTION_SETTINGS_CACHE = normalizeSubscriptionSettings(snap.exists()?snap.val():{});
+    return UPKK_SUBSCRIPTION_SETTINGS_CACHE;
+  }catch(err){
+    console.warn('Subscription settings load failed:', err);
+    return UPKK_DEFAULT_SUBSCRIPTION_SETTINGS;
+  }
+}
+async function loadLatestPaymentStatus(force=false){
+  const accountId = profile.accountId || profile.username || '';
+  if(!accountId) return null;
+  if(UPKK_PAYMENT_STATUS_CACHE && !force) return UPKK_PAYMENT_STATUS_CACHE;
+  const db = firebaseDb();
+  if(!db) return null;
+  try{
+    const snap = await db.ref(fbPath('payments')).orderByChild('accountId').equalTo(accountId).limitToLast(8).get();
+    const rows = [];
+    snap.forEach(child => rows.push({id:child.key, ...(child.val()||{})}));
+    rows.sort((a,b)=>String(b.submittedAt||'').localeCompare(String(a.submittedAt||'')));
+    UPKK_PAYMENT_STATUS_CACHE = rows[0] || null;
+    return UPKK_PAYMENT_STATUS_CACHE;
+  }catch(err){
+    console.warn('Payment status load failed:', err);
+    return null;
+  }
+}
+function subscriptionPromoCard(settings=UPKK_DEFAULT_SUBSCRIPTION_SETTINGS, status=null){
+  const features = (settings.features||[]).map(f=>`<li>✔ ${escapeHtml(f)}</li>`).join('');
+  const statusHtml = status ? `<div class="payment-status-box ${String(status.status||'pending').toLowerCase()}">
+    <b>${status.status==='approved'?'✅ Premium Aktif':status.status==='rejected'?'❌ Pembayaran Ditolak':'⏳ Menunggu Semakan Admin'}</b>
+    <span>${status.adminRemark?escapeHtml(status.adminRemark):'Resit terakhir: '+escapeHtml(new Date(status.submittedAt||Date.now()).toLocaleString('ms-MY'))}</span>
+  </div>` : '';
+  return `<section class="card premium-paywall-card">
+    <div class="premium-card-top">
+      <span class="premium-diamond">💎</span>
+      <div>
+        <h2>${escapeHtml(settings.title||'UPKK SmartKids Premium')}</h2>
+        <p class="small">${escapeHtml(settings.note||'')}</p>
+      </div>
+    </div>
+    <div class="premium-price-wrap">
+      <div class="price-old"><span>${moneyRm(settings.originalPrice)}</span></div>
+      <div class="promo-label">${escapeHtml(settings.promoLabel||'🔥 PROMOSI TERHAD')}</div>
+      <div class="price-now">${moneyRm(settings.promoPrice)}</div>
+      <div class="save-pill">Jimat ${moneyRm(Math.max(0, Number(settings.originalPrice||0)-Number(settings.promoPrice||0)))}</div>
+    </div>
+    <ul class="premium-feature-list">${features}</ul>
+    <div class="payment-note-box">${escapeHtml(settings.paymentInstruction||'')}</div>
+    ${statusHtml}
+    <div class="receipt-upload-box">
+      <label><b>Upload Bukti Pembayaran</b></label>
+      <input id="paymentReceiptInput" class="input" type="file" accept="image/png,image/jpeg,image/jpg" />
+      <button class="btn gold" onclick="submitManualPaymentReceipt()">Hantar Pembayaran</button>
+      <p class="small">Format JPG/PNG sahaja. Sistem akan kecilkan gambar sebelum simpan ke Firebase Database.</p>
+    </div>
+  </section>`;
+}
+function readFileAsDataUrl(file){
+  return new Promise((resolve,reject)=>{
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+function imageToCompressedDataUrl(dataUrl, maxW=900, quality=.72){
+  return new Promise(resolve=>{
+    const img = new Image();
+    img.onload = ()=>{
+      const scale = Math.min(1, maxW / Math.max(img.width, 1));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(img.width * scale));
+      canvas.height = Math.max(1, Math.round(img.height * scale));
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img,0,0,canvas.width,canvas.height);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.onerror = ()=>resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
+async function submitManualPaymentReceipt(){
+  try{
+    const input = document.getElementById('paymentReceiptInput');
+    const file = input?.files?.[0];
+    if(!file){ alert('Sila pilih gambar resit dahulu.'); return; }
+    if(!/^image\/(png|jpe?g)$/i.test(file.type)){ alert('Resit mesti dalam format JPG atau PNG.'); return; }
+    if(file.size > 4 * 1024 * 1024){ alert('Saiz resit terlalu besar. Sila guna gambar bawah 4MB.'); return; }
+    const db = firebaseDb();
+    if(!db) throw new Error('Firebase belum aktif. Semak internet/config.');
+    const settings = await loadSubscriptionSettingsForUser();
+    const raw = await readFileAsDataUrl(file);
+    const receiptBase64 = await imageToCompressedDataUrl(raw);
+    const now = new Date().toISOString();
+    const paymentRef = db.ref(fbPath('payments')).push();
+    await paymentRef.set({
+      accountId: profile.accountId || profile.username || '',
+      username: profile.username || '',
+      parentName: profile.parentName || profile.username || '',
+      studentName: profile.name || '',
+      plan: settings.title || 'UPKK SmartKids Premium',
+      amount: Number(settings.promoPrice || 49),
+      originalAmount: Number(settings.originalPrice || 150),
+      durationDays: Number(settings.durationDays || 365),
+      status: 'pending',
+      submittedAt: now,
+      updatedAt: now,
+      receiptBase64,
+      adminRemark: ''
+    });
+    UPKK_PAYMENT_STATUS_CACHE = null;
+    alert('Resit berjaya dihantar. Status akaun akan dikemaskini selepas admin luluskan pembayaran.');
+    await loadLatestPaymentStatus(true);
+    render();
+  }catch(err){
+    console.error(err);
+    alert('Gagal hantar resit: ' + (err.message || err));
+  }
+}
+async function renderPremiumPaywall(){
+  const settings = await loadSubscriptionSettingsForUser(true);
+  const status = await loadLatestPaymentStatus(true);
+  if(page === 'exam' && !hasActiveExamAccess()){
+    $app.innerHTML = `${profileSummary()}${subscriptionPromoCard(settings,status)}<section class="card"><button class="btn secondary" onclick="page='subjects';render()">Pergi ke Latihan</button></section>`;
+  }
+}
+
 function formatStudentId(num){ return `${ID_PREFIX}-${APP_YEAR_SHORT}-` + String(num).padStart(5,'0'); }
 function isOfficialStudentId(id){ return new RegExp(`^${ID_PREFIX}-${APP_YEAR_SHORT}-\\d{5}$`).test(String(id||'')); }
 function isStudentProfileId(id){ return /^student_\d+$/i.test(String(id||'')); }
@@ -1989,6 +2156,7 @@ function resetUiLocks(){
 }
 function render(){
   resetUiLocks();
+  if(page==='exam') { loadSubscriptionSettingsForUser().catch(()=>{}); loadLatestPaymentStatus().catch(()=>{}); }
   setProfileLock(page==='profile' || !isProfileComplete());
   setActiveNav();
   if(currentQuiz) return renderQuiz();
@@ -3006,141 +3174,11 @@ function examSubjectRows(){
     return {key,s,title:subjectTitle(s),saved,available,total,answered,current,remaining,progress,theme,completed,allCompleted,loadedCount};
   });
 }
-
-function annualPlanPrice(){ return 'RM39.90'; }
-function manualPaymentPlan(){ return {id:'premium_annual', label:'Premium Tahunan', amount:39.90, days:365}; }
-function paymentRootPath(){ return fbPath('payments'); }
-function subscriptionRootPath(){ return fbPath('subscriptions'); }
-async function resizeReceiptImageToBase64(file){
-  if(!file) throw new Error('Sila pilih gambar resit.');
-  if(!/^image\/(png|jpe?g|webp)$/i.test(file.type || '')) throw new Error('Format resit mesti JPG, PNG atau WEBP.');
-  if(file.size > 8 * 1024 * 1024) throw new Error('Saiz resit terlalu besar. Sila guna gambar bawah 8MB.');
-  const dataUrl = await new Promise((resolve,reject)=>{
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result || ''));
-    reader.onerror = () => reject(new Error('Gagal membaca fail resit.'));
-    reader.readAsDataURL(file);
-  });
-  const img = await new Promise((resolve,reject)=>{
-    const image = new Image();
-    image.onload = () => resolve(image);
-    image.onerror = () => reject(new Error('Gagal memproses gambar resit.'));
-    image.src = dataUrl;
-  });
-  const maxSide = 1200;
-  const scale = Math.min(1, maxSide / Math.max(img.width || 1, img.height || 1));
-  const canvas = document.createElement('canvas');
-  canvas.width = Math.max(1, Math.round((img.width || 1) * scale));
-  canvas.height = Math.max(1, Math.round((img.height || 1) * scale));
-  const ctx = canvas.getContext('2d');
-  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-  return canvas.toDataURL('image/jpeg', 0.76);
-}
-async function loadLatestManualPayment(username=profile.username){
-  const db = firebaseDb();
-  if(!db || !username) return null;
-  try{
-    const snap = await db.ref(paymentRootPath()).orderByChild('username').equalTo(cleanUsername(username)).limitToLast(8).get();
-    if(!snap.exists()) return null;
-    const rows = [];
-    snap.forEach(ch => rows.push({id:ch.key, ...(ch.val() || {})}));
-    rows.sort((a,b)=> new Date(b.submittedAt || 0) - new Date(a.submittedAt || 0));
-    return rows[0] || null;
-  }catch(err){ console.warn('Load latest payment failed:', err); return null; }
-}
-function premiumPaymentCard(){
-  const plan = manualPaymentPlan();
-  const latest = window.__UPKK_LATEST_PAYMENT || null;
-  const latestStatus = latest?.status ? String(latest.status).toLowerCase() : '';
-  const statusHtml = latestStatus === 'pending'
-    ? `<div class="payment-status pending">⏳ Resit anda sedang disemak oleh admin.</div>`
-    : latestStatus === 'approved'
-      ? `<div class="payment-status approved">✅ Pembayaran diluluskan. Sila refresh jika akses belum aktif.</div>`
-      : latestStatus === 'rejected'
-        ? `<div class="payment-status rejected">❌ Resit sebelum ini ditolak. Sila upload resit baharu.</div>`
-        : `<div class="payment-status">Upload resit selepas membuat bayaran.</div>`;
-  return `<section class="card premium-payment-card">
-    <span class="badge">💎 LANGGANAN PREMIUM</span>
-    <h2>Aktifkan Peperiksaan Premium</h2>
-    <p class="small">Mod Peperiksaan memerlukan langganan aktif. Buat bayaran secara manual, kemudian upload resit untuk semakan admin.</p>
-    <div class="payment-plan-box">
-      <b>${plan.label}</b>
-      <strong>${annualPlanPrice()}</strong>
-      <span>Akses peperiksaan selama ${plan.days} hari selepas diluluskan.</span>
-    </div>
-    ${statusHtml}
-    <div class="payment-upload-box">
-      <label style="font-weight:900">Upload Resit Bayaran</label>
-      <input id="manualReceiptFile" type="file" accept="image/png,image/jpeg,image/jpg,image/webp" />
-      <textarea id="manualPaymentNote" placeholder="Nota pilihan. Contoh: Bayaran melalui Maybank, nama akaun..." style="min-height:70px"></textarea>
-      <button class="btn gold" onclick="submitManualPaymentReceipt()">Hantar Resit Untuk Kelulusan</button>
-    </div>
-    <div style="height:10px"></div>
-    <button class="btn secondary" onclick="refreshManualPaymentStatus()">Semak Status Pembayaran</button>
-    <button class="btn secondary" onclick="page='subjects';render()">Pergi ke Latihan</button>
-  </section>`;
-}
-async function refreshManualPaymentStatus(){
-  window.__UPKK_LATEST_PAYMENT = await loadLatestManualPayment();
-  try{
-    if(profile.username){
-      const sub = await loadUsernameSubscriptionFromFirebase(profile.username, profile.accountId);
-      profile.subscription = sub || profile.subscription || {};
-      profile.plan = hasActiveExamAccess() ? PREMIUM_STATUS.PREMIUM : (profile.plan || PREMIUM_STATUS.FREE);
-      saveProfile();
-    }
-  }catch(err){ console.warn('Subscription refresh failed:', err); }
-  render();
-}
-async function submitManualPaymentReceipt(){
-  if(!profile?.accountId || !profile?.username){ alert('Sila login akaun parent dahulu.'); return; }
-  const db = firebaseDb();
-  if(!db){ alert('Firebase belum aktif. Semak internet.'); return; }
-  const input = document.getElementById('manualReceiptFile');
-  const file = input?.files?.[0];
-  if(!file){ alert('Sila pilih gambar resit dahulu.'); return; }
-  try{
-    const btn = (typeof event !== 'undefined' && event?.target) ? event.target : null;
-    if(btn){ btn.disabled = true; btn.textContent = 'Memproses resit...'; }
-    const receiptBase64 = await resizeReceiptImageToBase64(file);
-    const plan = manualPaymentPlan();
-    const ref = db.ref(paymentRootPath()).push();
-    await ref.set({
-      paymentId: ref.key,
-      appCode: APP_CODE,
-      accountId: profile.accountId || '',
-      username: cleanUsername(profile.username || ''),
-      parentName: profile.parentName || profile.name || profile.username || '',
-      activeStudentId: profile.studentId || 'student_1',
-      activeStudentName: profile.name || '',
-      plan: plan.id,
-      planLabel: plan.label,
-      amount: plan.amount,
-      currency: 'MYR',
-      status: 'pending',
-      receiptBase64,
-      note: (document.getElementById('manualPaymentNote')?.value || '').trim(),
-      submittedAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    });
-    window.__UPKK_LATEST_PAYMENT = {status:'pending', submittedAt:new Date().toISOString()};
-    alert('Resit berjaya dihantar. Admin akan semak dan luluskan langganan.');
-    render();
-  }catch(err){
-    console.warn(err);
-    alert(err.message || 'Gagal hantar resit. Cuba lagi.');
-  }finally{
-    const btn = (typeof event !== 'undefined' && event?.target) ? event.target : null;
-    if(btn){ btn.disabled = false; btn.textContent = 'Hantar Resit Untuk Kelulusan'; }
-  }
-}
-
-
 function renderExamMenu(){
   if(!requireProfile()) return;
   if(!hasActiveExamAccess()){
-    $app.innerHTML = `${profileSummary()}${premiumPaymentCard()}`;
-    setTimeout(()=>{ loadLatestManualPayment().then(p=>{ window.__UPKK_LATEST_PAYMENT=p; if(page==='exam' && !hasActiveExamAccess()) render(); }).catch(()=>{}); }, 50);
+    $app.innerHTML = `${profileSummary()}${subscriptionPromoCard(UPKK_SUBSCRIPTION_SETTINGS_CACHE || UPKK_DEFAULT_SUBSCRIPTION_SETTINGS, UPKK_PAYMENT_STATUS_CACHE)}<section class="card"><button class="btn secondary" onclick="page='subjects';render()">Pergi ke Latihan</button></section>`;
+    renderPremiumPaywall().catch(()=>{});
     return;
   }
   const rowsAll = examSubjectRows();
